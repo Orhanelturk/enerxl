@@ -1,24 +1,296 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>EnerXL</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>EnerXL Map</title>
   <style>
-    html,body{height:100%;margin:0}
-    body{display:grid;place-items:center;background:#f8fafc;color:#0f172a;
-         font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    :root{
+      /* Tweak these to match your brand */
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --panel-border: #e6e8ee;
+      --shadow: 0 6px 20px rgba(0,0,0,.10);
+      --icon: #2f3a55;
+      --icon-muted:#7f8aa3;
+      --accent: #3a7afe;
+      --accent-ghost: rgba(58,122,254,.12);
+      --btn-hover: #f0f3fb;
+      --radius-xl: 16px;
+      --radius: 12px;
+    }
+
+    html, body { height:100%; margin:0; background:var(--bg); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    #app { position:relative; height:100vh; width:100vw; overflow:hidden; }
+
+    /* Top title bar (like ArcGIS for Excel) */
+    .topbar{
+      position:absolute; inset:0 0 auto 0; height:44px;
+      display:flex; align-items:center; gap:.75rem; padding:0 12px;
+      background:var(--panel); border-bottom:1px solid var(--panel-border);
+      z-index:20;
+    }
+    .brand{ font-weight:600; letter-spacing:.2px; color:#1e2433; }
+    .build-hint{ margin-left:auto; font-size:12px; color:var(--icon-muted); }
+
+    /* Map container */
+    #map{
+      position:absolute; inset:44px 0 0 0; /* below topbar */
+    }
+
+    /* Control pane (left vertical) */
+    .control-pane{
+      position:absolute; top:60px; left:12px;
+      width:56px; padding:10px 8px; box-sizing:border-box;
+      background:var(--panel); border:1px solid var(--panel-border);
+      border-radius:var(--radius-xl); box-shadow:var(--shadow);
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      z-index:30; user-select:none;
+    }
+    .group-sep{ height:1px; width:100%; background:var(--panel-border); margin:6px 0; }
+
+    .tool-btn{
+      width:40px; height:40px; border-radius:12px; border:1px solid #e9ecf3;
+      display:grid; place-items:center; background:#fff; cursor:pointer;
+      transition:transform .05s ease, background .15s ease, border-color .15s ease;
+    }
+    .tool-btn:hover{ background:var(--btn-hover); }
+    .tool-btn:active{ transform:scale(.98); }
+    .tool-btn.is-primary{
+      border-color:transparent; background:var(--accent-ghost);
+    }
+    .tool-btn svg{ width:22px; height:22px; stroke:var(--icon); }
+    .tool-btn.is-primary svg{ stroke:var(--accent); }
+
+    /* Search box (Google Places) */
+    .search-wrap{
+      position:absolute; top:60px; left:84px; z-index:25;
+      background:var(--panel); border:1px solid var(--panel-border);
+      border-radius:12px; box-shadow:var(--shadow); padding:8px 10px;
+      display:flex; align-items:center; gap:8px; min-width:280px;
+    }
+    .search-wrap input{
+      width:100%; outline:none; border:none; font-size:14px; padding:6px 2px;
+      background:transparent; color:#1e2433;
+    }
+
+    /* Small secondary vertical toolbar (optional) */
+    .mini-pane{
+      position:absolute; top:60px; right:12px; z-index:30;
+      width:46px; padding:8px 6px; background:#fff; border:1px solid var(--panel-border);
+      border-radius:14px; box-shadow:var(--shadow);
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+    }
+
+    /* Marker tooltip (simple) */
+    .chip{
+      position:absolute; bottom:14px; left:84px; z-index:25;
+      background:var(--panel); border:1px solid var(--panel-border);
+      border-radius:999px; padding:8px 12px; font-size:12px; color:#263248; box-shadow:var(--shadow);
+    }
+
+    @media (max-width: 520px){
+      .search-wrap{ min-width:200px; left:72px; }
+      .control-pane{ left:8px; }
+    }
   </style>
 </head>
 <body>
-  <div>hello6</div>
+  <div id="app">
+    <div class="topbar">
+      <span class="brand">EnerXL Maps</span>
+      <span class="build-hint">Task Pane • Google Maps API</span>
+    </div>
+
+    <!-- Map -->
+    <div id="map" role="application" aria-label="Map"></div>
+
+    <!-- Left vertical control pane -->
+    <div class="control-pane" aria-label="Tools">
+      <!-- Home / default cursor -->
+      <button class="tool-btn is-primary" data-tool="select" title="Select / Pan" aria-label="Select">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l8 8" /><path d="M4 12V4h8" />
+          <path d="M13 13l7 7" /><path d="M15 19l-4-4" />
+        </svg>
+      </button>
+
+      <!-- Search trigger (focus search box) -->
+      <button class="tool-btn" data-tool="search" title="Search" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </button>
+
+      <!-- Draw polygon (you'll wire your own drawing logic later) -->
+      <button class="tool-btn" data-tool="draw" title="Draw polygon" aria-label="Draw polygon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7l6-3 6 3 0 7-6 3-6-3z"></path>
+          <circle cx="9" cy="4" r="1.2"></circle>
+          <circle cx="15" cy="7" r="1.2"></circle>
+          <circle cx="15" cy="14" r="1.2"></circle>
+          <circle cx="9" cy="17" r="1.2"></circle>
+          <circle cx="3" cy="7" r="1.2"></circle>
+        </svg>
+      </button>
+
+      <!-- Clear -->
+      <button class="tool-btn" data-tool="clear" title="Clear" aria-label="Clear">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18" /><path d="M8 6l1-2h6l1 2" />
+          <path d="M19 6l-1 14H6L5 6" />
+          <path d="M10 11v6M14 11v6" />
+        </svg>
+      </button>
+
+      <div class="group-sep"></div>
+
+      <!-- Layers -->
+      <button class="tool-btn" data-tool="layers" title="Layers" aria-label="Layers">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l9 5-9 5-9-5 9-5z"/>
+          <path d="M3 12l9 5 9-5"/>
+          <path d="M3 17l9 5 9-5"/>
+        </svg>
+      </button>
+
+      <!-- Measure -->
+      <button class="tool-btn" data-tool="measure" title="Measure" aria-label="Measure">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18l12-12 6 6-12 12H3v-6z"/>
+          <path d="M14 6l4 4"/>
+        </svg>
+      </button>
+
+      <!-- Export -->
+      <button class="tool-btn" data-tool="export" title="Export" aria-label="Export">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12" /><path d="M8 9l4 4 4-4" />
+          <path d="M20 21H4" />
+        </svg>
+      </button>
+
+      <!-- Settings -->
+      <button class="tool-btn" data-tool="settings" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.3l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09c0 .66.39 1.26 1 1.51.6.25 1.28.12 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.45.54-.58 1.22-.33 1.82.25.61.85 1 1.51 1H21a2 2 0 1 1 0 4h-.09c-.66 0-1.26.39-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Search box -->
+    <div class="search-wrap">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7f8aa3" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path>
+      </svg>
+      <input id="search-input" type="text" placeholder="Search location…" aria-label="Search location" />
+    </div>
+
+    <!-- Mini right pane (zoom etc.) -->
+    <div class="mini-pane" aria-label="Map controls">
+      <button class="tool-btn" data-tool="zoom-in" title="Zoom in" aria-label="Zoom in">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </button>
+      <button class="tool-btn" data-tool="zoom-out" title="Zoom out" aria-label="Zoom out">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14"/>
+        </svg>
+      </button>
+      <div class="group-sep"></div>
+      <button class="tool-btn" data-tool="my-location" title="My location" aria-label="My location">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="chip" class="chip" style="display:none;"></div>
+  </div>
+
+  <!-- Google Maps API (your key) -->
+  <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry&callback=initMap"></script>
+
+  <script>
+    // Make initMap global for Google callback
+    window.initMap = function(){
+      const center = { lat: 23.5859, lng: 58.4059 }; // Muscat, Oman (good default)
+      const map = new google.maps.Map(document.getElementById('map'), {
+        center, zoom: 5, mapTypeControl: false, fullscreenControl: false, streetViewControl: false
+      });
+
+      // Simple marker to show search result
+      let searchMarker = null;
+
+      // Places Autocomplete
+      const input = document.getElementById('search-input');
+      const autocomplete = new google.maps.places.Autocomplete(input, { fields: ['geometry','name'] });
+      autocomplete.bindTo('bounds', map);
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) return;
+
+        map.panTo(place.geometry.location);
+        map.setZoom(12);
+
+        if (!searchMarker) {
+          searchMarker = new google.maps.Marker({ map, position: place.geometry.location });
+        } else {
+          searchMarker.setPosition(place.geometry.location);
+        }
+        showChip(`📍 ${place.name || 'Location'}`);
+      });
+
+      // Button wiring (placeholder actions for now)
+      const byTool = (t) => document.querySelector(`[data-tool="${t}"]`);
+      const tools = ['select','search','draw','clear','layers','measure','export','settings','zoom-in','zoom-out','my-location'];
+      tools.forEach(t => {
+        const el = byTool(t);
+        if (!el) return;
+        el.addEventListener('click', async () => {
+          switch(t){
+            case 'search': input.focus(); input.select(); break;
+            case 'zoom-in': map.setZoom(map.getZoom() + 1); break;
+            case 'zoom-out': map.setZoom(map.getZoom() - 1); break;
+            case 'my-location':
+              if (navigator.geolocation){
+                navigator.geolocation.getCurrentPosition(pos => {
+                  const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                  map.panTo(loc); map.setZoom(14);
+                  if (!searchMarker) searchMarker = new google.maps.Marker({ map, position: loc });
+                  else searchMarker.setPosition(loc);
+                  showChip('📍 Your location');
+                }, () => showChip('Location permission blocked'));
+              } else showChip('Geolocation not supported');
+              break;
+            default:
+              // Stubs for later wiring
+              console.log('[EnerXL Tool]', t, 'clicked');
+              flashPrimary(el);
+              showChip(`Tool: ${t}`);
+          }
+        });
+      });
+
+      // Visual helpers
+      function flashPrimary(el){
+        const was = el.classList.contains('is-primary');
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('is-primary'));
+        if (!was) el.classList.add('is-primary');
+      }
+      function showChip(text){
+        const c = document.getElementById('chip'); c.textContent = text; c.style.display='inline-flex';
+        clearTimeout(showChip._t); showChip._t = setTimeout(() => c.style.display='none', 2200);
+      }
+
+      // Ensure map reflows nicely inside Excel task pane resizes
+      window.addEventListener('resize', () => google.maps.event.trigger(map, 'resize'));
+    };
+  </script>
 </body>
-<script>
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'r') {
-      const u = new URL(window.location.href);
-      u.searchParams.set('v', Date.now());
-      window.location.replace(u.toString());
-    }
-  });
-</script>
 </html>
