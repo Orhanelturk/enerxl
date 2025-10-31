@@ -29,6 +29,7 @@
     border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:30
   }
   .group-sep{height:1px;width:100%;background:var(--panel-border);margin:6px 0}
+
   .tool-btn{
     width:28px;height:28px;border-radius:8px;border:1px solid #e9ecf3;display:grid;place-items:center;background:#fff;cursor:pointer;
     transition:transform .05s ease,background .15s ease,border-color .15s ease
@@ -47,7 +48,7 @@
   .chip{position:absolute;bottom:70px;left:70px;z-index:25;background:#fff;border:1px solid var(--panel-border);
         border-radius:999px;padding:8px 12px;font-size:12px;color:#263248;box-shadow:var(--shadow)}
 
-  /* “Fill-pane” full-screen toggle (controls remain) */
+  /* Full-screen just expands map (controls remain) */
   body.fs #map{inset:0 0 0 0}
 </style>
 </head>
@@ -98,12 +99,12 @@
     <button class="tool-btn" data-tool="settings" title="Settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09c.66 0 1.26-.39 1.51-1z"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09c.66 0 1.26-.39 1.51-1 .25-.6.12-1.28-.33-1.82l-.06-.06A2 2 0 1 1 7.1 3.3l.06.06c.54.45 1.22.58 1.82.33H9c.61-.25 1-.85 1-1.51V3a2 2 0 1 1 4 0v.09c0 .66.39 1.26 1 1.51.6.25 1.28.12 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.45.54-.58 1.22-.33 1.82.25.61.85 1 1.51 1H21a2 2 0 1 1 0 4h-.09c-.66 0-1.26.39-1.51 1z"/>
       </svg>
     </button>
   </div>
 
-  <!-- Right: zoom + full screen + pop-out -->
+  <!-- Right: zoom + full screen -->
   <div class="mini-pane" aria-label="Map controls">
     <button class="tool-btn" data-tool="zoom-in" title="Zoom in" aria-label="Zoom in">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -112,15 +113,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
     </button>
     <div class="group-sep"></div>
-    <button class="tool-btn" data-tool="fullscreen" title="Fill task pane" aria-label="Fill task pane">
+    <button class="tool-btn" data-tool="fullscreen" title="Full screen" aria-label="Full screen">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/>
-      </svg>
-    </button>
-    <!-- Pop-out to real full-screen capable window -->
-    <button class="tool-btn" data-tool="popout" title="Open in new window" aria-label="Open in new window">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 3h7v7"/><path d="M21 3l-9 9"/><rect x="3" y="7" width="10" height="14" rx="2" ry="2"/>
       </svg>
     </button>
   </div>
@@ -137,7 +132,6 @@
 
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry&callback=initMap"></script>
 <script>
-  // If Office.js is present, it will be available under window.Office
   window.initMap = function(){
     const center = { lat: 23.5859, lng: 58.4059 }; // Muscat
     const map = new google.maps.Map(document.getElementById('map'), {
@@ -148,7 +142,6 @@
 
     let searchMarker = null;
 
-    // Places autocomplete
     const input = document.getElementById('search-input');
     const ac = new google.maps.places.Autocomplete(input, { fields: ['geometry','name'] });
     ac.bindTo('bounds', map);
@@ -162,7 +155,7 @@
     });
 
     const byTool = (t)=>document.querySelector(`[data-tool="${t}"]`);
-    ['select','search','draw','clear','layers','measure','export','settings','zoom-in','zoom-out','fullscreen','popout']
+    ['select','search','draw','clear','layers','measure','export','settings','zoom-in','zoom-out','fullscreen']
     .forEach(t=>{
       const el = byTool(t); if(!el) return;
       el.addEventListener('click', async ()=>{
@@ -170,8 +163,7 @@
           case 'search': input.focus(); input.select(); break;
           case 'zoom-in': map.setZoom(map.getZoom()+1); break;
           case 'zoom-out': map.setZoom(map.getZoom()-1); break;
-          case 'fullscreen': fillTaskPane(); break;
-          case 'popout': openExternal(); break;
+          case 'fullscreen': toggleFullScreen(); break;
           default: flashPrimary(el); showChip(`Tool: ${t}`);
         }
       });
@@ -187,50 +179,19 @@
       clearTimeout(showChip._t); showChip._t=setTimeout(()=>c.style.display='none', 2000);
     }
 
-    // Fills the task pane area (controls remain)
-    function fillTaskPane(){
+    // Full-screen (controls remain)
+    async function toggleFullScreen(){
+      const root = document.documentElement;
+      if (!document.fullscreenElement && root.requestFullscreen){
+        try { await root.requestFullscreen(); } catch(e){ /* Excel task pane may block; still expand map */ }
+      } else if (document.fullscreenElement && document.exitFullscreen){
+        try { await document.exitFullscreen(); } catch(e){}
+      }
       document.body.classList.toggle('fs');
       google.maps.event.trigger(map,'resize');
     }
 
-    // Open external window where real full-screen is possible
-    function openExternal(){
-      const url = makeStandaloneUrl();
-      // Prefer Office dialog to avoid popup blockers & stay associated with Office
-      if (window.Office && Office.context && Office.context.ui && Office.context.ui.displayDialogAsync){
-        // For desktop Excel, displayInIframe:false opens system browser window (real OS-level window)
-        Office.context.ui.displayDialogAsync(url, { height: 90, width: 90, displayInIframe: false }, function (asyncResult) {
-          // No-op; user can use the external window's fullscreen
-        });
-      } else {
-        // Fallback to normal popup/new tab
-        const w = window.open(url, '_blank', 'noopener,noreferrer');
-        if (!w) showChip('Popup blocked—allow popups for full screen');
-      }
-    }
-
-    // Build a lightweight standalone view of this page (same file) with ?standalone=1
-    function makeStandaloneUrl(){
-      const u = new URL(window.location.href);
-      u.searchParams.set('standalone','1');
-      return u.href;
-    }
-
-    // If opened in standalone mode, auto-request browser fullscreen (best effort)
-    (function tryStandaloneFS(){
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('standalone') === '1'){
-        // Try to request fullscreen after a user gesture (first click)
-        const arm = () => {
-          document.removeEventListener('click', arm, true);
-          if (document.documentElement.requestFullscreen){
-            document.documentElement.requestFullscreen().catch(()=>{});
-          }
-        };
-        document.addEventListener('click', arm, true);
-      }
-    })();
-
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && document.body.classList.contains('fs')){ document.body.classList.remove('fs'); google.maps.event.trigger(map,'resize'); }});
     window.addEventListener('resize', ()=>google.maps.event.trigger(map,'resize'));
   };
 </script>
