@@ -21,13 +21,15 @@
   /* Map area */
   #map{position:absolute;inset:44px 0 0 0}
 
-  /* Controls (smaller; placed at bottom) */
+  /* LEFT controllers (TOP-LEFT as requested) */
   .control-pane{
-    position:absolute;bottom:14px;left:10px;
+    position:absolute;top:56px;left:10px;           /* << moved back up */
     width:42px;padding:6px 5px;box-sizing:border-box;background:var(--panel);
     border:1px solid var(--panel-border);border-radius:14px;box-shadow:var(--shadow);
     display:flex;flex-direction:column;align-items:center;gap:6px;z-index:30;user-select:none
   }
+
+  /* RIGHT mini pane stays bottom-right */
   .mini-pane{
     position:absolute;bottom:14px;right:10px;
     width:42px;padding:6px 5px;background:#fff;border:1px solid var(--panel-border);
@@ -54,7 +56,7 @@
   .chip{position:absolute;bottom:70px;left:70px;z-index:25;background:var(--panel);border:1px solid var(--panel-border);
         border-radius:999px;padding:8px 12px;font-size:12px;color:#263248;box-shadow:var(--shadow)}
 
-  /* Full-screen mode: hide only topbar; keep controls */
+  /* Full-screen: hide only topbar; keep control panes */
   body.fs .topbar{display:none!important}
   body.fs #map{inset:0 0 0 0}
 </style>
@@ -68,7 +70,7 @@
 
   <div id="map" role="application" aria-label="Map"></div>
 
-  <!-- Left: primary tool column -->
+  <!-- LEFT: primary tools (now at the top-left) -->
   <div class="control-pane" aria-label="Tools">
     <button class="tool-btn is-primary" data-tool="select" title="Select / Pan" aria-label="Select">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
@@ -116,7 +118,7 @@
     </button>
   </div>
 
-  <!-- Right: zoom + full screen -->
+  <!-- RIGHT: zoom + full screen (still bottom-right) -->
   <div class="mini-pane" aria-label="Map controls">
     <button class="tool-btn" data-tool="zoom-in" title="Zoom in" aria-label="Zoom in">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -157,15 +159,15 @@
 
     // Places autocomplete
     const input = document.getElementById('search-input');
-    const autocomplete = new google.maps.places.Autocomplete(input, { fields: ['geometry','name'] });
-    autocomplete.bindTo('bounds', map);
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (!place.geometry || !place.geometry.location) return;
-      map.panTo(place.geometry.location); map.setZoom(12);
-      if (!searchMarker) searchMarker = new google.maps.Marker({ map, position: place.geometry.location });
-      else searchMarker.setPosition(place.geometry.location);
-      showChip(`📍 ${place.name || 'Location'}`);
+    const ac = new google.maps.places.Autocomplete(input, { fields: ['geometry','name'] });
+    ac.bindTo('bounds', map);
+    ac.addListener('place_changed', () => {
+      const p = ac.getPlace();
+      if (!p.geometry || !p.geometry.location) return;
+      map.panTo(p.geometry.location); map.setZoom(12);
+      if (!searchMarker) searchMarker = new google.maps.Marker({ map, position: p.geometry.location });
+      else searchMarker.setPosition(p.geometry.location);
+      showChip(`📍 ${p.name || 'Location'}`);
     });
 
     const byTool = (t)=>document.querySelector(`[data-tool="${t}"]`);
@@ -178,8 +180,7 @@
           case 'zoom-in': map.setZoom(map.getZoom()+1); break;
           case 'zoom-out': map.setZoom(map.getZoom()-1); break;
           case 'fullscreen': toggleFullScreen(); break;
-          default:
-            console.log('[EnerXL Tool]', t, 'clicked'); flashPrimary(el); showChip(`Tool: ${t}`);
+          default: flashPrimary(el); showChip(`Tool: ${t}`);
         }
       });
     });
@@ -194,19 +195,18 @@
       clearTimeout(showChip._t); showChip._t=setTimeout(()=>c.style.display='none', 2000);
     }
 
-    // Fullscreen: keep controls visible; hide only the topbar and let map fill
+    // Fullscreen: keep control panes; hide only topbar and expand map
     async function toggleFullScreen(){
       const root = document.documentElement;
       if (!document.fullscreenElement && root.requestFullscreen){
-        try { await root.requestFullscreen(); } catch(e){ /* Office WebView2 may block; fallback still applies */ }
+        try { await root.requestFullscreen(); } catch(e){ /* Office WebView2 may block; UI fallback still applies */ }
       } else if (document.fullscreenElement && document.exitFullscreen){
         try { await document.exitFullscreen(); } catch(e){}
       }
-      document.body.classList.toggle('fs');      // hides topbar, expands map
-      google.maps.event.trigger(map,'resize');   // reflow
+      document.body.classList.toggle('fs');
+      google.maps.event.trigger(map,'resize');
     }
 
-    // Exit FS with ESC if needed
     document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && document.body.classList.contains('fs')){ document.body.classList.remove('fs'); google.maps.event.trigger(map,'resize'); }});
     window.addEventListener('resize', ()=>google.maps.event.trigger(map,'resize'));
   };
