@@ -1,6 +1,5 @@
-/* commands.js — no taskpane, just command logic */
+/* commands.js — ExecuteFunction logic only (no task pane) */
 (function () {
-  // Utility: arrayBuffer -> base64 (works in Office WebView)
   function arrayBufferToBase64(buffer) {
     let binary = "";
     const bytes = new Uint8Array(buffer);
@@ -11,46 +10,87 @@
     return btoa(binary);
   }
 
-  async function createSolarTemplate(event) {
+  async function notify(message) {
+    // Lightweight UI so you see errors/success even without a task pane.
     try {
-      // 1) Decide where to fetch the template from
-      // Prefer a hard-coded URL (simple), or read from the manifest via Office.context (advanced).
-      // Hard-coded, with cache-bust:
-      const templateUrl = "https://orhanelturk.github.io/enerxl/Book1.xlsx?v=2025.10.31-004";
+      await OfficeRuntime.displayWebDialog(`data:text/html,
+        <html><body style="font:14px system-ui;padding:16px">
+        <div>${message.replace(/</g,"&lt;")}</div>
+        <button onclick="Office.context.ui.messageParent('ok')"
+          style="margin-top:12px;padding:6px 10px">Close</button>
+        <script>Office.onReady(()=>{});</script>
+        </body></html>`, { height: 30, width: 40, displayInIframe: true });
+    } catch (_) { /* ignore if blocked */ }
+  }
 
-      // 2) Fetch template workbook and convert to base64
+  async function createSolarTemplate(event) {
+    let msg = "";
+    try {
+      // 0) API support guard
+      if (!Office.context.requirements.isSetSupported("ExcelApi", "1.13")) {
+        msg = "This command needs ExcelApi 1.13+. Please use latest Excel (Win/Mac/Web) or update Office.";
+        await notify(msg);
+        return;
+      }
+
+      // 1) Template URL (keep this in sync with your published GitHub Pages asset)
+      const templateUrl = "https://orhanelturk.github.io/enerxl/Book1.xlsx?v=2025.10.31-004"; // publish this exact file
+
+      // 2) Fetch & convert to base64
       const resp = await fetch(templateUrl, { cache: "no-store" });
       if (!resp.ok) throw new Error(`Template fetch failed: ${resp.status} ${resp.statusText}`);
       const buf = await resp.arrayBuffer();
       const base64 = arrayBufferToBase64(buf);
 
-      // 3) Insert the specific sheet from the template
-      await Excel.run(async (context) => {
-        context.workbook.insertWorksheetsFromBase64(base64, {
-          sheetNamesToInsert: ["System Summary"],           // <-- sheet name inside Book1.xlsx
-          positionType: Excel.WorksheetPositionType.end
-        });
-        await context.sync();
-
-        // 4) Rename and activate
-        const ws = context.workbook.worksheets.getItem("System Summary");
-        ws.name = "Solar Template";
-        ws.activate();
-        await context.sync();
-      });
-    } catch (err) {
-      // Optional: lightweight error UI via notification messages
+      // 3) Try inserting a specific sheet first
+      let insertedByName = true;
       try {
-        Office.addin && Office.addin.showAsTaskpane && console.warn("Tip: no task pane open to show UI.");
-      } catch (_) {}
+        await Excel.run(async (context) => {
+          context.workbook.insertWorksheetsFromBase64(base64, {
+            sheetNamesToInsert: ["System Summary"],    // ensure this exists in Book1.xlsx
+            positionType: Excel.WorksheetPositionType.end
+          });
+          await context.sync();
+
+          const ws = context.workbook.worksheets.getItem("System Summary");
+          ws.name = "Solar Template";
+          ws.activate();
+          await context.sync();
+        });
+      } catch (e) {
+        // Fallback: insert ALL sheets, then activate the first
+        insertedByName = false;
+        await Excel.run(async (context) => {
+          context.workbook.insertWorksheetsFromBase64(base64, {
+            positionType: Excel.WorksheetPositionType.end
+          });
+          await context.sync();
+
+          const sheets = context.workbook.worksheets;
+          sheets.load("items/name");
+          await context.sync();
+          if (sheets.items.length > 0) {
+            const first = sheets.items[sheets.items.length - 1]; // newly appended block’s first sheet is last range
+            first.name = "Solar Template";
+            first.activate();
+            await context.sync();
+          }
+        });
+      }
+
+      msg = insertedByName
+        ? "✅ Inserted sheet “System Summary” as “Solar Template”."
+        : "✅ Inserted all sheets from template. Activated and renamed the last appended sheet to “Solar Template”.";
+      await notify(msg);
+
+    } catch (err) {
       console.error("Create Template failed:", err);
+      await notify("❌ Create Template failed: " + (err && err.message ? err.message : String(err)));
     } finally {
-      // Always complete so the ribbon unfreezes
       try { event.completed(); } catch (_) {}
     }
   }
 
-  // Hook up the command when Office is ready
   Office.onReady(() => {
     Office.actions.associate("createSolarTemplate", createSolarTemplate);
   });
