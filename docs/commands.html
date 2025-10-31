@@ -5,63 +5,26 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex" />
-  <title>EnerXL Commands (FunctionFile)</title>
+  <title>EnerXL Commands (No-Log)</title>
 
   <!-- Office runtime MUST load before the command handlers -->
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 
   <script>
   (function () {
-    // ---------------- Configuration ----------------
-    // Forward the version from the manifest's URL (e.g., commands.html?v=2025.10.31-005)
+    // ---------------- Settings ----------------
     var v = (new URLSearchParams(location.search).get("v") || "").trim();
     var TEMPLATE_URL = "https://orhanelturk.github.io/enerxl/Book1.xlsx" + (v ? ("?v=" + encodeURIComponent(v)) : "");
     var TARGET_SHEET_NAME = "System Summary";   // preferred sheet inside template
     var RENAMED_SHEET_NAME = "Solar Template";  // desired final name
-    var LOG_SHEET = "_EnerXL_Log";
+    var SHOW_DIALOGS = true;                    // set false to be completely silent
+    var HIDE_LEGACY_LOG_SHEET = true;          // auto-hide an existing "_EnerXL_Log" if present
 
-    // ---------------- Utilities ----------------
-    function arrayBufferToBase64(buffer) {
-      var binary = "", bytes = new Uint8Array(buffer), chunk = 0x8000;
-      for (var i = 0; i < bytes.length; i += chunk) {
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-      }
-      return btoa(binary);
-    }
+    // ---------------- Lightweight notify (no sheet logging) ----------------
+    function notify(message) {
+      try { console.log("[EnerXL]", message); } catch (_) {}
+      if (!SHOW_DIALOGS) return;
 
-    async function logToSheet(lines) {
-      try {
-        await Excel.run(async (context) => {
-          var sheets = context.workbook.worksheets;
-          var ws = sheets.getItemOrNullObject(LOG_SHEET);
-          ws.load("name");
-          await context.sync();
-          if (ws.isNullObject) {
-            ws = sheets.add(LOG_SHEET);
-          }
-
-          // Read existing text from A1, append with timestamp, write back.
-          var rng = ws.getRange("A1");
-          rng.load("values");
-          await context.sync();
-
-          var existing = (rng.values && rng.values[0] && rng.values[0][0]) ? String(rng.values[0][0]) : "";
-          var stamp = new Date().toISOString();
-          var add = Array.isArray(lines) ? lines.join("\n") : String(lines);
-          var combined = (existing ? existing + "\n" : "") + "[" + stamp + "] " + add;
-
-          ws.getRange("A1").values = [[combined]];
-          await context.sync();
-        });
-      } catch (e) {
-        // Logging must never break the command.
-        try { console.warn("EnerXL logToSheet failed:", e); } catch (_) {}
-      }
-    }
-
-    // Non-blocking toast: we await ONLY the sheet log (safe), but NOT the dialog.
-    async function notify(message) {
-      try { await logToSheet(message); } catch (_) {}
       try {
         var html =
           '<!doctype html><html><body style="font:14px system-ui;padding:16px;line-height:1.4">' +
@@ -70,14 +33,13 @@
           '<button onclick="window.close()" style="padding:6px 10px;border:1px solid #ccc;border-radius:6px;background:#f6f6f6">Close</button>' +
           "</div></body></html>";
 
-        // Fire-and-forget: do NOT await (avoids stalling ExecuteFunction)
-        void OfficeRuntime.displayWebDialog(
-          "data:text/html," + encodeURIComponent(html),
-          { height: 30, width: 40, displayInIframe: false }
-        );
-      } catch (_) {
-        // Dialogs can be blocked by policy; the in-sheet log is enough.
-      }
+        // Fire-and-forget so the command never stalls
+        void OfficeRuntime.displayWebDialog("data:text/html," + encodeURIComponent(html), {
+          height: 30,
+          width: 40,
+          displayInIframe: false
+        });
+      } catch (_) { /* dialogs may be blocked; console log is enough */ }
     }
 
     function ensureSupportOrThrow() {
@@ -85,8 +47,17 @@
                Office.context.requirements.isSetSupported &&
                Office.context.requirements.isSetSupported("ExcelApi", "1.13");
       if (!ok) {
-        throw new Error("ExcelApi 1.13+ is required (insertWorksheetsFromBase64). Try Excel on the web or update Desktop.");
+        throw new Error("ExcelApi 1.13+ is required (insertWorksheetsFromBase64). Use Excel on the web or update Desktop.");
       }
+    }
+
+    // ---------------- Helpers ----------------
+    function arrayBufferToBase64(buffer) {
+      var binary = "", bytes = new Uint8Array(buffer), chunk = 0x8000;
+      for (var i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      return btoa(binary);
     }
 
     async function fetchTemplateBase64(url) {
@@ -107,8 +78,24 @@
       return desired + " (" + i + ")";
     }
 
+    // Hide (don’t delete) an old log sheet if it exists, so no tab shows up.
+    async function maybeHideLegacyLogSheet() {
+      if (!HIDE_LEGACY_LOG_SHEET) return;
+      try {
+        await Excel.run(async function (context) {
+          var ws = context.workbook.worksheets.getItemOrNullObject("_EnerXL_Log");
+          ws.load("name");
+          await context.sync();
+          if (!ws.isNullObject) {
+            ws.visibility = "VeryHidden"; // hide from UI without removing data
+            await context.sync();
+          }
+        });
+      } catch (_) { /* ignore */ }
+    }
+
     async function insertNamedSheetFromBase64(base64, sheetName, renameTo) {
-      return await Excel.run(async (context) => {
+      return await Excel.run(async function (context) {
         var wb = context.workbook;
 
         wb.insertWorksheetsFromBase64(base64, {
@@ -121,21 +108,20 @@
         var finalName = renameTo ? await getUniqueSheetName(context, renameTo) : sheetName;
         if (renameTo) ws.name = finalName;
 
-        // Activate the sheet we just inserted/renamed
-        ws.activate();
+        wb.worksheets.getItem(finalName).activate();
         await context.sync();
         return finalName;
       });
     }
 
     async function insertAllSheetsFromBase64(base64, renameTo) {
-      return await Excel.run(async (context) => {
+      return await Excel.run(async function (context) {
         var wb = context.workbook;
 
         var before = wb.worksheets;
         before.load("items/name");
         await context.sync();
-        var beforeNames = new Set(before.items.map(function (s) { return s.name; }));
+        var countBefore = before.items.length;
 
         wb.insertWorksheetsFromBase64(base64, { positionType: Excel.WorksheetPositionType.end });
         await context.sync();
@@ -144,18 +130,16 @@
         after.load("items/name");
         await context.sync();
 
-        // Find the first newly inserted sheet by name difference
-        var newSheets = after.items.filter(function (s) { return !beforeNames.has(s.name); });
-        if (!newSheets.length) throw new Error("No sheets were inserted (unexpected).");
+        if (after.items.length <= countBefore) throw new Error("No sheets were inserted (unexpected).");
 
-        var newFirst = newSheets[0];
+        var newFirst = after.items[countBefore];
         var finalName = newFirst.name;
         if (renameTo) {
           finalName = await getUniqueSheetName(context, renameTo);
           newFirst.name = finalName;
         }
 
-        wb.worksheets.getItem(finalName).activate();
+        after.getItem(finalName).activate();
         await context.sync();
         return finalName;
       });
@@ -165,21 +149,22 @@
     async function createSolarTemplate(event) {
       try {
         ensureSupportOrThrow();
-        await notify("⏳ Fetching template…");
+        await maybeHideLegacyLogSheet();
+        notify("⏳ Fetching template…");
         var base64 = await fetchTemplateBase64(TEMPLATE_URL);
 
         try {
           var finalName1 = await insertNamedSheetFromBase64(base64, TARGET_SHEET_NAME, RENAMED_SHEET_NAME);
-          await notify("✅ Inserted “" + TARGET_SHEET_NAME + "” as “" + finalName1 + "”.");
+          notify("✅ Inserted “" + TARGET_SHEET_NAME + "” as “" + finalName1 + "”.");
         } catch (namedErr) {
-          await notify("ℹ️ Named sheet insert failed (“" + TARGET_SHEET_NAME + "”). Falling back to all sheets…\nReason: " +
-                       (namedErr && namedErr.message ? namedErr.message : String(namedErr)));
+          notify("ℹ️ Couldn't insert only “" + TARGET_SHEET_NAME + "”. Inserting all sheets…\nReason: " +
+                 (namedErr && namedErr.message ? namedErr.message : String(namedErr)));
           var finalName2 = await insertAllSheetsFromBase64(base64, RENAMED_SHEET_NAME);
-          await notify("✅ Inserted all sheets. Activated “" + finalName2 + "”.");
+          notify("✅ Inserted all sheets. Activated “" + finalName2 + "”.");
         }
       } catch (err) {
         console.error(err);
-        await notify("❌ Create Template failed: " + (err && err.message ? err.message : String(err)));
+        notify("❌ Create Template failed: " + (err && err.message ? err.message : String(err)));
       } finally {
         try { event.completed(); } catch (_) {}
       }
@@ -188,34 +173,33 @@
     async function createSolarTemplateAll(event) {
       try {
         ensureSupportOrThrow();
-        await notify("⏳ Fetching template (all sheets) …");
+        await maybeHideLegacyLogSheet();
+        notify("⏳ Fetching template (all sheets) …");
         var base64 = await fetchTemplateBase64(TEMPLATE_URL);
         var finalName = await insertAllSheetsFromBase64(base64, RENAMED_SHEET_NAME);
-        await notify("✅ Inserted all sheets. Activated “" + finalName + "”.");
+        notify("✅ Inserted all sheets. Activated “" + finalName + "”.");
       } catch (err) {
         console.error(err);
-        await notify("❌ Create Template (All) failed: " + (err && err.message ? err.message : String(err)));
+        notify("❌ Create Template (All) failed: " + (err && err.message ? err.message : String(err)));
       } finally {
         try { event.completed(); } catch (_) {}
       }
     }
 
-    // Simple sanity check command
+    // Optional sanity command
     async function addBlankSheet(event) {
       try {
-        await Excel.run(async (context) => {
+        await Excel.run(async function (context) {
           var name = "EnerXL_Test";
           var ws = context.workbook.worksheets.add(name);
           ws.getRange("A1").values = [["✅ Command fired."]];
           ws.activate();
           await context.sync();
         });
-        await notify("✅ Added a blank sheet named “EnerXL_Test”.");
+        notify("✅ Added a blank sheet named “EnerXL_Test”.");
       } catch (err) {
-        await notify("❌ addBlankSheet failed: " + (err && err.message ? err.message : String(err)));
-      } finally {
-        try { event.completed(); } catch (_) {}
-      }
+        notify("❌ addBlankSheet failed: " + (err && err.message ? err.message : String(err)));
+      } finally { try { event.completed(); } catch (_) {} }
     }
 
     // ---------------- Registration ----------------
