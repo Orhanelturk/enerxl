@@ -7,7 +7,7 @@
 <title>EnerXL Map</title>
 <style>
   :root{
-    --panel:#fff; --panel-border:#e6e8ee; --shadow:0 6px 20px rgba(0,0,0,.10);
+    --panel:#fff; --panel-border:#e6e8ee; --shadow:0 6px 20px rgba(0,0,0,.12);
     --icon:#2f3a55; --accent:#3a7afe; --accent-ghost:rgba(58,122,254,.12);
   }
   html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
@@ -51,7 +51,7 @@
 <div id="app">
   <div id="map" role="application" aria-label="Map"></div>
 
-  <!-- Left tools (no custom zoom buttons anywhere) -->
+  <!-- Left tools -->
   <div class="control-pane" aria-label="Tools">
     <!-- Search first -->
     <button class="tool-btn" data-tool="search" title="Search" aria-label="Search">
@@ -119,10 +119,9 @@
       center, zoom: 5,
       mapTypeId: 'satellite',
       mapTypeControl: false,
-      fullscreenControl: false,  // we use our own
+      fullscreenControl: false,     // we use our own
       streetViewControl: false,
-      zoomControl: true,
-      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM } // native zoom visible
+      zoomControl: false            // REMOVE native +/−
     });
 
     // --- Places search ---
@@ -140,7 +139,7 @@
       showChip(`📍 ${p.name || 'Location'}`);
     });
 
-    // --- Left tools wiring (search toggle) ---
+    // --- Left tools (search toggle) ---
     const byTool = (t)=>document.querySelector(`[data-tool="${t}"]`);
     ['search','select','draw','clear','layers','measure','export','settings'].forEach(t=>{
       const el = byTool(t); if(!el) return;
@@ -172,37 +171,38 @@
       }
     });
 
-    // --- Custom FULLSCREEN control BELOW native controls ---
-    const fsControl = buildFullScreenControl();
+    // --- Custom ROUND FULLSCREEN control (RIGHT_BOTTOM) ---
+    const fsControl = buildRoundFullScreenControl();
     map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(fsControl);
 
-    function buildFullScreenControl(){
+    function buildRoundFullScreenControl(){
       const container = document.createElement('div');
       container.style.margin = '8px';
 
       const btn = document.createElement('button');
-      btn.className = 'tool-btn';
       btn.title = 'Full screen';
       btn.setAttribute('aria-label','Full screen');
+
+      // circular look like Google controls
+      Object.assign(btn.style, {
+        width:'40px', height:'40px',
+        borderRadius:'9999px',
+        border:'1px solid var(--panel-border)',
+        background:'#fff',
+        boxShadow:'var(--shadow)',
+        display:'grid', placeItems:'center',
+        cursor:'pointer', padding:'0'
+      });
+
       btn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+             stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+             style="color:#2f3a55">
           <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/>
         </svg>`;
       btn.addEventListener('click', toggleFullScreen);
 
-      const wrap = document.createElement('div');
-      wrap.style.background = '#fff';
-      wrap.style.border = '1px solid var(--panel-border)';
-      wrap.style.borderRadius = '14px';
-      wrap.style.boxShadow = 'var(--shadow)';
-      wrap.style.padding = '6px 5px';
-      wrap.style.display = 'flex';
-      wrap.style.flexDirection = 'column';
-      wrap.style.alignItems = 'center';
-      wrap.style.gap = '6px';
-
-      wrap.appendChild(btn);
-      container.appendChild(wrap);
+      container.appendChild(btn);
       return container;
     }
 
@@ -220,7 +220,7 @@
     async function toggleFullScreen(){
       const root = document.documentElement;
       if (!document.fullscreenElement && root.requestFullscreen){
-        try { await root.requestFullscreen(); } catch(e){ /* Excel task pane may block; still expand map */ }
+        try { await root.requestFullscreen(); } catch(e){ /* Excel task pane may block */ }
       } else if (document.fullscreenElement && document.exitFullscreen){
         try { await document.exitFullscreen(); } catch(e){}
       }
