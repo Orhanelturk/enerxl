@@ -9,15 +9,18 @@
   ProviderName="EnerXL"
   DefaultLocale="en-US">
 
+  <!-- Keep the GUID stable once you ship -->
   <Id>c7f8f3a0-bd1a-4b83-9f4a-1d2a3a2f9b11</Id>
   <DisplayName DefaultValue="EnerXL"/>
   <Description DefaultValue="PV • Wind • BESS mapping and finance inside Excel."/>
 
-  <!-- Shown in My Add-ins gallery -->
+  <!-- Gallery icon -->
   <IconUrl DefaultValue="https://Orhanelturk.github.io/enerxl/icons/pv-80.png"/>
   <HighResolutionIconUrl DefaultValue="https://Orhanelturk.github.io/enerxl/icons/pv-80.png"/>
 
-  <Hosts><Host Name="Workbook"/></Hosts>
+  <Hosts>
+    <Host Name="Workbook"/>
+  </Hosts>
 
   <Requirements>
     <Sets DefaultMinVersion="1.3">
@@ -25,21 +28,24 @@
     </Sets>
   </Requirements>
 
+  <!-- Default page (not used when launching via ribbon button, but good fallback) -->
   <DefaultSettings>
     <SourceLocation DefaultValue="https://Orhanelturk.github.io/enerxl/taskpane.html"/>
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
 
+  <!-- Ribbon + resources -->
   <VersionOverrides xsi:type="ov:VersionOverrides" Version="1.1">
     <ov:Hosts>
       <ov:Host xsi:type="Workbook">
+        <!-- Keep the task pane runtime alive -->
         <ov:Runtimes>
           <ov:Runtime resid="Taskpane.Url" lifetime="long"/>
         </ov:Runtimes>
 
-        <!-- Place the PV button on the built-in Home tab -->
         <ov:ExtensionPoint xsi:type="PrimaryCommandSurface">
+          <!-- Put our group on the built-in Home tab -->
           <ov:OfficeTab id="TabHome">
             <ov:Group id="Group.EnerXL.Home">
               <ov:Label resid="Group.Label"/>
@@ -71,14 +77,16 @@
         <bt:Image id="Icon.PV.32" DefaultValue="https://Orhanelturk.github.io/enerxl/icons/pv-32.png"/>
         <bt:Image id="Icon.PV.80" DefaultValue="https://Orhanelturk.github.io/enerxl/icons/pv-80.png"/>
       </ov:Images>
+
       <ov:Urls>
         <ov:Url id="Taskpane.Url" DefaultValue="https://Orhanelturk.github.io/enerxl/taskpane.html"/>
       </ov:Urls>
+
       <ov:ShortStrings>
-        <ov:String id="Tab.Label" DefaultValue="EnerXL"/>
         <ov:String id="Group.Label" DefaultValue="Main"/>
         <ov:String id="Button.PV.Label" DefaultValue="PV"/>
       </ov:ShortStrings>
+
       <ov:LongStrings>
         <ov:String id="Button.PV.Tip" DefaultValue="Open the EnerXL PV map & tools."/>
       </ov:LongStrings>
