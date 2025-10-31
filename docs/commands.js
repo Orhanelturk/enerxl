@@ -3,7 +3,7 @@
    Requires: ExcelApi 1.13+
 */
 (function () {
-  const TEMPLATE_URL = "https://orhanelturk.github.io/enerxl/Book1.xlsx?v=2025.10.31-005"; // keep in sync with manifest
+  const TEMPLATE_URL = "https://orhanelturk.github.io/enerxl/Book1.xlsx?v=2025.10.31-004"; // keep in sync with manifest
   const TARGET_SHEET_NAME = "System Summary";       // preferred sheet inside template
   const RENAMED_SHEET_NAME = "Solar Template";      // desired final name after insert
   const LOG_SHEET = "_EnerXL_Log";
