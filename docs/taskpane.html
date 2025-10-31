@@ -26,8 +26,12 @@
   .mini-pane{
     position:absolute;bottom:14px;right:10px;
     width:42px;padding:6px 5px;background:#fff;border:1px solid var(--panel-border);
-    border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:30
+    border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:30;
+    opacity:.28; transition: opacity .18s ease;
   }
+  .mini-pane:hover,
+  .mini-pane:focus-within{ opacity:1 }
+
   .group-sep{height:1px;width:100%;background:var(--panel-border);margin:6px 0}
 
   .tool-btn{
@@ -39,10 +43,13 @@
   .tool-btn svg{width:16px;height:16px;stroke:var(--icon)}
   .tool-btn.is-primary svg{stroke:var(--accent)}
 
+  /* Search bubble (hidden by default, opens when .open added) */
   .search-wrap{
     position:absolute;top:12px;left:70px;z-index:25;background:#fff;border:1px solid var(--panel-border);
-    border-radius:12px;box-shadow:var(--shadow);padding:6px 10px;display:flex;align-items:center;gap:8px;min-width:260px
+    border-radius:12px;box-shadow:var(--shadow);padding:6px 10px;align-items:center;gap:8px;min-width:260px;
+    display:none; transform-origin:left top; opacity:0; transform:scale(.97); transition:opacity .12s ease, transform .12s ease;
   }
+  .search-wrap.open{ display:flex; opacity:1; transform:scale(1) }
   .search-wrap input{width:100%;outline:none;border:none;font-size:14px;padding:6px 2px;background:transparent;color:#1e2433}
 
   .chip{position:absolute;bottom:70px;left:70px;z-index:25;background:#fff;border:1px solid var(--panel-border);
@@ -58,14 +65,15 @@
 
   <!-- Left tools -->
   <div class="control-pane" aria-label="Tools">
-    <button class="tool-btn is-primary" data-tool="select" title="Select / Pan" aria-label="Select">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 4l8 8"/><path d="M4 12V4h8"/><path d="M13 13l7 7"/><path d="M15 19l-4-4"/>
-      </svg>
-    </button>
+    <!-- SEARCH IS NOW FIRST -->
     <button class="tool-btn" data-tool="search" title="Search" aria-label="Search">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+      </svg>
+    </button>
+    <button class="tool-btn is-primary" data-tool="select" title="Select / Pan" aria-label="Select">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4l8 8"/><path d="M4 12V4h8"/><path d="M13 13l7 7"/><path d="M15 19l-4-4"/>
       </svg>
     </button>
     <button class="tool-btn" data-tool="draw" title="Draw polygon" aria-label="Draw polygon">
@@ -120,7 +128,8 @@
     </button>
   </div>
 
-  <div class="search-wrap">
+  <!-- Hidden by default; opens on Search click -->
+  <div class="search-wrap" id="search-wrap" aria-expanded="false">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7f8aa3" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
     </svg>
@@ -142,6 +151,7 @@
 
     let searchMarker = null;
 
+    const wrap = document.getElementById('search-wrap');
     const input = document.getElementById('search-input');
     const ac = new google.maps.places.Autocomplete(input, { fields: ['geometry','name'] });
     ac.bindTo('bounds', map);
@@ -155,18 +165,44 @@
     });
 
     const byTool = (t)=>document.querySelector(`[data-tool="${t}"]`);
-    ['select','search','draw','clear','layers','measure','export','settings','zoom-in','zoom-out','fullscreen']
+    ['search','select','draw','clear','layers','measure','export','settings','zoom-in','zoom-out','fullscreen']
     .forEach(t=>{
       const el = byTool(t); if(!el) return;
-      el.addEventListener('click', async ()=>{
+      el.addEventListener('click', async (ev)=>{
         switch(t){
-          case 'search': input.focus(); input.select(); break;
+          case 'search':
+            // Toggle search bubble open/close
+            const isOpen = wrap.classList.toggle('open');
+            wrap.setAttribute('aria-expanded', String(isOpen));
+            if (isOpen) { setTimeout(()=>{ input.focus(); input.select(); }, 0); }
+            break;
           case 'zoom-in': map.setZoom(map.getZoom()+1); break;
           case 'zoom-out': map.setZoom(map.getZoom()-1); break;
           case 'fullscreen': toggleFullScreen(); break;
           default: flashPrimary(el); showChip(`Tool: ${t}`);
         }
       });
+    });
+
+    // Click outside to close search
+    document.addEventListener('click', (e)=>{
+      const searchBtn = byTool('search');
+      if (!wrap.classList.contains('open')) return;
+      if (!wrap.contains(e.target) && !searchBtn.contains(e.target)) {
+        wrap.classList.remove('open');
+        wrap.setAttribute('aria-expanded','false');
+      }
+    });
+
+    // Esc closes search
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === 'Escape' && wrap.classList.contains('open')) {
+        wrap.classList.remove('open');
+        wrap.setAttribute('aria-expanded','false');
+      }
+      if(e.key==='Escape' && document.body.classList.contains('fs')){
+        document.body.classList.remove('fs'); google.maps.event.trigger(map,'resize');
+      }
     });
 
     function flashPrimary(el){
@@ -191,7 +227,7 @@
       google.maps.event.trigger(map,'resize');
     }
 
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && document.body.classList.contains('fs')){ document.body.classList.remove('fs'); google.maps.event.trigger(map,'resize'); }});
+    // Keep map crisp on container resize
     window.addEventListener('resize', ()=>google.maps.event.trigger(map,'resize'));
   };
 </script>
