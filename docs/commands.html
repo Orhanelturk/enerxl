@@ -46,14 +46,15 @@
     } catch { /* logging must never throw */ }
   }
 
-  async function notify(message) {
-    await logToSheet(message);
+   function notify(message) {
+   // Fire-and-forget: don't block the command
+   logToSheet(message);
     const html = `<html><body style="font:14px system-ui; padding:16px; line-height:1.4">
       <div>${(message || "").replace(/</g, "&lt;")}</div>
       <button onclick="Office.context.ui.messageParent('ok')" style="margin-top:12px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;background:#f6f6f6">Close</button>
       <script>Office.onReady(()=>{});</script></body></html>`;
     try {
-      await OfficeRuntime.displayWebDialog(`data:text/html,${encodeURIComponent(html)}`, { height: 30, width: 40, displayInIframe: false });
+      void OfficeRuntime.displayWebDialog(`data:text/html,${encodeURIComponent(html)}`, { height: 30, width: 40, displayInIframe: false });
     } catch (_) { /* dialogs may be blocked; sheet log already has it */ }
   }
 
@@ -131,21 +132,21 @@
   async function createSolarTemplate(event) {
     try {
       ensureSupportOrThrow();
-      await notify("⏳ Fetching template…");
+      notify("⏳ Fetching template…");
       const base64 = await fetchTemplateBase64(TEMPLATE_URL);
 
       let finalName;
       try {
         finalName = await insertNamedSheetFromBase64(base64, TARGET_SHEET_NAME, RENAMED_SHEET_NAME);
-        await notify(`✅ Inserted “${TARGET_SHEET_NAME}” as “${finalName}”.`);
+        notify(`✅ Inserted “${TARGET_SHEET_NAME}” as “${finalName}”.`);
       } catch (namedErr) {
-        await notify(`ℹ️ Named sheet insert failed (“${TARGET_SHEET_NAME}”). Falling back to all sheets…\nReason: ${namedErr?.message || namedErr}`);
+        notify(`ℹ️ Named sheet insert failed (“${TARGET_SHEET_NAME}”). Falling back to all sheets…\nReason: ${namedErr?.message || namedErr}`);
         finalName = await insertAllSheetsFromBase64(base64, RENAMED_SHEET_NAME);
-        await notify(`✅ Inserted all sheets. Activated “${finalName}”.`);
+        notify(`✅ Inserted all sheets. Activated “${finalName}”.`);
       }
     } catch (err) {
       console.error(err);
-      await notify("❌ Create Template failed: " + (err?.message || String(err)));
+      notify("❌ Create Template failed: " + (err?.message || String(err)));
     } finally {
       try { event.completed(); } catch (_) {}
     }
@@ -154,13 +155,13 @@
   async function createSolarTemplateAll(event) {
     try {
       ensureSupportOrThrow();
-      await notify("⏳ Fetching template (all sheets) …");
+      notify("⏳ Fetching template (all sheets) …");
       const base64 = await fetchTemplateBase64(TEMPLATE_URL);
       const finalName = await insertAllSheetsFromBase64(base64, RENAMED_SHEET_NAME);
-      await notify(`✅ Inserted all sheets. Activated “${finalName}”.`);
+      notify(`✅ Inserted all sheets. Activated “${finalName}”.`);
     } catch (err) {
       console.error(err);
-      await notify("❌ Create Template (All) failed: " + (err?.message || String(err)));
+      notify("❌ Create Template (All) failed: " + (err?.message || String(err)));
     } finally {
       try { event.completed(); } catch (_) {}
     }
@@ -176,9 +177,9 @@
         ws.activate();
         await context.sync();
       });
-      await notify("✅ Added a blank sheet named “EnerXL_Test”.");
+      notify("✅ Added a blank sheet named “EnerXL_Test”.");
     } catch (err) {
-      await notify("❌ addBlankSheet failed: " + (err?.message || String(err)));
+      notify("❌ addBlankSheet failed: " + (err?.message || String(err)));
     } finally { try { event.completed(); } catch (_) {} }
   }
 
