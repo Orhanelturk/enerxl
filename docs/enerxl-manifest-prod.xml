@@ -7,15 +7,16 @@
   ProviderName="EnerXL"
   DefaultLocale="en-US">
 
-  <!-- keep this GUID stable later; any GUID works for testing -->
   <Id>c7f8f3a0-bd1a-4b83-9f4a-1d2a3a2f9b11</Id>
-
   <DisplayName DefaultValue="EnerXL"/>
   <Description DefaultValue="PV • Wind • BESS inside Excel."/>
+  <SupportUrl DefaultValue="https://orhanelturk.github.io/enerxl/"/>
 
-  <Hosts>
-    <Host Name="Workbook"/>
-  </Hosts>
+  <!-- Required by Excel Web in practice -->
+  <IconUrl DefaultValue="https://orhanelturk.github.io/enerxl/icons/pv-80.png"/>
+  <HighResolutionIconUrl DefaultValue="https://orhanelturk.github.io/enerxl/icons/pv-80.png"/>
+
+  <Hosts><Host Name="Workbook"/></Hosts>
 
   <Requirements>
     <Sets DefaultMinVersion="1.3">
