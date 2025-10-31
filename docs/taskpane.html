@@ -12,4 +12,13 @@
 <body>
   <div>hello5</div>
 </body>
+<script>
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'r') {
+      const u = new URL(window.location.href);
+      u.searchParams.set('v', Date.now());
+      window.location.replace(u.toString());
+    }
+  });
+</script>
 </html>
