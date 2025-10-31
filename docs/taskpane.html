@@ -7,29 +7,22 @@
 <title>EnerXL Map</title>
 <style>
   :root{
-    --bg:#f6f7fb; --panel:#fff; --panel-border:#e6e8ee; --shadow:0 6px 20px rgba(0,0,0,.10);
-    --icon:#2f3a55; --icon-muted:#7f8aa3; --accent:#3a7afe; --accent-ghost:rgba(58,122,254,.12);
+    --panel:#fff; --panel-border:#e6e8ee; --shadow:0 6px 20px rgba(0,0,0,.10);
+    --icon:#2f3a55; --accent:#3a7afe; --accent-ghost:rgba(58,122,254,.12);
   }
-  html,body{height:100%;margin:0;background:var(--bg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   #app{position:relative;height:100vh;width:100vw;overflow:hidden}
 
-  /* Top bar (hidden in full screen) */
-  .topbar{position:absolute;inset:0 0 auto 0;height:44px;display:flex;align-items:center;gap:.75rem;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--panel-border);z-index:20}
-  .brand{font-weight:600;color:#1e2433}
-  .build-hint{margin-left:auto;font-size:12px;color:var(--icon-muted)}
+  /* Map fills entire pane (no header) */
+  #map{position:absolute;inset:0 0 0 0}
 
-  /* Map area */
-  #map{position:absolute;inset:44px 0 0 0}
-
-  /* LEFT controllers (TOP-LEFT as requested) */
+  /* Controllers */
   .control-pane{
-    position:absolute;top:56px;left:10px;           /* << moved back up */
+    position:absolute;top:12px;left:10px;
     width:42px;padding:6px 5px;box-sizing:border-box;background:var(--panel);
     border:1px solid var(--panel-border);border-radius:14px;box-shadow:var(--shadow);
     display:flex;flex-direction:column;align-items:center;gap:6px;z-index:30;user-select:none
   }
-
-  /* RIGHT mini pane stays bottom-right */
   .mini-pane{
     position:absolute;bottom:14px;right:10px;
     width:42px;padding:6px 5px;background:#fff;border:1px solid var(--panel-border);
@@ -46,31 +39,24 @@
   .tool-btn svg{width:16px;height:16px;stroke:var(--icon)}
   .tool-btn.is-primary svg{stroke:var(--accent)}
 
-  /* Search box */
   .search-wrap{
-    position:absolute;top:56px;left:70px;z-index:25;background:var(--panel);border:1px solid var(--panel-border);
+    position:absolute;top:12px;left:70px;z-index:25;background:#fff;border:1px solid var(--panel-border);
     border-radius:12px;box-shadow:var(--shadow);padding:6px 10px;display:flex;align-items:center;gap:8px;min-width:260px
   }
   .search-wrap input{width:100%;outline:none;border:none;font-size:14px;padding:6px 2px;background:transparent;color:#1e2433}
 
-  .chip{position:absolute;bottom:70px;left:70px;z-index:25;background:var(--panel);border:1px solid var(--panel-border);
+  .chip{position:absolute;bottom:70px;left:70px;z-index:25;background:#fff;border:1px solid var(--panel-border);
         border-radius:999px;padding:8px 12px;font-size:12px;color:#263248;box-shadow:var(--shadow)}
 
-  /* Full-screen: hide only topbar; keep control panes */
-  body.fs .topbar{display:none!important}
+  /* Full-screen just expands map (controls remain) */
   body.fs #map{inset:0 0 0 0}
 </style>
 </head>
 <body>
 <div id="app">
-  <div class="topbar">
-    <span class="brand">EnerXL Maps</span>
-    <span class="build-hint">Task Pane • Google Maps API</span>
-  </div>
-
   <div id="map" role="application" aria-label="Map"></div>
 
-  <!-- LEFT: primary tools (now at the top-left) -->
+  <!-- Left tools -->
   <div class="control-pane" aria-label="Tools">
     <button class="tool-btn is-primary" data-tool="select" title="Select / Pan" aria-label="Select">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
@@ -118,7 +104,7 @@
     </button>
   </div>
 
-  <!-- RIGHT: zoom + full screen (still bottom-right) -->
+  <!-- Right: zoom + full screen -->
   <div class="mini-pane" aria-label="Map controls">
     <button class="tool-btn" data-tool="zoom-in" title="Zoom in" aria-label="Zoom in">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -144,7 +130,6 @@
   <div id="chip" class="chip" style="display:none;"></div>
 </div>
 
-<!-- Google Maps API -->
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry&callback=initMap"></script>
 <script>
   window.initMap = function(){
@@ -157,7 +142,6 @@
 
     let searchMarker = null;
 
-    // Places autocomplete
     const input = document.getElementById('search-input');
     const ac = new google.maps.places.Autocomplete(input, { fields: ['geometry','name'] });
     ac.bindTo('bounds', map);
@@ -195,11 +179,11 @@
       clearTimeout(showChip._t); showChip._t=setTimeout(()=>c.style.display='none', 2000);
     }
 
-    // Fullscreen: keep control panes; hide only topbar and expand map
+    // Full-screen (controls remain)
     async function toggleFullScreen(){
       const root = document.documentElement;
       if (!document.fullscreenElement && root.requestFullscreen){
-        try { await root.requestFullscreen(); } catch(e){ /* Office WebView2 may block; UI fallback still applies */ }
+        try { await root.requestFullscreen(); } catch(e){ /* Excel task pane may block; still expand map */ }
       } else if (document.fullscreenElement && document.exitFullscreen){
         try { await document.exitFullscreen(); } catch(e){}
       }
