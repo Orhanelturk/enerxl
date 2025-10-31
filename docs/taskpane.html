@@ -13,25 +13,14 @@
   html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   #app{position:relative;height:100vh;width:100vw;overflow:hidden}
 
-  /* Map fills entire pane (no header) */
-  #map{position:absolute;inset:0 0 0 0}
+  #map{position:absolute;inset:0}
 
-  /* Controllers */
   .control-pane{
     position:absolute;top:12px;left:10px;
     width:42px;padding:6px 5px;box-sizing:border-box;background:var(--panel);
     border:1px solid var(--panel-border);border-radius:14px;box-shadow:var(--shadow);
     display:flex;flex-direction:column;align-items:center;gap:6px;z-index:30;user-select:none
   }
-  .mini-pane{
-    position:absolute;bottom:14px;right:10px;
-    width:42px;padding:6px 5px;background:#fff;border:1px solid var(--panel-border);
-    border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:30;
-    opacity:.28; transition: opacity .18s ease;
-  }
-  .mini-pane:hover,
-  .mini-pane:focus-within{ opacity:1 }
-
   .group-sep{height:1px;width:100%;background:var(--panel-border);margin:6px 0}
 
   .tool-btn{
@@ -43,7 +32,7 @@
   .tool-btn svg{width:16px;height:16px;stroke:var(--icon)}
   .tool-btn.is-primary svg{stroke:var(--accent)}
 
-  /* Search bubble (hidden by default, opens when .open added) */
+  /* Search bubble (toggles open) */
   .search-wrap{
     position:absolute;top:12px;left:70px;z-index:25;background:#fff;border:1px solid var(--panel-border);
     border-radius:12px;box-shadow:var(--shadow);padding:6px 10px;align-items:center;gap:8px;min-width:260px;
@@ -55,17 +44,16 @@
   .chip{position:absolute;bottom:70px;left:70px;z-index:25;background:#fff;border:1px solid var(--panel-border);
         border-radius:999px;padding:8px 12px;font-size:12px;color:#263248;box-shadow:var(--shadow)}
 
-  /* Full-screen just expands map (controls remain) */
-  body.fs #map{inset:0 0 0 0}
+  body.fs #map{inset:0}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="map" role="application" aria-label="Map"></div>
 
-  <!-- Left tools -->
+  <!-- Left tools (no custom zoom buttons anywhere) -->
   <div class="control-pane" aria-label="Tools">
-    <!-- SEARCH IS NOW FIRST -->
+    <!-- Search first -->
     <button class="tool-btn" data-tool="search" title="Search" aria-label="Search">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
@@ -112,23 +100,7 @@
     </button>
   </div>
 
-  <!-- Right: zoom + full screen -->
-  <div class="mini-pane" aria-label="Map controls">
-    <button class="tool-btn" data-tool="zoom-in" title="Zoom in" aria-label="Zoom in">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
-    <button class="tool-btn" data-tool="zoom-out" title="Zoom out" aria-label="Zoom out">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
-    </button>
-    <div class="group-sep"></div>
-    <button class="tool-btn" data-tool="fullscreen" title="Full screen" aria-label="Full screen">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/>
-      </svg>
-    </button>
-  </div>
-
-  <!-- Hidden by default; opens on Search click -->
+  <!-- Toggled search -->
   <div class="search-wrap" id="search-wrap" aria-expanded="false">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7f8aa3" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
@@ -146,11 +118,15 @@
     const map = new google.maps.Map(document.getElementById('map'), {
       center, zoom: 5,
       mapTypeId: 'satellite',
-      mapTypeControl: false, fullscreenControl: false, streetViewControl: false
+      mapTypeControl: false,
+      fullscreenControl: false,  // we use our own
+      streetViewControl: false,
+      zoomControl: true,
+      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM } // native zoom visible
     });
 
+    // --- Places search ---
     let searchMarker = null;
-
     const wrap = document.getElementById('search-wrap');
     const input = document.getElementById('search-input');
     const ac = new google.maps.places.Autocomplete(input, { fields: ['geometry','name'] });
@@ -164,47 +140,73 @@
       showChip(`📍 ${p.name || 'Location'}`);
     });
 
+    // --- Left tools wiring (search toggle) ---
     const byTool = (t)=>document.querySelector(`[data-tool="${t}"]`);
-    ['search','select','draw','clear','layers','measure','export','settings','zoom-in','zoom-out','fullscreen']
-    .forEach(t=>{
+    ['search','select','draw','clear','layers','measure','export','settings'].forEach(t=>{
       const el = byTool(t); if(!el) return;
-      el.addEventListener('click', async (ev)=>{
-        switch(t){
-          case 'search':
-            // Toggle search bubble open/close
-            const isOpen = wrap.classList.toggle('open');
-            wrap.setAttribute('aria-expanded', String(isOpen));
-            if (isOpen) { setTimeout(()=>{ input.focus(); input.select(); }, 0); }
-            break;
-          case 'zoom-in': map.setZoom(map.getZoom()+1); break;
-          case 'zoom-out': map.setZoom(map.getZoom()-1); break;
-          case 'fullscreen': toggleFullScreen(); break;
-          default: flashPrimary(el); showChip(`Tool: ${t}`);
+      el.addEventListener('click', ()=>{
+        if (t==='search'){
+          const isOpen = wrap.classList.toggle('open');
+          wrap.setAttribute('aria-expanded', String(isOpen));
+          if (isOpen) setTimeout(()=>{ input.focus(); input.select(); }, 0);
+        } else {
+          flashPrimary(el); showChip(`Tool: ${t}`);
         }
       });
     });
 
-    // Click outside to close search
+    // Close search on outside click or ESC
     document.addEventListener('click', (e)=>{
       const searchBtn = byTool('search');
       if (!wrap.classList.contains('open')) return;
       if (!wrap.contains(e.target) && !searchBtn.contains(e.target)) {
-        wrap.classList.remove('open');
-        wrap.setAttribute('aria-expanded','false');
+        wrap.classList.remove('open'); wrap.setAttribute('aria-expanded','false');
       }
     });
-
-    // Esc closes search
     document.addEventListener('keydown', (e)=>{
       if (e.key === 'Escape' && wrap.classList.contains('open')) {
-        wrap.classList.remove('open');
-        wrap.setAttribute('aria-expanded','false');
+        wrap.classList.remove('open'); wrap.setAttribute('aria-expanded','false');
       }
-      if(e.key==='Escape' && document.body.classList.contains('fs')){
+      if (e.key === 'Escape' && document.body.classList.contains('fs')){
         document.body.classList.remove('fs'); google.maps.event.trigger(map,'resize');
       }
     });
 
+    // --- Custom FULLSCREEN control BELOW native controls ---
+    const fsControl = buildFullScreenControl();
+    map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(fsControl);
+
+    function buildFullScreenControl(){
+      const container = document.createElement('div');
+      container.style.margin = '8px';
+
+      const btn = document.createElement('button');
+      btn.className = 'tool-btn';
+      btn.title = 'Full screen';
+      btn.setAttribute('aria-label','Full screen');
+      btn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+          <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/>
+        </svg>`;
+      btn.addEventListener('click', toggleFullScreen);
+
+      const wrap = document.createElement('div');
+      wrap.style.background = '#fff';
+      wrap.style.border = '1px solid var(--panel-border)';
+      wrap.style.borderRadius = '14px';
+      wrap.style.boxShadow = 'var(--shadow)';
+      wrap.style.padding = '6px 5px';
+      wrap.style.display = 'flex';
+      wrap.style.flexDirection = 'column';
+      wrap.style.alignItems = 'center';
+      wrap.style.gap = '6px';
+
+      wrap.appendChild(btn);
+      container.appendChild(wrap);
+      return container;
+    }
+
+    // --- Helpers ---
     function flashPrimary(el){
       const was=el.classList.contains('is-primary');
       document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('is-primary'));
@@ -215,7 +217,6 @@
       clearTimeout(showChip._t); showChip._t=setTimeout(()=>c.style.display='none', 2000);
     }
 
-    // Full-screen (controls remain)
     async function toggleFullScreen(){
       const root = document.documentElement;
       if (!document.fullscreenElement && root.requestFullscreen){
@@ -227,7 +228,6 @@
       google.maps.event.trigger(map,'resize');
     }
 
-    // Keep map crisp on container resize
     window.addEventListener('resize', ()=>google.maps.event.trigger(map,'resize'));
   };
 </script>
