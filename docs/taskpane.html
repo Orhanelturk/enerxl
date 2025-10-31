@@ -1,4 +1,58 @@
-<script>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>EnerXL</title>
+  <style>
+    html,body{height:100%;margin:0}
+    body{display:grid;place-items:center;background:#f8fafc;color:#0f172a;
+         font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    .hint{opacity:.6;font-size:12px;margin-top:6px;text-align:center}
+  </style>
+</head>
+<body>
+  <div>
+    <div id="msg">SOS</div>
+    <div class="hint" id="hint">checking updates…</div>
+  </div>
+
+  <script>
+    (function(){
+      const key = 'enerxl_build_version';
+      const qs  = new URLSearchParams(location.search);
+      const cur = qs.get('v') || '';
+      const setHint = t => document.getElementById('hint').textContent = t;
+
+      async function getBuild() {
+        const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+        const j = await r.json();
+        return (j && j.build) || '';
+      }
+
+      async function ensureLatest(trigger) {
+        try {
+          const build = await getBuild();
+          if (build && build !== cur) {
+            localStorage.setItem(key, build);
+            const u = new URL(location.href);
+            u.searchParams.set('v', build);
+            setHint(`updating to ${build}…`);
+            location.replace(u.toString());
+          } else {
+            setHint(trigger ? `up to date (${build || 'n/a'})` : 'ready');
+          }
+        } catch(e) {
+          setHint('offline / cannot check version');
+        }
+      }
+
+      // Initial check, then poll every 15s, and whenever pane gets focus
+      ensureLatest(false);
+      setInterval(() => ensureLatest(true), 15000);
+      window.addEventListener('focus', () => ensureLatest(true));
+    })();
+  </script>
+  <script>
 (function(){
   const repo = "Orhanelturk/enerxl";           // <-- your repo
   const key  = "enerxl_last_sha";              // localStorage key
@@ -36,3 +90,6 @@
   window.addEventListener("focus", () => ensureLatest(true));
 })();
 </script>
+
+</body>
+</html>
