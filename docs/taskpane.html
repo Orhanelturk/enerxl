@@ -3,67 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <title>EnerXL</title>
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-  <meta http-equiv="Pragma" content="no-cache"/>
-  <meta http-equiv="Expires" content="0"/>
   <style>
     html,body{height:100%;margin:0}
     body{display:grid;place-items:center;background:#f8fafc;color:#0f172a;
          font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    .hint{opacity:.6;font-size:12px;margin-top:6px;text-align:center}
   </style>
 </head>
 <body>
-  <div>
-    <div id="msg">Orhan</div>
-    <div id="hint" class="hint">checking updates…</div>
-  </div>
-
-  <script>
-(function(){
-  // Compare builds as timestamps/monotonic strings (e.g., 2025.10.31-004)
-  function newer(a, b){
-    if(!a) return false;           // don't redirect to empty
-    if(!b) return true;            // any a > empty
-    return a > b;                  // lexicographic works if you keep YYYY.MM.DD-N format
-  }
-
-  const KEY = 'enerxl_build_seen';
-  const qs  = new URLSearchParams(location.search);
-  const cur = qs.get('v') || '';           // tag currently in URL
-  const seen = localStorage.getItem(KEY) || '';
-
-  async function getBuild(){
-    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
-    if(!r.ok) throw new Error('version.json ' + r.status);
-    const j = await r.json();
-    return (j && j.build) ? String(j.build) : '';
-  }
-
-  async function ensureLatest(){
-    try{
-      const build = await getBuild();
-      // Only move forward: redirect iff build is strictly newer than BOTH cur and seen
-      if (newer(build, cur) && newer(build, seen)) {
-        localStorage.setItem(KEY, build);
-        const u = new URL(location.href);
-        u.searchParams.set('v', build);
-        location.replace(u.toString());
-        return;
-      }
-      // mark current as seen
-      if (cur && newer(cur, seen)) localStorage.setItem(KEY, cur);
-      document.getElementById('hint')?.textContent = build ? `up to date (${build})` : 'ready';
-    }catch(e){
-      document.getElementById('hint')?.textContent = 'offline / cannot check version';
-    }
-  }
-
-  ensureLatest();
-  setInterval(ensureLatest, 20000);
-  window.addEventListener('focus', ensureLatest);
-})();
-</script>
-
+  <div>hello</div>
 </body>
 </html>
