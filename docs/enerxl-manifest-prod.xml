@@ -24,7 +24,7 @@
   </Requirements>
 
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://orhanelturk.github.io/enerxl/taskpane.html"/>
+    <SourceLocation DefaultValue="https://orhanelturk.github.io/enerxl/docs/taskpane.html"/>
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
