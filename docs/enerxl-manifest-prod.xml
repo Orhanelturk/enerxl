@@ -1,17 +1,100 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:type="TaskPaneApp" Version="1.0.0.0" ProviderName="EnerXL" DefaultLocale="en-US">
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+           xsi:type="TaskPaneApp">
+
   <Id>c7f8f3a0-bd1a-4b83-9f4a-1d2a3a2f9b11</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>EnerXL</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+
   <DisplayName DefaultValue="EnerXL"/>
   <Description DefaultValue="PV • Wind • BESS inside Excel."/>
-  <SupportUrl DefaultValue="https://orhanelturk.github.io/enerxl/"/>
+
+  <!-- Gallery icons (required by Excel Web in practice) -->
   <IconUrl DefaultValue="https://orhanelturk.github.io/enerxl/icons/pv-80.png"/>
   <HighResolutionIconUrl DefaultValue="https://orhanelturk.github.io/enerxl/icons/pv-80.png"/>
-  <Hosts><Host Name="Workbook"/></Hosts>
-  <Requirements><Sets DefaultMinVersion="1.3"><Set Name="ExcelApi"/></Sets></Requirements>
+
+  <Hosts>
+    <Host Name="Workbook"/>
+  </Hosts>
+
+  <!-- Fallback pane if opened from Insert > My Add-ins -->
   <DefaultSettings>
     <SourceLocation DefaultValue="https://orhanelturk.github.io/enerxl/taskpane.html"/>
   </DefaultSettings>
+
   <Permissions>ReadWriteDocument</Permissions>
+
+  <!-- Ribbon commands (V1_0 pattern like your working sample) -->
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+                    xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <DesktopFormFactor>
+          <!-- Just point FunctionFile to an existing page (not used here, but keeps schema happy) -->
+          <FunctionFile resid="Commands.Url"/>
+
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="Tab.EnerXL">
+              <Label resid="CustomTab.Label"/>
+
+              <Group id="Group.Main">
+                <Label resid="Group.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.PV.16"/>
+                  <bt:Image size="32" resid="Icon.PV.32"/>
+                  <bt:Image size="80" resid="Icon.PV.80"/>
+                </Icon>
+
+                <!-- PV button -->
+                <Control xsi:type="Button" id="Button.PV">
+                  <Label resid="Button.PV.Label"/>
+                  <Supertip>
+                    <Title resid="Button.PV.Label"/>
+                    <Description resid="Button.PV.Tip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.PV.16"/>
+                    <bt:Image size="32" resid="Icon.PV.32"/>
+                    <bt:Image size="80" resid="Icon.PV.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>TaskPane.PV</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.PV.16" DefaultValue="https://orhanelturk.github.io/enerxl/icons/pv-16.png"/>
+        <bt:Image id="Icon.PV.32" DefaultValue="https://orhanelturk.github.io/enerxl/icons/pv-32.png"/>
+        <bt:Image id="Icon.PV.80" DefaultValue="https://orhanelturk.github.io/enerxl/icons/pv-80.png"/>
+      </bt:Images>
+
+      <bt:Urls>
+        <!-- FunctionFile can be any valid HTTPS page in your site -->
+        <bt:Url id="Commands.Url" DefaultValue="https://orhanelturk.github.io/enerxl/taskpane.html"/>
+        <bt:Url id="Taskpane.Url"  DefaultValue="https://orhanelturk.github.io/enerxl/taskpane.html"/>
+      </bt:Urls>
+
+      <bt:ShortStrings>
+        <bt:String id="CustomTab.Label" DefaultValue="EnerXL"/>
+        <bt:String id="Group.Label" DefaultValue="Main"/>
+        <bt:String id="Button.PV.Label" DefaultValue="PV"/>
+      </bt:ShortStrings>
+
+      <bt:LongStrings>
+        <bt:String id="Button.PV.Tip" DefaultValue="Open the EnerXL PV task pane."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
 </OfficeApp>
