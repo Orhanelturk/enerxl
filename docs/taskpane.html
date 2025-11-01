@@ -10,7 +10,7 @@
     --panel:#fff; --panel-border:#e6e8ee; --shadow:0 10px 30px rgba(0,0,0,.12);
     --icon:#2f3a55; --accent:#3a7afe; --accent-ghost:rgba(58,122,254,.12);
     --muted:#7f8aa3; --danger:#ef4444; --danger-sel:#ff7b7b; --select:#ffb703;
-    --rowh:30px; /* ADDED: fixed summary row height */
+    --rowh:30px;
   }
   html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   #app{position:relative;height:100vh;width:100vw;overflow:hidden}
@@ -43,7 +43,8 @@
   /* Drawer (tools) */
   .drawer{
     position:absolute;top:15px;left:75px;width:300px;background:#fff;border:1px solid var(--panel-border);
-    border-radius:16px;box-shadow:var(--shadow);z-index:26;display:none;flex-direction:column;overflow:hidden
+    border-radius:16px;box-shadow:var(--shadow);z-index:26;display:none;flex-direction:column;overflow:hidden;
+    max-height:calc(100vh - 30px);
   }
   .drawer.open{display:flex}
   .drawer .hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--panel-border)}
@@ -54,7 +55,12 @@
   .seg button{font-size:13px;padding:7px 12px;border:none;background:#fff;color:#223;cursor:pointer}
   .seg button.active{background:var(--accent-ghost);color:#1848cc}
 
-  .body{padding:12px 12px;display:grid;grid-template-columns:repeat(6, minmax(0,1fr));gap:6px}
+  .body{
+    padding:12px 12px;
+    display:grid;grid-template-columns:repeat(6, minmax(0,1fr));gap:6px;
+    overflow:auto;
+    max-height:calc(100vh - 180px);
+  }
   .mini-btn{
     width:40px;height:40px;border-radius:12px;border:1px solid var(--panel-border);
     display:grid;place-items:center;background:#fff;cursor:pointer; position:relative;
@@ -62,7 +68,7 @@
   .mini-btn svg{width:22px;height:22px;stroke:#2f3a55}
   .mini-btn.active{background:var(--accent-ghost);border-color:#cfe0ff}
 
-  /* Small popovers for Rotate / Align / Distribute / Grid / Setback / Roads */
+  /* Small popovers */
   .popover{
     position:absolute;left:60px;top:0;background:#fff;border:1px solid var(--panel-border);border-radius:10px;
     box-shadow:var(--shadow);padding:8px;z-index:27;min-width:160px
@@ -101,13 +107,66 @@
   .area-label{
     background:#fff;border:1px solid var(--panel-border);border-radius:8px;padding:2px 6px;
     box-shadow:0 2px 8px rgba(0,0,0,.08);font-size:12px;font-weight:600;color:#1e2433;white-space:nowrap;
-    pointer-events:none; /* don't block marquee/move interactions */
+    pointer-events:none;
   }
 
   /* Marquee */
   .marquee{position:absolute;border:1px dashed #1d4ed8;background:rgba(29,78,216,.12);pointer-events:none;z-index:1000}
 
   body.fs #map{inset:0}
+
+  /* ================= PV LAYOUT SHEET (NEW) ================= */
+  .pv-sheet{
+    position:absolute;top:15px;left:75px; /* exact same anchor as drawer */
+    width:520px;min-width:380px;max-width:70vw;
+    height:74vh;min-height:420px;max-height:calc(100vh - 30px);
+    background:#fff;border:1px solid var(--panel-border);border-radius:16px;box-shadow:var(--shadow);
+    display:none;flex-direction:column;z-index:28;resize:both;overflow:hidden;
+  }
+  .pv-sheet.open{display:flex}
+  .pv-sheet .hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--panel-border)}
+  .pv-sheet .ttl{font-weight:700;color:#1e2433;font-size:14px}
+  .pv-sheet .x{margin-left:auto;border:none;background:transparent;cursor:pointer;width:30px;height:30px;border-radius:8px}
+  .pv-sheet .content{flex:1 1 auto;overflow:auto;padding:10px 12px}
+  .pv-section{margin:10px 0 16px}
+  .pv-section h4{margin:0 0 8px;font-size:13px;color:#1e2433}
+  .pv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pv-field{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .pv-field label{font-size:12px;color:#334;min-width:140px}
+  .pv-field input[type="number"], .pv-field input[type="text"], .pv-field select{
+    width:100%;padding:6px 8px;border:1px solid #e5e7f2;border-radius:8px;font-size:12px
+  }
+  .pv-drop{border:1.5px dashed #cbd5e1;padding:10px;border-radius:12px;text-align:center;font-size:12px;color:#475569;background:#f8fafc}
+  .pv-preview{border:1px solid var(--panel-border);border-radius:12px;padding:8px}
+  .pv-preview canvas{width:100%;height:240px;display:block;background:#fff;border-radius:8px;box-shadow:inset 0 0 0 1px #f1f5f9}
+  .pv-zoom{display:flex;align-items:center;gap:6px;margin-top:6px}
+  .pv-zoom button{border:1px solid #cfe0ff;background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer}
+  .pv-caption{font-size:12px;color:#64748b}
+  .pv-actions{display:flex;gap:8px;justify-content:space-between;align-items:center;padding:10px 12px;border-top:1px solid var(--panel-border);background:#fafbff}
+  .pv-actions .right{display:flex;gap:8px}
+  .btn{border:1px solid #cfe0ff;background:#f5f8ff;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer}
+  .btn.primary{background:#3a7afe;color:#fff;border-color:#2b6bf3}
+  .btn.ghost{background:#fff}
+
+  /* Catalog modal */
+  .pv-modal-backdrop{
+    position:fixed; inset:0; background:rgba(15,23,42,.35); display:none; z-index:40;
+  }
+  .pv-modal{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:720px; max-width:95vw; max-height:85vh; background:#fff; border:1px solid var(--panel-border);
+    border-radius:16px; box-shadow:var(--shadow); display:flex; flex-direction:column; overflow:hidden;
+  }
+  .pv-modal .hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--panel-border)}
+  .pv-modal .ttl{font-weight:700;color:#1e2433;font-size:14px}
+  .pv-modal .x{margin-left:auto;border:none;background:transparent;cursor:pointer;width:30px;height:30px;border-radius:8px}
+  .pv-modal .content{padding:12px; overflow:auto}
+  .pv-catalog{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .pv-card{border:1px solid var(--panel-border);border-radius:12px;padding:10px;cursor:pointer;display:flex;gap:10px;align-items:center}
+  .pv-card:hover{background:#f8fafc}
+  .pv-card .ph{width:56px;height:40px;border-radius:6px;background:linear-gradient(135deg,#e5e7eb,#f3f4f6)}
+
+  /* tiny badge for Summary injection */
+  .pv-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:6px;background:#eef2ff;color:#1d4ed8;font-size:10px;font-weight:600}
 </style>
 </head>
 <body>
@@ -128,6 +187,15 @@
     <button class="tool-btn" data-tool="draw" title="Draw" aria-label="Draw">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 0 7-6 3-6-3z"/></svg>
     </button>
+
+    <!-- NEW: PV Layout open/close -->
+    <button class="tool-btn" data-tool="pv" title="PV Layout" aria-label="PV Layout">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="6" width="18" height="10" rx="2"/><path d="M7 16l2 4m6-4l-2 4"/>
+        <path d="M7 9h10M7 12h10"/>
+      </svg>
+    </button>
+
     <div class="group-sep"></div>
     <button class="tool-btn" data-tool="export" title="Export" aria-label="Export">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 9l4 4 4-4"/><path d="M20 21H4"/></svg>
@@ -158,7 +226,6 @@
       <div class="seg" id="seg-category">
         <button data-cat="area" class="active" title="PV Area">PV area</button>
         <button data-cat="constraint" title="Constraint">Constraint</button>
-        <!-- NEW: objects category so “all drawing tools” can draw objects as well -->
         <button data-cat="object" title="Objects">Objects</button>
       </div>
       <div></div>
@@ -224,7 +291,7 @@
         <div class="row"><label>Space X (m)</label><input id="grid-sx" type="number" min="0" value="5"></div>
         <div class="row"><label>Space Y (m)</label><input id="grid-sy" type="number" min="0" value="5"></div>
         <div class="row" style="justify-content:flex-end">
-          <button id="grid-apply" style="border:1px solid #cfe0ff;background:#f5f8ff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">Apply</button>
+          <button id="grid-apply" class="btn">Apply</button>
         </div>
       </div>
 
@@ -252,18 +319,18 @@
         <div class="row"><label>Width (m)</label><input id="road-width" type="number" min="1" value="4"></div>
         <div class="row"><label>Setback (m)</label><input id="road-setback" type="number" min="0" value="1"></div>
         <div class="row" style="gap:6px;flex-wrap:wrap">
-          <button id="road-free"  style="border:1px solid #cfe0ff;background:#f5f8ff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">Free drawing</button>
-          <button id="road-perim" style="border:1px solid #cfe0ff;background:#f5f8ff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">Perimeter</button>
+          <button id="road-free"  class="btn">Free drawing</button>
+          <button id="road-perim" class="btn">Perimeter</button>
         </div>
         <div class="row">
           <label style="min-width:88px">Horizontal #</label>
           <input id="road-h-n" type="number" min="1" value="2">
-          <button id="road-h-apply" style="margin-left:auto;border:1px solid #cfe0ff;background:#f5f8ff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">Make</button>
+          <button id="road-h-apply" class="btn" style="margin-left:auto">Make</button>
         </div>
         <div class="row">
           <label style="min-width:88px">Vertical #</label>
           <input id="road-v-n" type="number" min="1" value="2">
-          <button id="road-v-apply" style="margin-left:auto;border:1px solid #cfe0ff;background:#f5f8ff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">Make</button>
+          <button id="road-v-apply" class="btn" style="margin-left:auto">Make</button>
         </div>
         <div class="row" style="font-size:12px;color:#667085;line-height:1.2">Roads are added as <b>Objects</b> so PV modules won't be placed over them.</div>
       </div>
@@ -275,7 +342,6 @@
           <path d="M8 8h.01M12 8h.01M16 8h.01M8 12h8M8 16h8"/>
         </svg>
       </button>
-      <!-- ==================== END NEW SECTION ==================== -->
     </div>
   </div>
 
@@ -330,9 +396,181 @@
       </table>
     </div>
   </div>
+
+  <!-- ================= PV LAYOUT SHEET CONTENT (NEW) ================= -->
+  <div id="pv-sheet" class="pv-sheet" role="dialog" aria-modal="false" aria-label="PV Layout">
+    <div class="hdr">
+      <div class="ttl">PV Layout</div>
+      <button class="x" id="pv-close" title="Close" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="content">
+      <!-- Section 1 -->
+      <div class="pv-section">
+        <h4>1) Select PV Module</h4>
+
+        <div class="pv-field">
+          <label>Library</label>
+          <select id="pv-lib">
+            <option value="">— Select a module —</option>
+            <option value="GEN600" selected>Generic 600 Wp — 2100×1134 mm</option>
+            <option value="GEN550">Generic 550 Wp — 2094×1134 mm</option>
+            <option value="GEN450">Generic 450 Wp — 1960×992 mm</option>
+          </select>
+        </div>
+
+        <div class="pv-field" style="align-items:flex-start">
+          <label>PAN file</label>
+          <div class="pv-drop" style="width:100%">
+            Drag & drop *.PAN here or
+            <button type="button" class="btn ghost" id="pv-pan-browse">Browse</button>
+            <input id="pv-pan-input" type="file" accept=".pan,.PAN" style="display:none">
+            <div class="pv-caption" id="pv-pan-name" style="margin-top:6px">No file selected</div>
+          </div>
+        </div>
+
+        <details id="pv-custom" style="margin-top:6px">
+          <summary class="pv-caption" style="cursor:pointer">Define custom module</summary>
+          <div class="pv-grid" style="margin-top:8px">
+            <div class="pv-field"><label>Name</label><input id="md-name" type="text" value="Custom 600 Wp"></div>
+            <div class="pv-field"><label>STC Power (Wp)</label><input id="md-pwr" type="number" min="1" value="600"></div>
+            <div class="pv-field"><label>Length (mm)</label><input id="md-len" type="number" min="1" value="2100"></div>
+            <div class="pv-field"><label>Width (mm)</label><input id="md-wid" type="number" min="1" value="1134"></div>
+            <div class="pv-field"><label>Thickness (mm)</label><input id="md-thk" type="number" min="1" value="35"></div>
+          </div>
+        </details>
+
+        <div class="pv-grid" style="margin-top:8px">
+          <div class="pv-field" style="grid-column:1/-1">
+            <label style="min-width:auto">
+              <input type="radio" name="pv-target" value="cap" checked> Desired DC capacity (kWp)
+            </label>
+            <input id="pv-target-kwp" type="number" min="1" value="1000" style="max-width:140px">
+          </div>
+          <div class="pv-field" style="grid-column:1/-1">
+            <label style="min-width:auto">
+              <input type="radio" name="pv-target" value="fill"> Fill maximum area
+            </label>
+            <span class="pv-caption">Use all usable selected area(s).</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2 -->
+      <div class="pv-section">
+        <h4>2) Mounting Structure</h4>
+
+        <div class="pv-field">
+          <label>Structure catalog</label>
+          <button type="button" class="btn" id="open-catalog">Open Catalog…</button>
+          <span class="pv-caption" id="struct-picked" style="margin-left:8px">Ground — Fixed Tilt (default)</span>
+        </div>
+
+        <div class="pv-grid" style="margin-top:10px">
+          <div>
+            <div class="pv-field">
+              <label>Module Orientation</label>
+              <div class="seg" id="pv-orient" style="border-radius:10px;border:1px solid var(--panel-border);overflow:hidden">
+                <button type="button" data-val="portrait" class="active" style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Portrait</button>
+                <button type="button" data-val="landscape" style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Landscape</button>
+              </div>
+            </div>
+            <div class="pv-field"><label>PV in Horizontal</label><input id="pv-h" type="number" min="1" value="2"></div>
+            <div class="pv-field"><label>PV in Vertical</label><input id="pv-v" type="number" min="1" value="3"></div>
+
+            <div class="pv-field"><label>Tables / Block (H)</label><input id="tab-per-blk-h" type="number" min="1" value="6"></div>
+            <div class="pv-field"><label>Tables / Block (V)</label><input id="tab-per-blk-v" type="number" min="1" value="4"></div>
+
+            <div class="pv-field"><label>Module gap X (m)</label><input id="gap-mod-x" type="number" min="0" step="0.05" value="0.02"></div>
+            <div class="pv-field"><label>Module gap Y (m)</label><input id="gap-mod-y" type="number" min="0" step="0.05" value="0.02"></div>
+            <div class="pv-field"><label>Table gap X (m)</label><input id="gap-tab-x" type="number" min="0" step="0.1" value="0.5"></div>
+            <div class="pv-field"><label>Table gap Y (m)</label><input id="gap-tab-y" type="number" min="0" step="0.1" value="1.5"></div>
+            <div class="pv-field"><label>Block gap X (m)</label><input id="gap-blk-x" type="number" min="0" step="0.1" value="3"></div>
+            <div class="pv-field"><label>Block gap Y (m)</label><input id="gap-blk-y" type="number" min="0" step="0.1" value="4"></div>
+          </div>
+          <div class="pv-preview">
+            <canvas id="pv-preview" width="520" height="240" aria-label="Layout preview"></canvas>
+            <div class="pv-zoom">
+              <button type="button" id="pv-zoom-out">−</button>
+              <input type="range" id="pv-zoom" min="0.5" max="3" step="0.05" value="1" style="flex:1">
+              <button type="button" id="pv-zoom-in">+</button>
+            </div>
+            <div class="pv-caption" id="pv-preview-meta" style="margin-top:6px">Table: — | Est. kWp/table: — | Block: — tables</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3 -->
+      <div class="pv-section">
+        <h4>3) Orientation & Fill</h4>
+        <div class="pv-grid">
+          <div class="pv-field"><label>Tilt (°)</label><input id="tilt" type="number" min="0" max="60" value="10"></div>
+          <div class="pv-field"><label>Azimuth (°)</label><input id="azimuth" type="number" min="0" max="360" value="180"></div>
+          <div class="pv-field"><label>Orient to edge</label>
+            <select id="edge-mode">
+              <option value="">None</option>
+              <option value="longest">Longest edge</option>
+              <option value="shortest">Shortest edge</option>
+            </select>
+          </div>
+          <div class="pv-field"><label>Fill start</label>
+            <select id="fill-start">
+              <option>East</option><option>West</option><option>North</option><option>South</option><option>Middle</option>
+            </select>
+          </div>
+          <div class="pv-field"><label>Method</label>
+            <div class="seg" id="fill-method" style="border-radius:10px;border:1px solid var(--panel-border);overflow:hidden">
+              <button type="button" data-val="adaptive" class="active" style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Adaptive</button>
+              <button type="button" data-val="block" style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Block</button>
+            </div>
+          </div>
+          <div class="pv-field">
+            <label>Show modules</label>
+            <input id="show-modules" type="checkbox">
+            <span class="pv-caption">Disabled automatically > 5 MW</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pv-actions">
+      <div class="pv-caption">Layout will avoid objects/roads & respect setbacks.</div>
+      <div class="right">
+        <button id="pv-lock" class="btn" data-state="locked">Unlock editing</button>
+        <button id="pv-build" class="btn primary">Build initial layout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Catalog modal -->
+  <div id="pv-cat-backdrop" class="pv-modal-backdrop" aria-hidden="true">
+    <div class="pv-modal" role="dialog" aria-label="Mounting Structure Catalog">
+      <div class="hdr">
+        <div class="ttl">Select Mounting Structure</div>
+        <button class="x" id="pv-cat-close" title="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="content">
+        <div class="pv-catalog" id="pv-catalog">
+          <div class="pv-card" data-struct="ground-fixed"><div class="ph"></div><div>Ground — Fixed Tilt</div></div>
+          <div class="pv-card" data-struct="ground-tracker"><div class="ph"></div><div>Ground — Single Axis</div></div>
+          <div class="pv-card" data-struct="roof-flush"><div class="ph"></div><div>Rooftop — Flush</div></div>
+          <div class="pv-card" data-struct="roof-triangle"><div class="ph"></div><div>Rooftop — Triangle</div></div>
+          <div class="pv-card" data-struct="roof-ballasted"><div class="ph"></div><div>Rooftop — Ballasted</div></div>
+          <div class="pv-card" data-struct="carport"><div class="ph"></div><div>Specialty — Carport</div></div>
+          <div class="pv-card" data-struct="canopy"><div class="ph"></div><div>Specialty — Solar Canopy</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- Load the drawing logic (classic script, no module/import) -->
+<!-- Load the drawing logic (classic script, untouched) -->
 <script src="./drawing.js"></script>
 
 <!-- Bootstrap: init map, search, fullscreen; then hand off to window.mountDrawing -->
@@ -344,6 +582,7 @@
       center: START, zoom: 17, mapTypeId: 'satellite',
       mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: false
     });
+    window._map = map; window._google = google; // expose for PV layout
 
     /* Fullscreen control */
     const fsWrap=document.createElement('div'); fsWrap.style.margin='10px';
@@ -355,7 +594,12 @@
     });
     fsBtn.title='Full screen';
     fsBtn.innerHTML=`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2f3a55" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/></svg>`;
-    fsBtn.onclick=async()=>{const root=document.documentElement; if(!document.fullscreenElement&&root.requestFullscreen){try{await root.requestFullscreen();}catch(e){}} else if(document.fullscreenElement&&document.exitFullscreen){try{await document.exitFullscreen();}catch(e){}} google.maps.event.trigger(map,'resize');};
+    fsBtn.onclick=async()=>{
+      const root=document.documentElement;
+      if(!document.fullscreenElement&&root.requestFullscreen){try{await root.requestFullscreen();}catch(e){}}
+      else if(document.fullscreenElement&&document.exitFullscreen){try{await document.exitFullscreen();}catch(e){}}
+      google.maps.event.trigger(map,'resize');
+    };
     fsWrap.appendChild(fsBtn);
     map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(fsWrap);
 
@@ -372,6 +616,572 @@
       console.error('mountDrawing is not available; make sure drawing.js is loaded');
     }
   };
+</script>
+
+<!-- PV LAYOUT SHEET WIRING + LAYOUT ENGINE (no changes to drawing.js) -->
+<script>
+(function(){
+  const app = document.getElementById('app');
+  const drawer = document.getElementById('drawer');
+  const pvBtn = document.querySelector('[data-tool="pv"]');
+  const toolsBtn = document.querySelector('[data-tool="tools"]');
+  const searchBtn = document.querySelector('[data-tool="search"]');
+  const searchWrap = document.getElementById('search-wrap');
+
+  const pvSheet = document.getElementById('pv-sheet');
+  const pvClose = document.getElementById('pv-close');
+  const panBrowse = document.getElementById('pv-pan-browse');
+  const panInput = document.getElementById('pv-pan-input');
+  const panName = document.getElementById('pv-pan-name');
+
+  // Catalog modal
+  const catBackdrop = document.getElementById('pv-cat-backdrop');
+  const catClose = document.getElementById('pv-cat-close');
+  const openCatalog = document.getElementById('open-catalog');
+  const catGrid = document.getElementById('pv-catalog');
+  const structPicked = document.getElementById('struct-picked');
+
+  // Controls
+  const pvLib = document.getElementById('pv-lib');
+  const mdName = document.getElementById('md-name');
+  const mdPwr  = document.getElementById('md-pwr');
+  const mdLen  = document.getElementById('md-len');
+  const mdWid  = document.getElementById('md-wid');
+  const pvH = document.getElementById('pv-h');
+  const pvV = document.getElementById('pv-v');
+  const tpbH = document.getElementById('tab-per-blk-h');
+  const tpbV = document.getElementById('tab-per-blk-v');
+  const orientSeg = document.getElementById('pv-orient');
+  const gapModX = document.getElementById('gap-mod-x');
+  const gapModY = document.getElementById('gap-mod-y');
+  const gapTabX = document.getElementById('gap-tab-x');
+  const gapTabY = document.getElementById('gap-tab-y');
+  const gapBlkX = document.getElementById('gap-blk-x');
+  const gapBlkY = document.getElementById('gap-blk-y');
+  const tilt = document.getElementById('tilt');
+  const azimuth = document.getElementById('azimuth');
+  const edgeMode = document.getElementById('edge-mode');
+  const fillStart = document.getElementById('fill-start');
+  const fillMethod = document.getElementById('fill-method');
+  const targetKwp = document.getElementById('pv-target-kwp');
+  const showModules = document.getElementById('show-modules');
+  const pvBuild = document.getElementById('pv-build');
+  const pvLock = document.getElementById('pv-lock');
+
+  const canvas = document.getElementById('pv-preview');
+  const ctx = canvas.getContext('2d');
+  const meta = document.getElementById('pv-preview-meta');
+  const zoom = document.getElementById('pv-zoom');
+  const zoomIn = document.getElementById('pv-zoom-in');
+  const zoomOut = document.getElementById('pv-zoom-out');
+  let previewScale = 1;
+
+  // ===== MUTUAL EXCLUSION: PV Layout vs Tools/Search =====
+  function closeDrawer(){ drawer.classList.remove('open'); }
+  function closeSearch(){ searchWrap.classList.remove('open'); searchWrap.setAttribute('aria-expanded','false'); }
+  pvBtn?.addEventListener('click', ()=>{
+    const willOpen = !pvSheet.classList.contains('open');
+    if (willOpen){ closeDrawer(); closeSearch(); }
+    pvSheet.classList.toggle('open');
+  });
+  pvClose?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
+  toolsBtn?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
+  searchBtn?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
+
+  // PAN browse (UI only for now)
+  panBrowse.addEventListener('click', ()=> panInput.click());
+  panInput.addEventListener('change', ()=>{ panName.textContent = panInput.files?.[0]?.name || 'No file selected'; });
+
+  // Library presets
+  const presets = {
+    GEN600:{ name:'Generic 600 Wp', pwr:600, len:2100, wid:1134 },
+    GEN550:{ name:'Generic 550 Wp', pwr:550, len:2094, wid:1134 },
+    GEN450:{ name:'Generic 450 Wp', pwr:450, len:1960, wid:992 },
+  };
+  pvLib.addEventListener('change', ()=>{ const p = presets[pvLib.value]; if (p){ mdName.value=p.name; mdPwr.value=p.pwr; mdLen.value=p.len; mdWid.value=p.wid; drawPreview(); }});
+
+  // Structure catalog defaults (override user inputs)
+  const structDefaults = {
+    'ground-fixed':  { name:'Ground — Fixed Tilt', tilt:20, azimuth:180, pvH:2, pvV:3, tabX:0.6, tabY:1.6, blkX:3.0, blkY:4.0, tpbH:6, tpbV:4, orient:'portrait' },
+    'ground-tracker':{ name:'Ground — Single Axis', tilt:0,  azimuth:180, pvH:2, pvV:2, tabX:0.6, tabY:5.0, blkX:4.0, blkY:8.0, tpbH:8, tpbV:2, orient:'landscape' },
+    'roof-flush':    { name:'Rooftop — Flush',      tilt:10, azimuth:180, pvH:2, pvV:3, tabX:0.4, tabY:0.6, blkX:1.0, blkY:1.2, tpbH:5, tpbV:3, orient:'portrait' },
+    'roof-triangle': { name:'Rooftop — Triangle',   tilt:15, azimuth:180, pvH:2, pvV:3, tabX:0.4, tabY:0.8, blkX:1.2, blkY:1.2, tpbH:5, tpbV:3, orient:'portrait' },
+    'roof-ballasted':{ name:'Rooftop — Ballasted',  tilt:10, azimuth:180, pvH:2, pvV:3, tabX:0.4, tabY:0.7, blkX:1.0, blkY:1.0, tpbH:4, tpbV:3, orient:'portrait' },
+    'carport':       { name:'Specialty — Carport',  tilt:5,  azimuth:180, pvH:2, pvV:4, tabX:0.7, tabY:3.0, blkX:3.0, blkY:4.0, tpbH:4, tpbV:2, orient:'portrait' },
+    'canopy':        { name:'Specialty — Solar Canopy', tilt:5, azimuth:180, pvH:2, pvV:3, tabX:0.6, tabY:2.5, blkX:3.0, blkY:3.0, tpbH:3, tpbV:3, orient:'portrait' }
+  };
+  function openCat(){ catBackdrop.style.display='block'; catBackdrop.setAttribute('aria-hidden','false'); }
+  function closeCat(){ catBackdrop.style.display='none'; catBackdrop.setAttribute('aria-hidden','true'); }
+  openCatalog.addEventListener('click', openCat);
+  catClose.addEventListener('click', closeCat);
+  catBackdrop.addEventListener('click', e=>{ if(e.target===catBackdrop) closeCat(); });
+
+  catGrid.querySelectorAll('.pv-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const key = card.getAttribute('data-struct');
+      const s = structDefaults[key]; if(!s) return;
+      structPicked.textContent = s.name + ' (defaults applied)';
+      // override user inputs with structure defaults
+      tilt.value = s.tilt; azimuth.value = s.azimuth;
+      pvH.value = s.pvH; pvV.value = s.pvV;
+      gapTabX.value=s.tabX; gapTabY.value=s.tabY;
+      gapBlkX.value=s.blkX; gapBlkY.value=s.blkY;
+      tpbH.value=s.tpbH; tpbV.value=s.tpbV;
+      orientSeg.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.val===s.orient));
+      // trackers hint
+      if (key==='ground-tracker'){ tilt.value=0; azimuth.value=180; }
+      closeCat(); drawPreview();
+    });
+  });
+
+  // Segmented toggles
+  orientSeg.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ orientSeg.querySelectorAll('button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); drawPreview(); });
+  });
+  fillMethod.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ fillMethod.querySelectorAll('button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); });
+  });
+
+  // Disable "show modules" if > 5 MW target selected
+  function applyShowModulesGuard(){
+    const kwp = Number(targetKwp.value||0);
+    const disable = (document.querySelector('input[name="pv-target"]:checked')?.value==='cap') && kwp>5000;
+    showModules.disabled = !!disable;
+    if (disable) showModules.checked = false;
+  }
+  targetKwp.addEventListener('input', applyShowModulesGuard);
+  document.querySelectorAll('input[name="pv-target"]').forEach(r=>r.addEventListener('change', applyShowModulesGuard));
+  applyShowModulesGuard();
+
+  // Preview drawing (tables, blocks)
+  [mdPwr, mdLen, mdWid, pvH, pvV, tpbH, tpbV, gapModX, gapModY, gapTabX, gapTabY, gapBlkX, gapBlkY, orientSeg, tilt, azimuth].forEach(inp=>{
+    (inp instanceof HTMLElement?inp:inp).addEventListener?.('input', drawPreview);
+    (inp instanceof HTMLElement?inp:inp).addEventListener?.('change', drawPreview);
+  });
+
+  zoom.addEventListener('input', ()=>{ previewScale=parseFloat(zoom.value); drawPreview(); });
+  zoomIn.addEventListener('click', ()=>{ zoom.value=Math.min(3, (parseFloat(zoom.value)+0.1)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); });
+  zoomOut.addEventListener('click', ()=>{ zoom.value=Math.max(0.5, (parseFloat(zoom.value)-0.1)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); });
+  canvas.addEventListener('wheel', (e)=>{ e.preventDefault(); const step = (e.deltaY>0?-0.1:0.1); zoom.value=Math.min(3,Math.max(0.5,parseFloat(zoom.value)+step)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); }, {passive:false});
+
+  function getConfig(){
+    const orient = orientSeg.querySelector('.active')?.getAttribute('data-val')||'portrait';
+    const H = Math.max(1, Number(pvH.value||1));
+    const V = Math.max(1, Number(pvV.value||1));
+    const modLenM = Number(mdLen.value||0)/1000;
+    const modWidM = Number(mdWid.value||0)/1000;
+    const modX = orient==='portrait' ? modWidM : modLenM;
+    const modY = orient==='portrait' ? modLenM : modWidM;
+    const cfg = {
+      module:{ name: mdName.value||'Module', pwr: Number(mdPwr.value||0), len: modLenM, wid: modWidM, orient },
+      table:{ modH: H, modV: V, gapModX: Number(gapModX.value||0), gapModY: Number(gapModY.value||0) },
+      block:{ tH: Math.max(1, Number(tpbH.value||1)), tV: Math.max(1, Number(tpbV.value||1)) },
+      gaps:{ tabX: Number(gapTabX.value||0), tabY: Number(gapTabY.value||0), blkX: Number(gapBlkX.value||0), blkY: Number(gapBlkY.value||0) },
+      orientation:{ tilt: Number(tilt.value||0), azimuth: Number(azimuth.value||0), edgeMode: edgeMode.value||'', fillStart: fillStart.value||'East', method: fillMethod.querySelector('.active')?.getAttribute('data-val')||'adaptive' },
+      target:{ mode: document.querySelector('input[name="pv-target"]:checked')?.value || 'cap', kwp: Number(targetKwp.value||0) },
+      showModules: !!showModules.checked,
+      locked: pvLock.dataset.state!=='unlocked',
+      boundarySetback: Number(document.getElementById('in-setback-boundary')?.value||'0')
+    };
+    const modXdim = modX;
+    const modYdim = modY * Math.cos((cfg.orientation.tilt||0) * Math.PI/180);
+    cfg.table.w = H*modXdim + (H-1)*cfg.table.gapModX;
+    cfg.table.h = V*modYdim + (V-1)*cfg.table.gapModY;
+    cfg.table.kwp = (H*V*cfg.module.pwr)/1000;
+
+    cfg.block.w = cfg.block.tH * cfg.table.w + (cfg.block.tH-1)*cfg.gaps.tabX;
+    cfg.block.h = cfg.block.tV * cfg.table.h + (cfg.block.tV-1)*cfg.gaps.tabY;
+    return cfg;
+  }
+
+  function drawPreview(){
+    const cfg = getConfig();
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    // Lay out 2x2 blocks in preview
+    const colsB = 2, rowsB = 2;
+    const pad = 12;
+    const totalW = colsB*cfg.block.w + (colsB-1)*cfg.gaps.blkX + 2*pad;
+    const totalH = rowsB*cfg.block.h + (rowsB-1)*cfg.gaps.blkY + 2*pad;
+    const sFit = Math.min(W/totalW, H/totalH);
+    const scale = sFit * previewScale;
+    const offX = (W - (colsB*cfg.block.w + (colsB-1)*cfg.gaps.blkX)*scale)/2;
+    const offY = (H - (rowsB*cfg.block.h + (rowsB-1)*cfg.gaps.blkY)*scale)/2;
+
+    const tW = cfg.table.w, tH = cfg.table.h;
+    const tGapX = cfg.gaps.tabX, tGapY = cfg.gaps.tabY;
+
+    ctx.lineWidth = 1;
+
+    for (let br=0;br<rowsB;br++){
+      for (let bc=0;bc<colsB;bc++){
+        const bx = offX + (bc*(cfg.block.w + cfg.gaps.blkX))*scale;
+        const by = offY + (br*(cfg.block.h + cfg.gaps.blkY))*scale;
+
+        // block outline
+        ctx.strokeStyle = '#9ca3af';
+        ctx.strokeRect(bx, by, cfg.block.w*scale, cfg.block.h*scale);
+
+        // draw tables inside block
+        for(let rr=0; rr<cfg.block.tV; rr++){
+          for(let cc=0; cc<cfg.block.tH; cc++){
+            const tx = bx + (cc*(tW + tGapX))*scale;
+            const ty = by + (rr*(tH + tGapY))*scale;
+            ctx.fillStyle = '#e2e8f0';
+            ctx.strokeStyle = '#64748b';
+            ctx.fillRect(tx, ty, tW*scale, tH*scale);
+            ctx.strokeRect(tx, ty, tW*scale, tH*scale);
+
+            // modules grid (light)
+            const mCols = cfg.table.modH, mRows = cfg.table.modV;
+            const modXdim = (cfg.module.orient==='portrait' ? cfg.module.wid : cfg.module.len)*scale;
+            const modYdim = ((cfg.module.orient==='portrait' ? cfg.module.len : cfg.module.wid)*Math.cos((cfg.orientation.tilt||0)*Math.PI/180))*scale;
+            const gapMx = cfg.table.gapModX*scale, gapMy = cfg.table.gapModY*scale;
+            let cx = tx, cy = ty;
+            ctx.strokeStyle = '#94a3b8';
+            for(let r=0;r<mRows;r++){
+              for(let c=0;c<mCols;c++){
+                ctx.strokeRect(cx, cy, modXdim, modYdim);
+                cx += modXdim + gapMx;
+              }
+              cx = tx;
+              cy += modYdim + gapMy;
+            }
+          }
+        }
+      }
+    }
+
+    meta.textContent = `Table: ${cfg.table.w.toFixed(2)}m × ${cfg.table.h.toFixed(2)}m · ${cfg.table.kwp.toFixed(2)} kWp/table · Block: ${cfg.block.tH*cfg.block.tV} tables`;
+  }
+
+  // ===== Overlay registry (non-invasive hook) =====
+  // Track overlays added to the map so we can find Areas/Objects without touching drawing.js
+  window.__overlayRegistry = window.__overlayRegistry || new Set();
+  function patchOverlayRegistry(){
+    const g = window._google; if(!g) return;
+    ['Polygon','Rectangle','Circle','Polyline'].forEach(klass=>{
+      const C = g.maps[klass]; if(!C || C.__patched) return;
+      const proto = C.prototype; const orig = proto.setMap;
+      proto.setMap = function(map){ try{ window.__overlayRegistry.add(this); }catch(_e){} return orig.apply(this, arguments); };
+      C.__patched = true;
+    });
+  }
+  window.addEventListener('load', ()=>setTimeout(patchOverlayRegistry, 0));
+
+  // ===== Small helpers =====
+  function $(sel){ return document.querySelector(sel); }
+  function getOverlaysBy(pred){
+    const out=[]; window.__overlayRegistry?.forEach(ov=>{ try{ if(ov.getMap && ov.getMap() && pred(ov)) out.push(ov); }catch(_e){} });
+    return out;
+  }
+  function getAreasSelected(){
+    const sel = getOverlaysBy(ov=>ov.__cat==='area' && ov.__selected===true);
+    if(sel.length) return sel;
+    // fallback to all areas if none selected
+    return getOverlaysBy(ov=>ov.__cat==='area');
+  }
+  function getObjects(){ return getOverlaysBy(ov=>ov.__cat==='object' || ov.__cat==='constraint'); }
+
+  // Build polygon paths from overlay
+  function polygonPathFromOverlay(ov){
+    const g=window._google, m=window._map;
+    if(ov.getPath){ return ov.getPath().getArray(); }
+    if(ov.getBounds){
+      const b=ov.getBounds(), ne=b.getNorthEast(), sw=b.getSouthWest();
+      const nw=new g.maps.LatLng(ne.lat(), sw.lng());
+      const se=new g.maps.LatLng(sw.lat(), ne.lng());
+      return [nw, ne, se, sw, nw];
+    }
+    if(ov.getCenter && ov.getRadius){
+      const c=ov.getCenter(), r=ov.getRadius();
+      const pts=[]; const N=64;
+      for(let i=0;i<N;i++){ pts.push( g.maps.geometry.spherical.computeOffset(c, r, i*(360/N)) ); }
+      pts.push(pts[0]); return pts;
+    }
+    return [];
+  }
+
+  // Inward offset (approx) for setback
+  function averageHeading(h1,h2){
+    const r1=h1*Math.PI/180, r2=h2*Math.PI/180;
+    const x=Math.cos(r1)+Math.cos(r2), y=Math.sin(r1)+Math.sin(r2);
+    return Math.atan2(y,x)*180/Math.PI;
+  }
+  function offsetClosedPathInward(path, dist){
+    const g=window._google;
+    if(!path?.length) return path;
+    const closed = (path.length>1 && path[0].equals(path[path.length-1])) ? path.slice(0,-1) : path.slice();
+    // orientation (approx planar)
+    let a=0; for(let i=0;i<closed.length;i++){ const p=closed[i], q=closed[(i+1)%closed.length]; a += (q.lng()-p.lng())*(q.lat()+p.lat()); }
+    const ccw = (-a) > 0;
+    const out=[]; const L=closed.length;
+    for(let i=0;i<L;i++){
+      const prev=closed[(i-1+L)%L], curr=closed[i], next=closed[(i+1)%L];
+      const hPrev=g.maps.geometry.spherical.computeHeading(prev,curr);
+      const hNext=g.maps.geometry.spherical.computeHeading(curr,next);
+      const hAvg=averageHeading(hPrev,hNext);
+      const normal = ccw ? (hAvg - 90) : (hAvg + 90);
+      out.push( g.maps.geometry.spherical.computeOffset(curr, dist, normal) );
+    }
+    out.push(out[0]); return out;
+  }
+
+  // Local ENU projection helpers
+  function makeLocal(origin){
+    const g=window._google;
+    return {
+      toXY(p){
+        const d = g.maps.geometry.spherical.computeDistanceBetween(origin, p);
+        const h = g.maps.geometry.spherical.computeHeading(origin, p) * Math.PI/180;
+        return { x: d*Math.sin(h), y: d*Math.cos(h) }; // x east, y north
+      },
+      fromXY(x,y){
+        const d = Math.hypot(x,y);
+        const h = Math.atan2(x,y) * 180/Math.PI;
+        return g.maps.geometry.spherical.computeOffset(origin, d, h);
+      }
+    };
+  }
+  function rotateXY(x,y,deg,px,py){
+    const t = deg*Math.PI/180;
+    const dx = x-px, dy=y-py;
+    return { x: px + dx*Math.cos(t) - dy*Math.sin(t), y: py + dx*Math.sin(t) + dy*Math.cos(t) };
+  }
+
+  // Point-in-polygon test using Google geometry
+  function contains(poly, latLng){ return window._google.maps.geometry.poly.containsLocation(latLng, poly); }
+
+  // ===== Layout engine =====
+  let layoutOverlays = []; // polygons we add
+  function clearLayout(){
+    layoutOverlays.forEach(ov=>{ try{ ov.setMap(null); }catch(_e){} });
+    layoutOverlays = [];
+    // Remove badges in Summary
+    document.querySelectorAll('.pv-badge').forEach(b=>b.remove());
+  }
+
+  // Inject "layout kWp" into Summary table (non-invasive, survives re-render via MutationObserver)
+  const sumBody = document.getElementById('sum-body');
+  const mo = new MutationObserver(()=> injectBadges() );
+  mo.observe(sumBody, {childList:true, subtree:true});
+  function injectBadges(){
+    // aggregate by area name
+    const areaTotals = new Map(); // name -> kwp
+    layoutOverlays.forEach(ov=>{
+      if(!ov.__areaName || !ov.__kwp) return;
+      areaTotals.set(ov.__areaName, (areaTotals.get(ov.__areaName)||0) + ov.__kwp);
+    });
+    sumBody.querySelectorAll('tr').forEach(tr=>{
+      const cell = tr.querySelector('td.name'); if(!cell) return;
+      const name = cell.textContent.trim();
+      const kwp = areaTotals.get(name);
+      // remove existing badge then add
+      cell.querySelectorAll('.pv-badge').forEach(b=>b.remove());
+      if(kwp>0){
+        const b = document.createElement('span'); b.className='pv-badge'; b.textContent = `layout: ${kwp.toFixed(1)} kWp`;
+        cell.appendChild(b);
+      }
+    });
+  }
+
+  pvLock.addEventListener('click', ()=>{
+    if (pvLock.dataset.state==='unlocked'){
+      pvLock.dataset.state='locked'; pvLock.textContent='Unlock editing';
+      layoutOverlays.forEach(ov=>{ try{ ov.setEditable(false); ov.setDraggable(false);}catch(_e){} });
+    }else{
+      pvLock.dataset.state='unlocked'; pvLock.textContent='Lock editing';
+      layoutOverlays.forEach(ov=>{ try{ ov.setEditable(true); ov.setDraggable(true);}catch(_e){} });
+    }
+  });
+
+  pvBuild.addEventListener('click', build);
+
+  function build(){
+    const g=window._google, map=window._map;
+    if(!g || !map){ alert('Map not ready'); return; }
+    const cfg = getConfig();
+    // Guard: modules view auto-disable if > 5 MW
+    if (cfg.target.mode==='cap' && cfg.target.kwp>5000){ cfg.showModules=false; showModules.checked=false; }
+
+    // Get areas and obstacles from overlays created by drawing.js
+    const areas = getAreasSelected();
+    if(!areas.length){ alert('Draw or select an Area first.'); return; }
+
+    clearLayout();
+
+    areas.forEach(ovArea=>{
+      const areaName = ovArea.__name || 'Area';
+      const path = polygonPathFromOverlay(ovArea);
+      const inner = cfg.boundarySetback>0 ? offsetClosedPathInward(path, cfg.boundarySetback) : path.slice();
+      const polyArea = new g.maps.Polygon({paths:inner});
+
+      // Orientation to edge (optional): compute and update azimuth
+      if (cfg.orientation.edgeMode){
+        const bds = boundsOfPath(inner);
+        const dx = Math.abs(bds.maxX - bds.minX), dy = Math.abs(bds.maxY - bds.minY);
+        const edgeHeading = (cfg.orientation.edgeMode==='longest' ? (dx>=dy? 90:0) : (dx<dy?90:0));
+        // heading in ENU frame -> convert to azimuth (0 north) same
+        cfg.orientation.azimuth = edgeHeading;
+        azimuth.value = cfg.orientation.azimuth;
+      }
+
+      const origin = centroid(inner);
+      const proj = makeLocal(origin);
+      const innerXY = inner.map(p=>proj.toXY(p));
+      const bbox = boundsXY(innerXY);
+
+      // block/table metrics
+      const tW = cfg.table.w, tH = cfg.table.h;
+      const bW = cfg.block.w, bH = cfg.block.h;
+      const stepBX = bW + cfg.gaps.blkX;
+      const stepBY = bH + cfg.gaps.blkY;
+      const stepTX = tW + cfg.gaps.tabX;
+      const stepTY = tH + cfg.gaps.tabY;
+
+      // Fill start ordering
+      const xRange = cfg.orientation.fillStart==='West' ? range(bbox.maxX, bbox.minX - bW, -stepBX)
+                    : cfg.orientation.fillStart==='Middle' ? range((bbox.minX+bbox.maxX)/2, bbox.minX - bW, -stepBX).concat(range((bbox.minX+bbox.maxX)/2 + stepBX, bbox.maxX + stepBX, stepBX))
+                    : range(bbox.minX, bbox.maxX + stepBX, stepBX); // East/default
+      const yRange = cfg.orientation.fillStart==='South' ? range(bbox.minY, bbox.maxY + stepBY, stepBY)
+                    : cfg.orientation.fillStart==='Middle' ? range((bbox.minY+bbox.maxY)/2, bbox.maxY + stepBY, stepBY).concat(range((bbox.minY+bbox.maxY)/2 - stepBY, bbox.minY - bH, -stepBY))
+                    : range(bbox.maxY, bbox.minY - bH, -stepBY); // North default (y increases north)
+
+      // Obstacles polygons
+      const obstacles = getObjects().map(o=> new g.maps.Polygon({paths: polygonPathFromOverlay(o)}) );
+
+      let kwpSum = 0;
+      let stop = false;
+
+      for(const y0 of yRange){
+        if(stop) break;
+        for(const x0 of xRange){
+          if(stop) break;
+
+          // block rectangle (axis-aligned in ENU), optionally rotated by azimuth
+          const blk = rectXY(x0, y0, bW, bH);
+          const blkOk = rectInsidePolygon(blk, innerXY, cfg.orientation.azimuth, proj, polyArea, obstacles);
+          if(!blkOk) continue;
+
+          // place tables inside block
+          for(let r=0; r<cfg.block.tV; r++){
+            if(stop) break;
+            for(let c=0; c<cfg.block.tH; c++){
+              const tx = x0 + c*stepTX;
+              const ty = y0 + r*stepTY;
+              const tab = rectXY(tx, ty, tW, tH);
+              if(!rectInsidePolygon(tab, innerXY, cfg.orientation.azimuth, proj, polyArea, obstacles)) continue;
+
+              // Draw geometry: table or modules
+              if(!cfg.showModules){
+                const pathLL = rectToLatLng(tab, cfg.orientation.azimuth, proj);
+                const poly = new g.maps.Polygon({
+                  map: window._map,
+                  paths: pathLL,
+                  strokeColor:'#0284c7', strokeOpacity:0.9, strokeWeight:1.2,
+                  fillColor:'#38bdf8', fillOpacity:0.18,
+                  clickable:true, draggable:!cfg.locked, editable:!cfg.locked
+                });
+                poly.__areaName = areaName;
+                poly.__kwp = cfg.table.kwp;
+                layoutOverlays.push(poly);
+              }else{
+                // modules: draw outlines as thin polygons (limit count)
+                const mCols = cfg.table.modH, mRows = cfg.table.modV;
+                const modXdim = (cfg.module.orient==='portrait' ? cfg.module.wid : cfg.module.len);
+                const modYdim = (cfg.module.orient==='portrait' ? cfg.module.len : cfg.module.wid) * Math.cos((cfg.orientation.tilt||0)*Math.PI/180);
+                const offX = modXdim + cfg.table.gapModX;
+                const offY = modYdim + cfg.table.gapModY;
+                let modulesDrawn = 0, modulesCap = 4000; // soft cap for performance
+                for(let rr=0; rr<mRows; rr++){
+                  for(let cc=0; cc<mCols; cc++){
+                    if(modulesDrawn>modulesCap) break;
+                    const mx = tx + cc*offX;
+                    const my = ty + rr*offY;
+                    const mrect = rectXY(mx, my, modXdim, modYdim);
+                    if(!rectInsidePolygon(mrect, innerXY, cfg.orientation.azimuth, proj, polyArea, obstacles)) continue;
+                    const pathLL = rectToLatLng(mrect, cfg.orientation.azimuth, proj);
+                    const poly = new g.maps.Polygon({
+                      map: window._map,
+                      paths: pathLL,
+                      strokeColor:'#0f172a', strokeOpacity:0.6, strokeWeight:0.6,
+                      fillColor:'#cbd5e1', fillOpacity:0.22,
+                      clickable:true, draggable:!cfg.locked, editable:!cfg.locked
+                    });
+                    poly.__areaName = areaName;
+                    poly.__kwp = cfg.module.pwr/1000;
+                    layoutOverlays.push(poly);
+                    modulesDrawn++;
+                  }
+                }
+              }
+
+              kwpSum += cfg.table.kwp;
+              if(cfg.target.mode==='cap' && kwpSum >= cfg.target.kwp){ stop=true; break; }
+            }
+          }
+        }
+      }
+    });
+
+    injectBadges();
+    // Center preview redraw (cos tilt) not necessary here
+  }
+
+  // Geometry helpers for layout
+  function range(start, end, step){
+    const out=[]; if(step===0) return out;
+    if(step>0){ for(let x=start; x<=end; x+=step) out.push(x); }
+    else{ for(let x=start; x>=end; x+=step) out.push(x); }
+    return out;
+  }
+  function rectXY(x, y, w, h){ // top-left (x,y), y grows north
+    return [ {x,y}, {x:x+w,y}, {x:x+w,y:y+h}, {x, y:y+h} ];
+  }
+  function rectToLatLng(rect, azDeg, proj){
+    // rotate around rect center by azDeg
+    const cx = (rect[0].x + rect[2].x)/2, cy = (rect[0].y + rect[2].y)/2;
+    const rp = rect.map(p=>rotateXY(p.x,p.y, azDeg, cx, cy));
+    // back to latlng
+    return rp.map(p=>proj.fromXY(p.x,p.y));
+  }
+  function rectInsidePolygon(rect, innerXY, azDeg, proj, polyArea, obstacles){
+    const cx = (rect[0].x + rect[2].x)/2, cy = (rect[0].y + rect[2].y)/2;
+    const rp = rect.map(p=>rotateXY(p.x,p.y, azDeg, cx, cy));
+    // quick bbox reject against inner polygon bbox
+    const bb = boundsXY(innerXY);
+    const rbb = {minX:Math.min(...rp.map(p=>p.x)), maxX:Math.max(...rp.map(p=>p.x)), minY:Math.min(...rp.map(p=>p.y)), maxY:Math.max(...rp.map(p=>p.y))};
+    if(rbb.minX<bb.minX || rbb.maxX>bb.maxX || rbb.minY<bb.minY || rbb.maxY>bb.maxY) return false;
+    // corner + center test inside area and outside obstacles
+    const pts = rp.concat([{x:cx,y:cy}]).map(p=>proj.fromXY(p.x,p.y));
+    for(const ll of pts){
+      if(!contains(polyArea, ll)) return false;
+      for(const ob of obstacles){ if(contains(ob, ll)) return false; }
+    }
+    return true;
+  }
+  function boundsOfPath(path){ // compute ENU bounds by projecting to local centroid frame
+    const c = centroid(path);
+    const proj = makeLocal(c);
+    const xy = path.map(p=>proj.toXY(p));
+    return boundsXY(xy);
+  }
+  function boundsXY(xy){
+    const xs = xy.map(p=>p.x), ys=xy.map(p=>p.y);
+    return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys) };
+  }
+  function centroid(path){
+    const g=window._google;
+    let lat=0,lng=0; const n=path.length;
+    path.forEach(p=>{ lat+=p.lat(); lng+=p.lng(); });
+    return new g.maps.LatLng(lat/n, lng/n);
+  }
+
+  // initial draw
+  drawPreview();
+
+})();
 </script>
 
 <!-- Google Maps -->
