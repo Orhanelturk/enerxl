@@ -365,9 +365,7 @@
 
     /* Hand off to drawing module */
     try{
-      const moduleUrl = new URL('./drawing.js', import.meta.url).href;
-const { mountDrawing } = await import(moduleUrl);
-
+      const { mountDrawing } = await import('./drawing.js');
       mountDrawing({ google, map, document });
     }catch(err){
       console.error('Failed to load drawing module:', err);
