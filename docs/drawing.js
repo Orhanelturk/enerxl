@@ -1,7 +1,6 @@
-// drawing.js  (ES module)
-// Exposes mountDrawing({ google, map, document })
-
-export function mountDrawing(ctx){
+// drawing.js — classic script (no ES module export); exposes window.mountDrawing(ctx)
+// ctx: { google, map, document }
+window.mountDrawing = function mountDrawing(ctx){
   const { google, map, document } = ctx;
 
   // ==== Constants (drawing/layout) ====
@@ -1051,4 +1050,4 @@ export function mountDrawing(ctx){
       if(p.style.display!=='none') placePopoverNextToDrawer(p,b);
     });
   });
-}
+};

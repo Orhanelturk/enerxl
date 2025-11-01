@@ -332,10 +332,12 @@
   </div>
 </div>
 
-<!-- Bootstrap + dynamic import of drawing module -->
-<script type="module">
-  // Minimal bootstrap: init map, search, fullscreen; hand off to drawing.js
-  window.initMap = async function(){
+<!-- Load the drawing logic (classic script, no module/import) -->
+<script src="./drawing.js"></script>
+
+<!-- Bootstrap: init map, search, fullscreen; then hand off to window.mountDrawing -->
+<script>
+  window.initMap = function(){
     const START = { lat: 38.397550221066616, lng: 34.97863102806574 };
 
     const map = new google.maps.Map(document.getElementById('map'), {
@@ -363,14 +365,11 @@
     ac.bindTo('bounds',map);
     ac.addListener('place_changed',()=>{const p=ac.getPlace(); if(!p.geometry?.location)return; map.panTo(p.geometry.location); map.setZoom(17); new google.maps.Marker({map,position:p.geometry.location});});
 
-    /* Hand off to drawing module */
-    try{
-      const moduleUrl = new URL('./drawing.js', import.meta.url).href;
-const { mountDrawing } = await import(moduleUrl);
-
-      mountDrawing({ google, map, document });
-    }catch(err){
-      console.error('Failed to load drawing module:', err);
+    /* Hand off to drawing module (now on window) */
+    if (typeof window.mountDrawing === 'function') {
+      window.mountDrawing({ google, map, document });
+    } else {
+      console.error('mountDrawing is not available; make sure drawing.js is loaded');
     }
   };
 </script>
