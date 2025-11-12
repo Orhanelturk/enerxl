@@ -1125,6 +1125,43 @@
 
 
 
+// === Inset helpers (LL = LatLng space) ===
+function avgHeading(h1, h2){
+  const r1 = h1*Math.PI/180, r2 = h2*Math.PI/180;
+  const x = Math.cos(r1)+Math.cos(r2), y = Math.sin(r1)+Math.sin(r2);
+  return Math.atan2(y, x) * 180/Math.PI;
+}
+function signedAreaApproxLL(path){
+  // planar-ish orientation test over lat/lng (good enough for inner/outer normal)
+  let a = 0, n = path.length;
+  for (let i=0;i<n;i++){
+    const p = path[i], q = path[(i+1)%n];
+    a += (q.lng() - p.lng()) * (q.lat() + p.lat());
+  }
+  return -a; // ccw positive
+}
+function insetPolygonLL(pathLL, distMeters){
+  const g = window._google;
+  if (!g || !pathLL || pathLL.length < 3) return null;
+
+  // ensure open (no duplicate last = first)
+  const closed = pathLL[0].equals(pathLL[pathLL.length-1]) ? pathLL.slice(0,-1) : pathLL.slice();
+  if (closed.length < 3) return null;
+
+  // inward = left normal when polygon is CCW
+  const ccw = signedAreaApproxLL(closed) > 0;
+  const N = closed.length;
+  const out = [];
+  for (let i=0; i<N; i++){
+    const prev = closed[(i-1+N)%N], curr = closed[i], next = closed[(i+1)%N];
+    const hPrev = g.maps.geometry.spherical.computeHeading(prev, curr);
+    const hNext = g.maps.geometry.spherical.computeHeading(curr, next);
+    const hAvg  = avgHeading(hPrev, hNext);
+    const normal = ccw ? (hAvg - 90) : (hAvg + 90);
+    out.push(g.maps.geometry.spherical.computeOffset(curr, distMeters, normal));
+  }
+  return out; // polygon rings are implicitly closed by Google Maps
+}
 
 
   
@@ -1199,8 +1236,19 @@
   areas.forEach(ovArea => {
     if (hitCap) return;
 
-    const path = polygonPathFromOverlay(ovArea);
-    if (!path.length) return;
+  // 1) Get original boundary
+  let path = polygonPathFromOverlay(ovArea);
+  if (!path.length) return;
+
+  // 2) Inset by user setback (meters) if provided
+  const setback = Math.max(0, userSetback || 0);
+  if (setback > 0) {
+    const inset = insetPolygonLL(path, setback);
+    // If the area is too small for this setback, skip placing inside it
+    if (!inset || inset.length < 3) return;
+    path = inset;
+  }
+
 
     const polyArea = new g.maps.Polygon({ paths: path });
     const origin = centroid(path);
