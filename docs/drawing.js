@@ -222,12 +222,19 @@ window.mountDrawing = function mountDrawing(ctx){
       ov.__tilt = DEFAULT_TILT; ov.__azimuth = DEFAULT_AZIMUTH;
       const label=new HtmlLabel(getLabelNW(ov), name); label.setMap(map); ov.__label=label;
       areas.push({overlay:ov,type,name,label});
+      if (window.__overlayRegistry) {
+  window.__overlayRegistry.add(ov);
+}
     }else if(category==='constraint'){
       const name=`Constraint ${++constraintCounter}`; ov.__name=name; ov.__label=null;
       constraints.push({overlay:ov,type,name,label:null});
+      if (window.__overlayRegistry) window.__overlayRegistry.add(ov);
+
     }else{
       const name=`Object ${++objectCounter}`; ov.__name=name; ov.__label=null;
       objects.push({overlay:ov,type,name,label:null});
+      if (window.__overlayRegistry) window.__overlayRegistry.add(ov);
+
     }
     bindEvents(ov);
     if(category==='area') updateSummary();
@@ -1026,23 +1033,46 @@ window.mountDrawing = function mountDrawing(ctx){
   }
 
   // ==== Helpers used in multiple places ====
-  function getLabelNW(ov){
-    let bounds=null;
-    if(ov.getBounds) bounds=ov.getBounds();
-    else if(ov.getPath){
-      bounds=new google.maps.LatLngBounds();
-      ov.getPath().forEach(p=>bounds.extend(p));
-    }else if(ov.getCenter && ov.getRadius){
-      const c=ov.getCenter(), r=ov.getRadius();
-      const ne=google.maps.geometry.spherical.computeOffset(c, r*Math.SQRT1_2, 45);
-      const sw=google.maps.geometry.spherical.computeOffset(c, r*Math.SQRT1_2, 225);
-      bounds=new google.maps.LatLngBounds(sw, ne);
+  function getLabelNW(ov) {
+  const g = window._google;
+  const map = window._map;
+  if (!g || !map) return null;
+
+  // ✅ Polygon or rectangle
+  if (ov.getPath) {
+    const pts = ov.getPath().getArray();
+    if (!pts.length) return map.getCenter();
+
+    // Find point with maximum latitude (northmost)
+    let highest = pts[0];
+    for (const p of pts) {
+      if (p.lat() > highest.lat()) highest = p;
     }
-    if(!bounds) return map.getCenter();
-    const ne=bounds.getNorthEast(), sw=bounds.getSouthWest();
-    const nw=new google.maps.LatLng(ne.lat(), sw.lng());
-    return google.maps.geometry.spherical.computeOffset(nw, 4, 315);
+
+    // Offset label slightly north (≈4 m)
+    return g.maps.geometry.spherical.computeOffset(highest, 4, 0);
   }
+
+  // ✅ Rectangle (in case it's not treated as polygon)
+  if (ov.getBounds) {
+    const b = ov.getBounds();
+    const ne = b.getNorthEast();
+    const nw = new g.maps.LatLng(ne.lat(), b.getSouthWest().lng());
+    const midTop = new g.maps.LatLng(ne.lat(), (ne.lng() + nw.lng()) / 2);
+    return g.maps.geometry.spherical.computeOffset(midTop, 4, 0);
+  }
+
+  // ✅ Circle
+  if (ov.getCenter && ov.getRadius) {
+    const c = ov.getCenter();
+    const r = ov.getRadius();
+    return g.maps.geometry.spherical.computeOffset(c, r + 4, 0);
+  }
+
+  // Default fallback
+  return map.getCenter();
+}
+
 
   // Keep popovers stuck next to drawer while window resizes
   window.addEventListener('resize', ()=>{

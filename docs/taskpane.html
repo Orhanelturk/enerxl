@@ -16,6 +16,9 @@
   #app{position:relative;height:100vh;width:100vw;overflow:hidden}
   #map{position:absolute;inset:0}
 
+  /* Utils */
+  .hidden{display:none!important}
+
   /* Left rail */
   .control-pane{
     position:absolute;top:15px;left:15px;width:25px;padding:5px 8px;background:var(--panel);border:1px solid var(--panel-border);
@@ -53,7 +56,7 @@
   .bar{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--panel-border)}
   .seg{display:inline-flex;border:1px solid var(--panel-border);border-radius:10px;overflow:hidden}
   .seg button{font-size:13px;padding:7px 12px;border:none;background:#fff;color:#223;cursor:pointer}
-  .seg button.active{background:var(--accent-ghost);color:#1848cc}
+  .seg button.active{background:var(--accent-ghost);color:var(--accent)}
 
   .body{
     padding:12px 12px;
@@ -81,15 +84,20 @@
   .menu button{font-size:12px;text-align:left;padding:6px 8px;border:1px solid #eef2ff;background:#fff;border-radius:8px;cursor:pointer}
   .menu button:hover{background:#f6f8ff}
 
-  /* Summary */
+  /* Summary -> collapse (open/close) */
   .summary{
-    --colw: 88px;
+    --colw: 88px; --hdrh: 32px;
     position:absolute;left:10px;bottom:10px;z-index:27;
     width:550px;background:#fff;border:1px solid var(--panel-border);
-    border-radius:14px;box-shadow:var(--shadow);overflow:hidden;opacity:.15;transition:opacity .18s ease;
+    border-radius:14px;box-shadow:var(--shadow);overflow:hidden;
   }
-  .summary:hover,.summary:focus-within{opacity:1}
-  .summary .sum-hdr{padding:6px 8px;border-bottom:1px solid var(--panel-border);font-weight:700;color:#1e2433;background:#fff;font-size:12px}
+  .summary .sum-hdr{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--panel-border);font-weight:700;color:#1e2433;background:#fff;font-size:12px;cursor:pointer;user-select:none}
+  .summary .sum-hdr .chev{margin-left:auto;transition:transform .2s ease}
+  .summary.collapsed .sum-hdr .chev{transform:rotate(180deg)}
+  .summary.collapsed .sum-head,
+  .summary.collapsed .tbl-wrap,
+  .summary.collapsed .sum-foot{display:none}
+
   .sum-head,.tbl-wrap,.sum-foot{overflow:auto}
   .sum-head::-webkit-scrollbar,.sum-foot::-webkit-scrollbar{display:none}
   .sum-head,.sum-foot{scrollbar-width:none}
@@ -99,7 +107,6 @@
   .summary tfoot td{font-weight:700;background:#fafbff}
   .summary col.col{width:var(--colw)}
   .summary td.num,.summary th.num{text-align:right}
-  .summary td.name{text-align:left}
   .tbl-wrap{max-height:calc(var(--rowh)*5); overflow:auto;}
   .summary tbody tr{height:var(--rowh);}
 
@@ -115,10 +122,10 @@
 
   body.fs #map{inset:0}
 
-  /* ================= PV LAYOUT SHEET (NEW) ================= */
+  /* ================= PV LAYOUT SHEET ================= */
   .pv-sheet{
-    position:absolute;top:15px;left:75px; /* exact same anchor as drawer */
-    width:520px;min-width:380px;max-width:70vw;
+    position:absolute;top:15px;left:75px;
+    width:300px;min-width:300px;max-width:300px;
     height:74vh;min-height:420px;max-height:calc(100vh - 30px);
     background:#fff;border:1px solid var(--panel-border);border-radius:16px;box-shadow:var(--shadow);
     display:none;flex-direction:column;z-index:28;resize:both;overflow:hidden;
@@ -130,15 +137,15 @@
   .pv-sheet .content{flex:1 1 auto;overflow:auto;padding:10px 12px}
   .pv-section{margin:10px 0 16px}
   .pv-section h4{margin:0 0 8px;font-size:13px;color:#1e2433}
-  .pv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pv-grid{display:grid;grid-template-columns:1fr;gap:6px}
   .pv-field{display:flex;align-items:center;gap:8px;margin:6px 0}
-  .pv-field label{font-size:12px;color:#334;min-width:140px}
+  .pv-field label{font-size:12px;color:#334;min-width:110px}
   .pv-field input[type="number"], .pv-field input[type="text"], .pv-field select{
     width:100%;padding:6px 8px;border:1px solid #e5e7f2;border-radius:8px;font-size:12px
   }
   .pv-drop{border:1.5px dashed #cbd5e1;padding:10px;border-radius:12px;text-align:center;font-size:12px;color:#475569;background:#f8fafc}
   .pv-preview{border:1px solid var(--panel-border);border-radius:12px;padding:8px}
-  .pv-preview canvas{width:100%;height:240px;display:block;background:#fff;border-radius:8px;box-shadow:inset 0 0 0 1px #f1f5f9}
+  .pv-preview canvas{width:100%;height:200px;display:block;background:#fff;border-radius:8px;box-shadow:inset 0 0 0 1px #f1f5f9}
   .pv-zoom{display:flex;align-items:center;gap:6px;margin-top:6px}
   .pv-zoom button{border:1px solid #cfe0ff;background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer}
   .pv-caption{font-size:12px;color:#64748b}
@@ -149,13 +156,10 @@
   .btn.ghost{background:#fff}
 
   /* Catalog modal */
-  .pv-modal-backdrop{
-    position:fixed; inset:0; background:rgba(15,23,42,.35); display:none; z-index:40;
-  }
+  .pv-modal-backdrop{position:fixed; inset:0; background:rgba(15,23,42,.35); display:none; z-index:40;}
   .pv-modal{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     width:720px; max-width:95vw; max-height:85vh; background:#fff; border:1px solid var(--panel-border);
-    border-radius:16px; box-shadow:var(--shadow); display:flex; flex-direction:column; overflow:hidden;
-  }
+    border-radius:16px; box-shadow:var(--shadow); display:flex; flex-direction:column; overflow:hidden;}
   .pv-modal .hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--panel-border)}
   .pv-modal .ttl{font-weight:700;color:#1e2433;font-size:14px}
   .pv-modal .x{margin-left:auto;border:none;background:transparent;cursor:pointer;width:30px;height:30px;border-radius:8px}
@@ -165,7 +169,6 @@
   .pv-card:hover{background:#f8fafc}
   .pv-card .ph{width:56px;height:40px;border-radius:6px;background:linear-gradient(135deg,#e5e7eb,#f3f4f6)}
 
-  /* tiny badge for Summary injection */
   .pv-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:6px;background:#eef2ff;color:#1d4ed8;font-size:10px;font-weight:600}
 </style>
 </head>
@@ -181,14 +184,6 @@
     <button class="tool-btn" data-tool="tools" title="Tools" aria-label="Tools">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M7 7h.01M12 7h.01M17 7h.01"/></svg>
     </button>
-    <button class="tool-btn is-primary" data-tool="select" title="Select/Edit" aria-label="Select">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l8 8"/><path d="M4 12V4h8"/><path d="M13 13l7 7"/></svg>
-    </button>
-    <button class="tool-btn" data-tool="draw" title="Draw" aria-label="Draw">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 0 7-6 3-6-3z"/></svg>
-    </button>
-
-    <!-- NEW: PV Layout open/close -->
     <button class="tool-btn" data-tool="pv" title="PV Layout" aria-label="PV Layout">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="6" width="18" height="10" rx="2"/><path d="M7 16l2 4m6-4l-2 4"/>
@@ -196,11 +191,19 @@
       </svg>
     </button>
 
-    <div class="group-sep"></div>
-    <button class="tool-btn" data-tool="export" title="Export" aria-label="Export">
+    <!-- Hidden (kept) -->
+    <button class="tool-btn is-primary hidden" data-tool="select" title="Select/Edit" aria-label="Select">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l8 8"/><path d="M4 12V4h8"/><path d="M13 13l7 7"/></svg>
+    </button>
+    <button class="tool-btn hidden" data-tool="draw" title="Draw" aria-label="Draw">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 0 7-6 3-6-3z"/></svg>
+    </button>
+
+    <div class="group-sep hidden"></div>
+    <button class="tool-btn hidden" data-tool="export" title="Export" aria-label="Export">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 9l4 4 4-4"/><path d="M20 21H4"/></svg>
     </button>
-    <button class="tool-btn" data-tool="settings" title="Settings" aria-label="Settings">
+    <button class="tool-btn hidden" data-tool="settings" title="Settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a2 2 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09z"/></svg>
     </button>
   </div>
@@ -248,7 +251,7 @@
       <button class="mini-btn" id="act-paste"     title="Paste (click to place)"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8l2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6l2-2z"/><path d="M9 9h6M9 13h6"/></svg></button>
       <button class="mini-btn" id="act-delete"    title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6l1-2h6l1 2"/></svg></button>
 
-      <!-- NEW: Rotate / Align / Distribute / Grid -->
+      <!-- Rotate / Align / Distribute / Grid -->
       <button class="mini-btn" id="act-rotate" title="Rotate">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg>
       </button>
@@ -295,21 +298,19 @@
         </div>
       </div>
 
-      <!-- ==================== NEW SECTION: Objects & Setbacks ==================== -->
+      <!-- Objects & Setbacks (inputs retained) -->
       <div style="grid-column:1/-1;margin-top:6px;font-weight:700;color:#1e2433">Objects & Setbacks</div>
 
-      <!-- Boundary Setback -->
       <button class="mini-btn" id="act-setback" title="Area Setback">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 20V8l8-5 8 5v12H4z"/><path d="M8 12h8M8 16h8"/>
         </svg>
       </button>
       <div id="pop-setback" class="popover" style="display:none">
-        <div class="row"><label>Setback (m)</label><input id="in-setback-boundary" type="number" min="0" value="0"></div>
-        <div class="row" style="font-size:12px;color:#667085;line-height:1.2">No geometry is drawn. PV layout will respect this gap from the area boundary.</div>
+        <div class="row"><label>Setback (m)</label><input id="in-setback-boundary" type="number" min="0" value="1"></div>
+        <div class="row" style="font-size:12px;color:#667085;line-height:1.2">Simple fill ignores setbacks in this version.</div>
       </div>
 
-      <!-- Roads -->
       <button class="mini-btn" id="act-roads" title="Roads">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6 20L10 4h4l4 16"/><path d="M12 8v2M12 14v2"/>
@@ -319,24 +320,23 @@
         <div class="row"><label>Width (m)</label><input id="road-width" type="number" min="1" value="4"></div>
         <div class="row"><label>Setback (m)</label><input id="road-setback" type="number" min="0" value="1"></div>
         <div class="row" style="gap:6px;flex-wrap:wrap">
-          <button id="road-free"  class="btn">Free drawing</button>
-          <button id="road-perim" class="btn">Perimeter</button>
+          <button id="road-free"  class="btn" disabled>Free drawing</button>
+          <button id="road-perim" class="btn" disabled>Perimeter</button>
         </div>
         <div class="row">
           <label style="min-width:88px">Horizontal #</label>
-          <input id="road-h-n" type="number" min="1" value="2">
-          <button id="road-h-apply" class="btn" style="margin-left:auto">Make</button>
+          <input id="road-h-n" type="number" min="1" value="2" disabled>
+          <button id="road-h-apply" class="btn" style="margin-left:auto" disabled>Make</button>
         </div>
         <div class="row">
           <label style="min-width:88px">Vertical #</label>
-          <input id="road-v-n" type="number" min="1" value="2">
-          <button id="road-v-apply" class="btn" style="margin-left:auto">Make</button>
+          <input id="road-v-n" type="number" min="1" value="2" disabled>
+          <button id="road-v-apply" class="btn" style="margin-left:auto" disabled>Make</button>
         </div>
-        <div class="row" style="font-size:12px;color:#667085;line-height:1.2">Roads are added as <b>Objects</b> so PV modules won't be placed over them.</div>
+        <div class="row" style="font-size:12px;color:#667085;line-height:1.2">Road/object avoidance is not applied in this simple fill.</div>
       </div>
 
-      <!-- Buildings (convenience) -->
-      <button class="mini-btn" id="act-building" title="Building (rectangle)">
+      <button class="mini-btn" id="act-building" title="Building (rectangle)" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="4" y="4" width="16" height="16" rx="2"/>
           <path d="M8 8h.01M12 8h.01M16 8h.01M8 12h8M8 16h8"/>
@@ -345,10 +345,11 @@
     </div>
   </div>
 
-  <!-- Summary -->
-  <div id="summary" class="summary" aria-live="polite">
-    <div class="sum-hdr">Summary</div>
-
+  <!-- Summary (collapse) -->
+  <div id="summary" class="summary" aria-live="polite" aria-expanded="true">
+    <div class="sum-hdr" id="sum-toggle">Summary
+      <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8aa3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
     <div class="sum-head" id="sum-head">
       <table>
         <colgroup>
@@ -366,7 +367,6 @@
         </thead>
       </table>
     </div>
-
     <div class="tbl-wrap" id="sum-bodywrap">
       <table>
         <colgroup>
@@ -377,7 +377,6 @@
         </tbody>
       </table>
     </div>
-
     <div class="sum-foot" id="sum-foot">
       <table>
         <colgroup>
@@ -397,7 +396,7 @@
     </div>
   </div>
 
-  <!-- ================= PV LAYOUT SHEET CONTENT (NEW) ================= -->
+  <!-- ================= PV LAYOUT SHEET CONTENT ================= -->
   <div id="pv-sheet" class="pv-sheet" role="dialog" aria-modal="false" aria-label="PV Layout">
     <div class="hdr">
       <div class="ttl">PV Layout</div>
@@ -412,50 +411,47 @@
       <!-- Section 1 -->
       <div class="pv-section">
         <h4>1) Select PV Module</h4>
-
         <div class="pv-field">
           <label>Library</label>
           <select id="pv-lib">
             <option value="">— Select a module —</option>
-            <option value="GEN600" selected>Generic 600 Wp — 2100×1134 mm</option>
-            <option value="GEN550">Generic 550 Wp — 2094×1134 mm</option>
-            <option value="GEN450">Generic 450 Wp — 1960×992 mm</option>
+            <option value="GEN600" selected>Generic 600 Wp — 2100×1134 mm</option>
+            <option value="GEN550">Generic 550 Wp — 2094×1134 mm</option>
+            <option value="GEN450">Generic 450 Wp — 1960×992 mm</option>
           </select>
-        </div>
-
-        <div class="pv-field" style="align-items:flex-start">
-          <label>PAN file</label>
-          <div class="pv-drop" style="width:100%">
-            Drag & drop *.PAN here or
-            <button type="button" class="btn ghost" id="pv-pan-browse">Browse</button>
-            <input id="pv-pan-input" type="file" accept=".pan,.PAN" style="display:none">
-            <div class="pv-caption" id="pv-pan-name" style="margin-top:6px">No file selected</div>
-          </div>
         </div>
 
         <details id="pv-custom" style="margin-top:6px">
           <summary class="pv-caption" style="cursor:pointer">Define custom module</summary>
           <div class="pv-grid" style="margin-top:8px">
-            <div class="pv-field"><label>Name</label><input id="md-name" type="text" value="Custom 600 Wp"></div>
+            <div class="pv-field"><label>Name</label><input id="md-name" type="text" value="Custom 600 Wp"></div>
             <div class="pv-field"><label>STC Power (Wp)</label><input id="md-pwr" type="number" min="1" value="600"></div>
             <div class="pv-field"><label>Length (mm)</label><input id="md-len" type="number" min="1" value="2100"></div>
             <div class="pv-field"><label>Width (mm)</label><input id="md-wid" type="number" min="1" value="1134"></div>
             <div class="pv-field"><label>Thickness (mm)</label><input id="md-thk" type="number" min="1" value="35"></div>
           </div>
+          <div class="pv-field" style="align-items:flex-start;margin-top:6px">
+            <label>PAN file</label>
+            <div class="pv-drop" style="width:100%">
+              Drag & drop *.PAN here or
+              <button type="button" class="btn ghost" id="pv-pan-browse">Browse</button>
+              <input id="pv-pan-input" type="file" accept=".pan,.PAN" style="display:none">
+              <div class="pv-caption" id="pv-pan-name" style="margin-top:6px">No file selected</div>
+            </div>
+          </div>
         </details>
 
         <div class="pv-grid" style="margin-top:8px">
           <div class="pv-field" style="grid-column:1/-1">
-            <label style="min-width:auto">
-              <input type="radio" name="pv-target" value="cap" checked> Desired DC capacity (kWp)
+            <label style="min-width:auto;white-space:nowrap;margin-right:6px">
+              <input type="radio" name="pv-target" value="cap"> Desired DC capacity (kWp)
             </label>
             <input id="pv-target-kwp" type="number" min="1" value="1000" style="max-width:140px">
           </div>
           <div class="pv-field" style="grid-column:1/-1">
-            <label style="min-width:auto">
-              <input type="radio" name="pv-target" value="fill"> Fill maximum area
+            <label style="min-width:auto;white-space:nowrap">
+              <input type="radio" name="pv-target" value="fill" checked> Fill maximum area
             </label>
-            <span class="pv-caption">Use all usable selected area(s).</span>
           </div>
         </div>
       </div>
@@ -463,14 +459,18 @@
       <!-- Section 2 -->
       <div class="pv-section">
         <h4>2) Mounting Structure</h4>
-
-        <div class="pv-field">
-          <label>Structure catalog</label>
-          <button type="button" class="btn" id="open-catalog">Open Catalog…</button>
-          <span class="pv-caption" id="struct-picked" style="margin-left:8px">Ground — Fixed Tilt (default)</span>
+        <div class="pv-field" style="flex-direction:column;align-items:flex-start">
+          <div style="display:flex;align-items:center;gap:8px;width:100%">
+            <label style="min-width:110px">Structure catalog</label>
+            <button type="button" class="btn" id="open-catalog">Open Catalog…</button>
+          </div>
+          <div class="pv-caption" id="struct-picked" style="margin-top:6px;width:100%">Ground — Fixed Tilt</div>
         </div>
 
         <div class="pv-grid" style="margin-top:10px">
+          <div class="pv-field"><label>Tilt (°)</label><input id="tilt" type="number" min="0" max="60" value="10"></div>
+          <div class="pv-field"><label>Azimuth (°)</label><input id="azimuth" type="number" min="0" max="360" value="180"></div>
+
           <div>
             <div class="pv-field">
               <label>Module Orientation</label>
@@ -479,8 +479,22 @@
                 <button type="button" data-val="landscape" style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Landscape</button>
               </div>
             </div>
-            <div class="pv-field"><label>PV in Horizontal</label><input id="pv-h" type="number" min="1" value="2"></div>
-            <div class="pv-field"><label>PV in Vertical</label><input id="pv-v" type="number" min="1" value="3"></div>
+
+            <!-- Group By -->
+            <div class="pv-field">
+              <label>Group By</label>
+              <div id="pv-group" style="display:flex;align-items:center;gap:12px">
+                <label style="min-width:auto;display:inline-flex;align-items:center;gap:6px">
+                  <input id="gb-tables" type="checkbox" checked> Tables
+                </label>
+                <label style="min-width:auto;display:inline-flex;align-items:center;gap:6px">
+                  <input id="gb-blocks" type="checkbox" checked> Block
+                </label>
+              </div>
+            </div>
+
+            <div class="pv-field"><label>PV / Table (X)</label><input id="pv-h" type="number" min="1" value="2"></div>
+            <div class="pv-field"><label>PV / Table (Y)</label><input id="pv-v" type="number" min="1" value="3"></div>
 
             <div class="pv-field"><label>Tables / Block (H)</label><input id="tab-per-blk-h" type="number" min="1" value="6"></div>
             <div class="pv-field"><label>Tables / Block (V)</label><input id="tab-per-blk-v" type="number" min="1" value="4"></div>
@@ -492,15 +506,19 @@
             <div class="pv-field"><label>Block gap X (m)</label><input id="gap-blk-x" type="number" min="0" step="0.1" value="3"></div>
             <div class="pv-field"><label>Block gap Y (m)</label><input id="gap-blk-y" type="number" min="0" step="0.1" value="4"></div>
           </div>
-          <div class="pv-preview">
-            <canvas id="pv-preview" width="520" height="240" aria-label="Layout preview"></canvas>
-            <div class="pv-zoom">
-              <button type="button" id="pv-zoom-out">−</button>
-              <input type="range" id="pv-zoom" min="0.5" max="3" step="0.05" value="1" style="flex:1">
-              <button type="button" id="pv-zoom-in">+</button>
+
+          <details id="pv-arrange" style="grid-column:1/-1;margin-top:6px">
+            <summary class="pv-caption" style="cursor:pointer">Tables arrangement view</summary>
+            <div class="pv-preview" style="margin-top:6px">
+              <canvas id="pv-preview" width="300" height="200" aria-label="Layout preview"></canvas>
+              <div class="pv-zoom">
+                <button type="button" id="pv-zoom-out">−</button>
+                <input type="range" id="pv-zoom" min="0.5" max="20" step="0.05" value="1" style="flex:1">
+                <button type="button" id="pv-zoom-in">+</button>
+              </div>
+              <div class="pv-caption" id="pv-preview-meta" style="margin-top:6px">Table: — | Est. kWp/table: — | Block: — tables</div>
             </div>
-            <div class="pv-caption" id="pv-preview-meta" style="margin-top:6px">Table: — | Est. kWp/table: — | Block: — tables</div>
-          </div>
+          </details>
         </div>
       </div>
 
@@ -508,15 +526,12 @@
       <div class="pv-section">
         <h4>3) Orientation & Fill</h4>
         <div class="pv-grid">
-          <div class="pv-field"><label>Tilt (°)</label><input id="tilt" type="number" min="0" max="60" value="10"></div>
-          <div class="pv-field"><label>Azimuth (°)</label><input id="azimuth" type="number" min="0" max="360" value="180"></div>
-          <div class="pv-field"><label>Orient to edge</label>
-            <select id="edge-mode">
-              <option value="">None</option>
-              <option value="longest">Longest edge</option>
-              <option value="shortest">Shortest edge</option>
-            </select>
+          <div class="pv-field">
+            <label>Align to edge</label>
+            <button id="align-edge" class="btn">Pick edge on map</button>
+            <span class="pv-caption" id="edge-help" style="margin-left:6px;display:none">Click an area edge…</span>
           </div>
+
           <div class="pv-field"><label>Fill start</label>
             <select id="fill-start">
               <option>East</option><option>West</option><option>North</option><option>South</option><option>Middle</option>
@@ -530,15 +545,15 @@
           </div>
           <div class="pv-field">
             <label>Show modules</label>
-            <input id="show-modules" type="checkbox">
-            <span class="pv-caption">Disabled automatically > 5 MW</span>
+            <input id="show-modules" type="checkbox" checked>
+            <span class="pv-caption">Simple fill always draws modules.</span>
           </div>
         </div>
       </div>
     </div>
 
     <div class="pv-actions">
-      <div class="pv-caption">Layout will avoid objects/roads & respect setbacks.</div>
+      <div></div>
       <div class="right">
         <button id="pv-lock" class="btn" data-state="locked">Unlock editing</button>
         <button id="pv-build" class="btn primary">Build initial layout</button>
@@ -570,21 +585,17 @@
   </div>
 </div>
 
-<!-- Load the drawing logic (classic script, untouched) -->
 <script src="./drawing.js"></script>
 
-<!-- Bootstrap: init map, search, fullscreen; then hand off to window.mountDrawing -->
 <script>
   window.initMap = function(){
     const START = { lat: 38.397550221066616, lng: 34.97863102806574 };
-
     const map = new google.maps.Map(document.getElementById('map'), {
       center: START, zoom: 17, mapTypeId: 'satellite',
       mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: false
     });
-    window._map = map; window._google = google; // expose for PV layout
+    window._map = map; window._google = google;
 
-    /* Fullscreen control */
     const fsWrap=document.createElement('div'); fsWrap.style.margin='10px';
     const fsBtn=document.createElement('button');
     Object.assign(fsBtn.style,{
@@ -603,13 +614,11 @@
     fsWrap.appendChild(fsBtn);
     map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(fsWrap);
 
-    /* Search bootstrap */
     const input=document.getElementById('search-input');
     const ac=new google.maps.places.Autocomplete(input,{fields:['geometry','name']});
     ac.bindTo('bounds',map);
     ac.addListener('place_changed',()=>{const p=ac.getPlace(); if(!p.geometry?.location)return; map.panTo(p.geometry.location); map.setZoom(17); new google.maps.Marker({map,position:p.geometry.location});});
 
-    /* Hand off to drawing module (now on window) */
     if (typeof window.mountDrawing === 'function') {
       window.mountDrawing({ google, map, document });
     } else {
@@ -618,10 +627,8 @@
   };
 </script>
 
-<!-- PV LAYOUT SHEET WIRING + LAYOUT ENGINE (no changes to drawing.js) -->
 <script>
 (function(){
-  const app = document.getElementById('app');
   const drawer = document.getElementById('drawer');
   const pvBtn = document.querySelector('[data-tool="pv"]');
   const toolsBtn = document.querySelector('[data-tool="tools"]');
@@ -634,14 +641,12 @@
   const panInput = document.getElementById('pv-pan-input');
   const panName = document.getElementById('pv-pan-name');
 
-  // Catalog modal
   const catBackdrop = document.getElementById('pv-cat-backdrop');
   const catClose = document.getElementById('pv-cat-close');
   const openCatalog = document.getElementById('open-catalog');
   const catGrid = document.getElementById('pv-catalog');
   const structPicked = document.getElementById('struct-picked');
 
-  // Controls
   const pvLib = document.getElementById('pv-lib');
   const mdName = document.getElementById('md-name');
   const mdPwr  = document.getElementById('md-pwr');
@@ -652,6 +657,10 @@
   const tpbH = document.getElementById('tab-per-blk-h');
   const tpbV = document.getElementById('tab-per-blk-v');
   const orientSeg = document.getElementById('pv-orient');
+
+  const gbTables = document.getElementById('gb-tables');
+  const gbBlocks = document.getElementById('gb-blocks');
+
   const gapModX = document.getElementById('gap-mod-x');
   const gapModY = document.getElementById('gap-mod-y');
   const gapTabX = document.getElementById('gap-tab-x');
@@ -660,13 +669,16 @@
   const gapBlkY = document.getElementById('gap-blk-y');
   const tilt = document.getElementById('tilt');
   const azimuth = document.getElementById('azimuth');
-  const edgeMode = document.getElementById('edge-mode');
+  const edgeMode = document.getElementById('edge-mode'); // kept for compatibility
   const fillStart = document.getElementById('fill-start');
   const fillMethod = document.getElementById('fill-method');
   const targetKwp = document.getElementById('pv-target-kwp');
   const showModules = document.getElementById('show-modules');
   const pvBuild = document.getElementById('pv-build');
   const pvLock = document.getElementById('pv-lock');
+
+  const alignEdgeBtn = document.getElementById('align-edge');
+  const edgeHelp = document.getElementById('edge-help');
 
   const canvas = document.getElementById('pv-preview');
   const ctx = canvas.getContext('2d');
@@ -675,32 +687,55 @@
   const zoomIn = document.getElementById('pv-zoom-in');
   const zoomOut = document.getElementById('pv-zoom-out');
   let previewScale = 1;
+  let panX = 0, panY = 0;
+  let dragging = false, dragStartX = 0, dragStartY = 0;
+  const arrangeDetails = document.getElementById('pv-arrange'); // *** single declaration ***
 
-  // ===== MUTUAL EXCLUSION: PV Layout vs Tools/Search =====
-  function closeDrawer(){ drawer.classList.remove('open'); }
-  function closeSearch(){ searchWrap.classList.remove('open'); searchWrap.setAttribute('aria-expanded','false'); }
+  function updateTargetControls(){
+    const mode = document.querySelector('input[name="pv-target"]:checked')?.value;
+    if (mode === 'cap'){
+      targetKwp.disabled = false;
+    } else {
+      targetKwp.disabled = true;
+    }
+  }
+  document.querySelectorAll('input[name="pv-target"]').forEach(r=>r.addEventListener('change', updateTargetControls));
+  updateTargetControls();
+
+  function closeDrawer(){ drawer?.classList.remove('open'); }
+  function closeSearch(){ searchWrap?.classList.remove('open'); searchWrap?.setAttribute('aria-expanded','false'); }
+
   pvBtn?.addEventListener('click', ()=>{
     const willOpen = !pvSheet.classList.contains('open');
     if (willOpen){ closeDrawer(); closeSearch(); }
     pvSheet.classList.toggle('open');
+    if (pvSheet.classList.contains('open')) { setTimeout(fitCanvasToContainer, 50); }
   });
   pvClose?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
   toolsBtn?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
   searchBtn?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
 
-  // PAN browse (UI only for now)
-  panBrowse.addEventListener('click', ()=> panInput.click());
-  panInput.addEventListener('change', ()=>{ panName.textContent = panInput.files?.[0]?.name || 'No file selected'; });
+  panBrowse?.addEventListener('click', ()=> panInput?.click());
+  panInput?.addEventListener('change', ()=>{ if(panName) panName.textContent = panInput.files?.[0]?.name || 'No file selected'; });
 
-  // Library presets
+  orientSeg?.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      orientSeg.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      drawPreview();
+    });
+  });
+
   const presets = {
-    GEN600:{ name:'Generic 600 Wp', pwr:600, len:2100, wid:1134 },
-    GEN550:{ name:'Generic 550 Wp', pwr:550, len:2094, wid:1134 },
-    GEN450:{ name:'Generic 450 Wp', pwr:450, len:1960, wid:992 },
+    GEN600:{ name:'Generic 600 Wp', pwr:600, len:2100, wid:1134 },
+    GEN550:{ name:'Generic 550 Wp', pwr:550, len:2094, wid:1134 },
+    GEN450:{ name:'Generic 450 Wp', pwr:450, len:1960, wid:992 },
   };
-  pvLib.addEventListener('change', ()=>{ const p = presets[pvLib.value]; if (p){ mdName.value=p.name; mdPwr.value=p.pwr; mdLen.value=p.len; mdWid.value=p.wid; drawPreview(); }});
+  pvLib?.addEventListener('change', ()=>{
+    const p = presets[pvLib.value];
+    if (p){ mdName.value=p.name; mdPwr.value=p.pwr; mdLen.value=p.len; mdWid.value=p.wid; drawPreview(); }
+  });
 
-  // Structure catalog defaults (override user inputs)
   const structDefaults = {
     'ground-fixed':  { name:'Ground — Fixed Tilt', tilt:20, azimuth:180, pvH:2, pvV:3, tabX:0.6, tabY:1.6, blkX:3.0, blkY:4.0, tpbH:6, tpbV:4, orient:'portrait' },
     'ground-tracker':{ name:'Ground — Single Axis', tilt:0,  azimuth:180, pvH:2, pvV:2, tabX:0.6, tabY:5.0, blkX:4.0, blkY:8.0, tpbH:8, tpbV:2, orient:'landscape' },
@@ -710,143 +745,223 @@
     'carport':       { name:'Specialty — Carport',  tilt:5,  azimuth:180, pvH:2, pvV:4, tabX:0.7, tabY:3.0, blkX:3.0, blkY:4.0, tpbH:4, tpbV:2, orient:'portrait' },
     'canopy':        { name:'Specialty — Solar Canopy', tilt:5, azimuth:180, pvH:2, pvV:3, tabX:0.6, tabY:2.5, blkX:3.0, blkY:3.0, tpbH:3, tpbV:3, orient:'portrait' }
   };
-  function openCat(){ catBackdrop.style.display='block'; catBackdrop.setAttribute('aria-hidden','false'); }
-  function closeCat(){ catBackdrop.style.display='none'; catBackdrop.setAttribute('aria-hidden','true'); }
-  openCatalog.addEventListener('click', openCat);
-  catClose.addEventListener('click', closeCat);
-  catBackdrop.addEventListener('click', e=>{ if(e.target===catBackdrop) closeCat(); });
-
-  catGrid.querySelectorAll('.pv-card').forEach(card=>{
+  function openCat(){ if(catBackdrop){ catBackdrop.style.display='block'; catBackdrop.setAttribute('aria-hidden','false'); } }
+  function closeCat(){ if(catBackdrop){ catBackdrop.style.display='none'; catBackdrop.setAttribute('aria-hidden','true'); } }
+  openCatalog?.addEventListener('click', openCat);
+  catClose?.addEventListener('click', closeCat);
+  catBackdrop?.addEventListener('click', e=>{ if(e.target===catBackdrop) closeCat(); });
+  catGrid?.querySelectorAll('.pv-card').forEach(card=>{
     card.addEventListener('click', ()=>{
-      const key = card.getAttribute('data-struct');
-      const s = structDefaults[key]; if(!s) return;
-      structPicked.textContent = s.name + ' (defaults applied)';
-      // override user inputs with structure defaults
+      const key = card.getAttribute('data-struct'); const s = structDefaults[key]; if(!s) return;
+      if(structPicked) structPicked.textContent = s.name;
       tilt.value = s.tilt; azimuth.value = s.azimuth;
       pvH.value = s.pvH; pvV.value = s.pvV;
       gapTabX.value=s.tabX; gapTabY.value=s.tabY;
       gapBlkX.value=s.blkX; gapBlkY.value=s.blkY;
       tpbH.value=s.tpbH; tpbV.value=s.tpbV;
-      orientSeg.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.val===s.orient));
-      // trackers hint
-      if (key==='ground-tracker'){ tilt.value=0; azimuth.value=180; }
-      closeCat(); drawPreview();
+      orientSeg?.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.val===s.orient));
+      drawPreview();
+      closeCat();
     });
   });
 
-  // Segmented toggles
-  orientSeg.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ orientSeg.querySelectorAll('button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); drawPreview(); });
-  });
-  fillMethod.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ fillMethod.querySelectorAll('button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); });
-  });
+  function updateGapControls(){
+    const useTables = !!(gbTables && gbTables.checked);
+    const useBlocks = !!(gbBlocks && gbBlocks.checked);
 
-  // Disable "show modules" if > 5 MW target selected
-  function applyShowModulesGuard(){
-    const kwp = Number(targetKwp.value||0);
-    const disable = (document.querySelector('input[name="pv-target"]:checked')?.value==='cap') && kwp>5000;
-    showModules.disabled = !!disable;
-    if (disable) showModules.checked = false;
+    // Table gaps follow "Tables"
+    if (gapTabX) gapTabX.disabled = !useTables;
+    if (gapTabY) gapTabY.disabled = !useTables;
+
+    // PV per table only matters when tables are enabled
+    if (pvH) pvH.disabled = !useTables;
+    if (pvV) pvV.disabled = !useTables;
+
+    // Block gaps & counts follow "Block"
+    if (gapBlkX) gapBlkX.disabled = !useBlocks;
+    if (gapBlkY) gapBlkY.disabled = !useBlocks;
+    if (tpbH)    tpbH.disabled    = !useBlocks;
+    if (tpbV)    tpbV.disabled    = !useBlocks;
   }
-  targetKwp.addEventListener('input', applyShowModulesGuard);
-  document.querySelectorAll('input[name="pv-target"]').forEach(r=>r.addEventListener('change', applyShowModulesGuard));
-  applyShowModulesGuard();
+  gbTables?.addEventListener('change', ()=>{ updateGapControls(); drawPreview(); });
+  gbBlocks?.addEventListener('change', ()=>{ updateGapControls(); drawPreview(); });
+  updateGapControls();
 
-  // Preview drawing (tables, blocks)
-  [mdPwr, mdLen, mdWid, pvH, pvV, tpbH, tpbV, gapModX, gapModY, gapTabX, gapTabY, gapBlkX, gapBlkY, orientSeg, tilt, azimuth].forEach(inp=>{
-    (inp instanceof HTMLElement?inp:inp).addEventListener?.('input', drawPreview);
-    (inp instanceof HTMLElement?inp:inp).addEventListener?.('change', drawPreview);
+  [mdPwr, mdLen, mdWid, pvH, pvV, tpbH, tpbV, gapModX, gapModY, gapTabX, gapTabY, gapBlkX, gapBlkY, tilt, azimuth, gbTables, gbBlocks].forEach(inp=>{
+    inp?.addEventListener?.('input', drawPreview);
+    inp?.addEventListener?.('change', drawPreview);
   });
 
-  zoom.addEventListener('input', ()=>{ previewScale=parseFloat(zoom.value); drawPreview(); });
-  zoomIn.addEventListener('click', ()=>{ zoom.value=Math.min(3, (parseFloat(zoom.value)+0.1)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); });
-  zoomOut.addEventListener('click', ()=>{ zoom.value=Math.max(0.5, (parseFloat(zoom.value)-0.1)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); });
-  canvas.addEventListener('wheel', (e)=>{ e.preventDefault(); const step = (e.deltaY>0?-0.1:0.1); zoom.value=Math.min(3,Math.max(0.5,parseFloat(zoom.value)+step)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); }, {passive:false});
-
-  function getConfig(){
-    const orient = orientSeg.querySelector('.active')?.getAttribute('data-val')||'portrait';
-    const H = Math.max(1, Number(pvH.value||1));
-    const V = Math.max(1, Number(pvV.value||1));
-    const modLenM = Number(mdLen.value||0)/1000;
-    const modWidM = Number(mdWid.value||0)/1000;
-    const modX = orient==='portrait' ? modWidM : modLenM;
-    const modY = orient==='portrait' ? modLenM : modWidM;
-    const cfg = {
-      module:{ name: mdName.value||'Module', pwr: Number(mdPwr.value||0), len: modLenM, wid: modWidM, orient },
-      table:{ modH: H, modV: V, gapModX: Number(gapModX.value||0), gapModY: Number(gapModY.value||0) },
-      block:{ tH: Math.max(1, Number(tpbH.value||1)), tV: Math.max(1, Number(tpbV.value||1)) },
-      gaps:{ tabX: Number(gapTabX.value||0), tabY: Number(gapTabY.value||0), blkX: Number(gapBlkX.value||0), blkY: Number(gapBlkY.value||0) },
-      orientation:{ tilt: Number(tilt.value||0), azimuth: Number(azimuth.value||0), edgeMode: edgeMode.value||'', fillStart: fillStart.value||'East', method: fillMethod.querySelector('.active')?.getAttribute('data-val')||'adaptive' },
-      target:{ mode: document.querySelector('input[name="pv-target"]:checked')?.value || 'cap', kwp: Number(targetKwp.value||0) },
-      showModules: !!showModules.checked,
-      locked: pvLock.dataset.state!=='unlocked',
-      boundarySetback: Number(document.getElementById('in-setback-boundary')?.value||'0')
-    };
-    const modXdim = modX;
-    const modYdim = modY * Math.cos((cfg.orientation.tilt||0) * Math.PI/180);
-    cfg.table.w = H*modXdim + (H-1)*cfg.table.gapModX;
-    cfg.table.h = V*modYdim + (V-1)*cfg.table.gapModY;
-    cfg.table.kwp = (H*V*cfg.module.pwr)/1000;
-
-    cfg.block.w = cfg.block.tH * cfg.table.w + (cfg.block.tH-1)*cfg.gaps.tabX;
-    cfg.block.h = cfg.block.tV * cfg.table.h + (cfg.block.tV-1)*cfg.gaps.tabY;
-    return cfg;
+  function fitCanvasToContainer(){
+    if (!canvas) return;
+    const w = canvas.clientWidth || 300;
+    const h = canvas.clientHeight || 200;
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
+    drawPreview();
   }
+  arrangeDetails?.addEventListener('toggle', ()=>{ if(arrangeDetails.open) { setTimeout(fitCanvasToContainer, 50); } });
+
+  zoom?.addEventListener('input', ()=>{ previewScale=parseFloat(zoom.value); drawPreview(); });
+  zoomIn?.addEventListener('click', ()=>{ zoom.value=Math.min(20, (parseFloat(zoom.value)+0.2)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); });
+  zoomOut?.addEventListener('click', ()=>{ zoom.value=Math.max(0.5, (parseFloat(zoom.value)-0.2)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); });
+  canvas?.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const delta = e.deltaY>0 ? -0.5 : 0.5;
+    const old = parseFloat(zoom.value);
+    const next = Math.min(20, Math.max(0.5, old + delta));
+    zoom.value = next.toFixed(2); previewScale = parseFloat(zoom.value);
+    drawPreview();
+  }, {passive:false});
+  canvas?.addEventListener('mousedown', (e)=>{ dragging=true; dragStartX=e.clientX; dragStartY=e.clientY; });
+  window.addEventListener('mousemove', (e)=>{ if(!dragging) return; panX += (e.clientX - dragStartX); panY += (e.clientY - dragStartY); dragStartX=e.clientX; dragStartY=e.clientY; drawPreview(); });
+  window.addEventListener('mouseup', ()=>{ dragging=false; });
+
+  function getPreviewCfg(){
+  const orient = orientSeg?.querySelector('.active')?.getAttribute('data-val') || 'portrait';
+  const H = Math.max(1, Number(pvH.value||1));
+  const V = Math.max(1, Number(pvV.value||1));
+  const modLenM = Number(mdLen.value||0)/1000;
+  const modWidM = Number(mdWid.value||0)/1000;
+  const modX = orient==='portrait' ? modWidM : modLenM;
+  const modY = orient==='portrait' ? modLenM : modWidM;
+
+  const useTables = !!(gbTables && gbTables.checked);
+  const useBlocks = !!(gbBlocks && gbBlocks.checked);
+
+  const cfg = {
+    module:{ name: mdName.value||'Module', pwr: Number(mdPwr.value||0), len: modLenM, wid: modWidM, orient, modX, modY },
+    table:{ modH: H, modV: V, gapModX: Number(gapModX.value||0), gapModY: Number(gapModY.value||0) },
+    block:{ tH: Math.max(1, Number(tpbH.value||1)), tV: Math.max(1, Number(tpbV.value||1)) },
+    gaps:{
+      tabX: useTables ? Number(gapTabX.value||0) : 0,
+      tabY: useTables ? Number(gapTabY.value||0) : 0,
+      blkX: useBlocks ? Number(gapBlkX.value||0) : 0,
+      blkY: useBlocks ? Number(gapBlkY.value||0) : 0
+    },
+    orientation:{ tilt: Number(tilt.value||0), azimuth: Number(azimuth.value||0) }
+  };
+
+  // 👉 Collapse tables when "Tables" is OFF
+  if (!useTables) {
+    cfg.table.modH = 1;
+    cfg.table.modV = 1;
+    cfg.gaps.tabX = Number(gapModX.value||0);
+    cfg.gaps.tabY = Number(gapModY.value||0);
+    cfg.table.gapModX = 0;
+    cfg.table.gapModY = 0;
+  }
+
+  // Tilt projection (top-view Y dimension)
+  const modXdim = modX;
+  const modYdim = modY * Math.cos((cfg.orientation.tilt||0) * Math.PI/180);
+  cfg._modXdim = modXdim;
+  cfg._modYdim = modYdim;
+
+  // Table footprint
+  cfg.table.w = cfg.table.modH * modXdim + (cfg.table.modH - 1) * cfg.table.gapModX;
+  cfg.table.h = cfg.table.modV * modYdim + (cfg.table.modV - 1) * cfg.table.gapModY;
+  cfg.table.kwp = (cfg.table.modH * cfg.table.modV * cfg.module.pwr) / 1000;
+
+  // 👉 Collapse blocks when "Block" grouping is OFF
+  if (!useBlocks) {
+    cfg.block.tH = 1;
+    cfg.block.tV = 1;
+    cfg.gaps.blkX = 0;
+    cfg.gaps.blkY = 0;
+  }
+
+  // ✅ Always compute block size after final table and gap setup
+  cfg.block.w = (cfg.block.tH * cfg.table.w) + ((cfg.block.tH - 1) * cfg.gaps.tabX);
+  cfg.block.h = (cfg.block.tV * cfg.table.h) + ((cfg.block.tV - 1) * cfg.gaps.tabY);
+
+  return cfg;
+}
+
 
   function drawPreview(){
-    const cfg = getConfig();
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0,0,W,H);
+    if (!canvas) return;
+    const cfg = getPreviewCfg();
+    const useTables = !!(gbTables && gbTables.checked);
+    const W = canvas.width, Hc = canvas.height;
+    ctx.clearRect(0,0,W,Hc);
 
-    // Lay out 2x2 blocks in preview
     const colsB = 2, rowsB = 2;
-    const pad = 12;
-    const totalW = colsB*cfg.block.w + (colsB-1)*cfg.gaps.blkX + 2*pad;
-    const totalH = rowsB*cfg.block.h + (rowsB-1)*cfg.gaps.blkY + 2*pad;
-    const sFit = Math.min(W/totalW, H/totalH);
-    const scale = sFit * previewScale;
-    const offX = (W - (colsB*cfg.block.w + (colsB-1)*cfg.gaps.blkX)*scale)/2;
-    const offY = (H - (rowsB*cfg.block.h + (rowsB-1)*cfg.gaps.blkY)*scale)/2;
+    const padPx = 12;
 
-    const tW = cfg.table.w, tH = cfg.table.h;
-    const tGapX = cfg.gaps.tabX, tGapY = cfg.gaps.tabY;
+    const contentW = colsB*cfg.block.w + (colsB-1)*cfg.gaps.blkX;
+    const contentH = rowsB*cfg.block.h + (rowsB-1)*cfg.gaps.blkY;
+
+    const theta = (cfg.orientation.azimuth||0) * Math.PI/180;
+    const cosT = Math.cos(theta), sinT = Math.sin(theta);
+    const uvToXY = (u,v)=>({ x: cosT*u + sinT*v, y: -sinT*u + cosT*v });
+
+    const cornersUV = [{u:0,v:0},{u:contentW,v:0},{u:contentW,v:contentH},{u:0,v:contentH}];
+    const cornersXY = cornersUV.map(p=>uvToXY(p.u,p.v));
+    const minX = Math.min(...cornersXY.map(p=>p.x));
+    const maxX = Math.max(...cornersXY.map(p=>p.x));
+    const minY = Math.min(...cornersXY.map(p=>p.y));
+    const maxY = Math.max(...cornersXY.map(p=>p.y));
+    const rotW = maxX - minX, rotH = maxY - minY;
+
+    const scaleBase = Math.min((W - 2*padPx)/rotW, (Hc - 2*padPx)/rotH);
+    const scale = Math.max(0.0001, scaleBase * previewScale);
+
+    const offX = (W - rotW*scale)/2 - (minX*scale) + panX;
+    const offY = (Hc - rotH*scale)/2 - (minY*scale) + panY;
+
+    function pathRectUV(u0,v0,w,h){
+      const p0 = uvToXY(u0,     v0);
+      const p1 = uvToXY(u0+w,   v0);
+      const p2 = uvToXY(u0+w,   v0+h);
+      const p3 = uvToXY(u0,     v0+h);
+      ctx.beginPath();
+      ctx.moveTo(offX + p0.x*scale, offY + p0.y*scale);
+      ctx.lineTo(offX + p1.x*scale, offY + p1.y*scale);
+      ctx.lineTo(offX + p2.x*scale, offY + p2.y*scale);
+      ctx.lineTo(offX + p3.x*scale, offY + p3.y*scale);
+      ctx.closePath();
+    }
 
     ctx.lineWidth = 1;
 
+    const tW = cfg.table.w, tH = cfg.table.h, tGapX = cfg.gaps.tabX, tGapY = cfg.gaps.tabY;
+
     for (let br=0;br<rowsB;br++){
       for (let bc=0;bc<colsB;bc++){
-        const bx = offX + (bc*(cfg.block.w + cfg.gaps.blkX))*scale;
-        const by = offY + (br*(cfg.block.h + cfg.gaps.blkY))*scale;
+        const bu = bc*(cfg.block.w + cfg.gaps.blkX);
+        const bv = br*(cfg.block.h + cfg.gaps.blkY);
 
-        // block outline
         ctx.strokeStyle = '#9ca3af';
-        ctx.strokeRect(bx, by, cfg.block.w*scale, cfg.block.h*scale);
+        pathRectUV(bu, bv, cfg.block.w, cfg.block.h);
+        ctx.stroke();
 
-        // draw tables inside block
         for(let rr=0; rr<cfg.block.tV; rr++){
           for(let cc=0; cc<cfg.block.tH; cc++){
-            const tx = bx + (cc*(tW + tGapX))*scale;
-            const ty = by + (rr*(tH + tGapY))*scale;
-            ctx.fillStyle = '#e2e8f0';
-            ctx.strokeStyle = '#64748b';
-            ctx.fillRect(tx, ty, tW*scale, tH*scale);
-            ctx.strokeRect(tx, ty, tW*scale, tH*scale);
+            const tu = bu + cc*(tW + tGapX);
+            const tv = bv + rr*(tH + tGapY);
 
-            // modules grid (light)
-            const mCols = cfg.table.modH, mRows = cfg.table.modV;
-            const modXdim = (cfg.module.orient==='portrait' ? cfg.module.wid : cfg.module.len)*scale;
-            const modYdim = ((cfg.module.orient==='portrait' ? cfg.module.len : cfg.module.wid)*Math.cos((cfg.orientation.tilt||0)*Math.PI/180))*scale;
-            const gapMx = cfg.table.gapModX*scale, gapMy = cfg.table.gapModY*scale;
-            let cx = tx, cy = ty;
-            ctx.strokeStyle = '#94a3b8';
-            for(let r=0;r<mRows;r++){
-              for(let c=0;c<mCols;c++){
-                ctx.strokeRect(cx, cy, modXdim, modYdim);
-                cx += modXdim + gapMx;
+            if (useTables) {
+              ctx.fillStyle = '#e2e8f0'; 
+              ctx.strokeStyle = '#64748b';
+              pathRectUV(tu, tv, tW, tH);
+              ctx.fill(); 
+              ctx.stroke();
+            }
+
+            const mWpx = cfg._modXdim * scale;
+            const mHpx = cfg._modYdim * scale;
+            if (mWpx > 4 && mHpx > 4){
+              for (let mr=0; mr<cfg.table.modV; mr++){
+                for (let mc=0; mc<cfg.table.modH; mc++){
+                  const mu = tu + mc*(cfg._modXdim + cfg.table.gapModX);
+                  const mv = tv + mr*(cfg._modYdim + cfg.table.gapModY);
+                  ctx.fillStyle = '#f8fafc';
+                  ctx.strokeStyle = '#94a3b8';
+                  pathRectUV(mu, mv, cfg._modXdim, cfg._modYdim);
+                  ctx.fill(); ctx.stroke();
+                }
               }
-              cx = tx;
-              cy += modYdim + gapMy;
             }
           }
         }
@@ -855,9 +970,8 @@
 
     meta.textContent = `Table: ${cfg.table.w.toFixed(2)}m × ${cfg.table.h.toFixed(2)}m · ${cfg.table.kwp.toFixed(2)} kWp/table · Block: ${cfg.block.tH*cfg.block.tV} tables`;
   }
+  drawPreview();
 
-  // ===== Overlay registry (non-invasive hook) =====
-  // Track overlays added to the map so we can find Areas/Objects without touching drawing.js
   window.__overlayRegistry = window.__overlayRegistry || new Set();
   function patchOverlayRegistry(){
     const g = window._google; if(!g) return;
@@ -870,8 +984,6 @@
   }
   window.addEventListener('load', ()=>setTimeout(patchOverlayRegistry, 0));
 
-  // ===== Small helpers =====
-  function $(sel){ return document.querySelector(sel); }
   function getOverlaysBy(pred){
     const out=[]; window.__overlayRegistry?.forEach(ov=>{ try{ if(ov.getMap && ov.getMap() && pred(ov)) out.push(ov); }catch(_e){} });
     return out;
@@ -879,63 +991,49 @@
   function getAreasSelected(){
     const sel = getOverlaysBy(ov=>ov.__cat==='area' && ov.__selected===true);
     if(sel.length) return sel;
-    // fallback to all areas if none selected
-    return getOverlaysBy(ov=>ov.__cat==='area');
-  }
-  function getObjects(){ return getOverlaysBy(ov=>ov.__cat==='object' || ov.__cat==='constraint'); }
-
-  // Build polygon paths from overlay
-  function polygonPathFromOverlay(ov){
-    const g=window._google, m=window._map;
-    if(ov.getPath){ return ov.getPath().getArray(); }
-    if(ov.getBounds){
-      const b=ov.getBounds(), ne=b.getNorthEast(), sw=b.getSouthWest();
-      const nw=new g.maps.LatLng(ne.lat(), sw.lng());
-      const se=new g.maps.LatLng(sw.lat(), ne.lng());
-      return [nw, ne, se, sw, nw];
-    }
-    if(ov.getCenter && ov.getRadius){
-      const c=ov.getCenter(), r=ov.getRadius();
-      const pts=[]; const N=64;
-      for(let i=0;i<N;i++){ pts.push( g.maps.geometry.spherical.computeOffset(c, r, i*(360/N)) ); }
-      pts.push(pts[0]); return pts;
-    }
     return [];
   }
+  function polygonPathFromOverlay(ov){
+  const g = window._google;
+  if (!ov) return [];
 
-  // Inward offset (approx) for setback
-  function averageHeading(h1,h2){
-    const r1=h1*Math.PI/180, r2=h2*Math.PI/180;
-    const x=Math.cos(r1)+Math.cos(r2), y=Math.sin(r1)+Math.sin(r2);
-    return Math.atan2(y,x)*180/Math.PI;
+  // ✅ Polygon
+  if (ov.getPath) {
+    return ov.getPath().getArray();
   }
-  function offsetClosedPathInward(path, dist){
-    const g=window._google;
-    if(!path?.length) return path;
-    const closed = (path.length>1 && path[0].equals(path[path.length-1])) ? path.slice(0,-1) : path.slice();
-    // orientation (approx planar)
-    let a=0; for(let i=0;i<closed.length;i++){ const p=closed[i], q=closed[(i+1)%closed.length]; a += (q.lng()-p.lng())*(q.lat()+p.lat()); }
-    const ccw = (-a) > 0;
-    const out=[]; const L=closed.length;
-    for(let i=0;i<L;i++){
-      const prev=closed[(i-1+L)%L], curr=closed[i], next=closed[(i+1)%L];
-      const hPrev=g.maps.geometry.spherical.computeHeading(prev,curr);
-      const hNext=g.maps.geometry.spherical.computeHeading(curr,next);
-      const hAvg=averageHeading(hPrev,hNext);
-      const normal = ccw ? (hAvg - 90) : (hAvg + 90);
-      out.push( g.maps.geometry.spherical.computeOffset(curr, dist, normal) );
+
+  // ✅ Rectangle
+  if (ov.getBounds && ov.__type === g.maps.drawing.OverlayType.RECTANGLE) {
+    const b = ov.getBounds(), ne = b.getNorthEast(), sw = b.getSouthWest();
+    const nw = new g.maps.LatLng(ne.lat(), sw.lng());
+    const se = new g.maps.LatLng(sw.lat(), ne.lng());
+    return [nw, ne, se, sw, nw];
+  }
+
+  // ✅ Circle (generate smooth circular path)
+  if (ov.getCenter && ov.getRadius && ov.__type === g.maps.drawing.OverlayType.CIRCLE) {
+    const c = ov.getCenter(), r = ov.getRadius();
+    const pts = [];
+    const N = 64; // smoother circle resolution
+    for (let i = 0; i < N; i++) {
+      pts.push(g.maps.geometry.spherical.computeOffset(c, r, i * (360 / N)));
     }
-    out.push(out[0]); return out;
+    pts.push(pts[0]); // close the loop
+    return pts;
   }
 
-  // Local ENU projection helpers
+  // Fallback (no geometry)
+  return [];
+}
+
+
   function makeLocal(origin){
     const g=window._google;
     return {
       toXY(p){
         const d = g.maps.geometry.spherical.computeDistanceBetween(origin, p);
         const h = g.maps.geometry.spherical.computeHeading(origin, p) * Math.PI/180;
-        return { x: d*Math.sin(h), y: d*Math.cos(h) }; // x east, y north
+        return { x: d*Math.sin(h), y: d*Math.cos(h) };
       },
       fromXY(x,y){
         const d = Math.hypot(x,y);
@@ -944,49 +1042,76 @@
       }
     };
   }
-  function rotateXY(x,y,deg,px,py){
-    const t = deg*Math.PI/180;
-    const dx = x-px, dy=y-py;
-    return { x: px + dx*Math.cos(t) - dy*Math.sin(t), y: py + dx*Math.sin(t) + dy*Math.cos(t) };
+  function centroid(path){
+    const g=window._google;
+    let lat=0,lng=0; const n=path.length;
+    path.forEach(p=>{ lat+=p.lat(); lng+=p.lng(); });
+    return new g.maps.LatLng(lat/n, lng/n);
   }
-
-  // Point-in-polygon test using Google geometry
   function contains(poly, latLng){ return window._google.maps.geometry.poly.containsLocation(latLng, poly); }
 
-  // ===== Layout engine =====
-  let layoutOverlays = []; // polygons we add
-  function clearLayout(){
-    layoutOverlays.forEach(ov=>{ try{ ov.setMap(null); }catch(_e){} });
-    layoutOverlays = [];
-    // Remove badges in Summary
-    document.querySelectorAll('.pv-badge').forEach(b=>b.remove());
-  }
-
-  // Inject "layout kWp" into Summary table (non-invasive, survives re-render via MutationObserver)
-  const sumBody = document.getElementById('sum-body');
-  const mo = new MutationObserver(()=> injectBadges() );
-  mo.observe(sumBody, {childList:true, subtree:true});
-  function injectBadges(){
-    // aggregate by area name
-    const areaTotals = new Map(); // name -> kwp
-    layoutOverlays.forEach(ov=>{
-      if(!ov.__areaName || !ov.__kwp) return;
-      areaTotals.set(ov.__areaName, (areaTotals.get(ov.__areaName)||0) + ov.__kwp);
-    });
-    sumBody.querySelectorAll('tr').forEach(tr=>{
-      const cell = tr.querySelector('td.name'); if(!cell) return;
-      const name = cell.textContent.trim();
-      const kwp = areaTotals.get(name);
-      // remove existing badge then add
-      cell.querySelectorAll('.pv-badge').forEach(b=>b.remove());
-      if(kwp>0){
-        const b = document.createElement('span'); b.className='pv-badge'; b.textContent = `layout: ${kwp.toFixed(1)} kWp`;
-        cell.appendChild(b);
+  function findNearestEdge(areas, latLng){
+    const g=window._google;
+    let best={dist2:Infinity, angle:0};
+    areas.forEach(ov=>{
+      const path = polygonPathFromOverlay(ov);
+      if (!path.length) return;
+      const org = centroid(path);
+      const prj = makeLocal(org);
+      const P = prj.toXY(latLng);
+      const pts = path.map(p=>prj.toXY(p));
+      const n = pts.length;
+      for (let i=0;i<n;i++){
+        const a=pts[i], b=pts[(i+1)%n];
+        const vx=b.x-a.x, vy=b.y-a.y;
+        const wx=P.x-a.x, wy=P.y-a.y;
+        const denom = vx*vx+vy*vy || 1;
+        let t=(wx*vx+wy*vy)/denom; if(t<0)t=0; if(t>1)t=1;
+        const qx=a.x+t*vx, qy=a.y+t*vy;
+        const dx=P.x-qx, dy=P.y-qy;
+        const d2=dx*dx+dy*dy;
+        if (d2<best.dist2){
+          const heading = Math.atan2(vx, vy)*180/Math.PI;
+          best={dist2:d2, angle:(heading+360)%360, edgeIndex:i, ov};
+        }
       }
     });
+    return best;
   }
 
-  pvLock.addEventListener('click', ()=>{
+  let edgePickListener=null;
+  alignEdgeBtn?.addEventListener('click', ()=>{
+    const g=window._google, map=window._map;
+    if(!g||!map){ alert('Map not ready'); return; }
+    const areas = getAreasSelected();
+    if(!areas.length){ alert('Select a PV Area first.'); return; }
+    if(edgePickListener){ g.maps.event.removeListener(edgePickListener); edgePickListener=null; }
+    alignEdgeBtn.textContent = 'Click an edge on map…';
+    edgeHelp.style.display='inline';
+    map.setOptions({ draggableCursor:'crosshair' });
+    edgePickListener = g.maps.event.addListener(map, 'click', (e)=>{
+      const pick = findNearestEdge(areas, e.latLng);
+      const az = Math.round((pick.angle+360)%360);
+      azimuth.value = az;
+      drawPreview();
+      g.maps.event.removeListener(edgePickListener); edgePickListener=null;
+      map.setOptions({ draggableCursor:null });
+      edgeHelp.style.display='none';
+      alignEdgeBtn.textContent = 'Pick edge on map';
+    });
+  });
+
+  let layoutOverlays = [];
+  function clearLayoutForAreas(areas){
+    const toRemove = new Set(areas);
+    layoutOverlays = layoutOverlays.filter(ov=>{
+      const kill = toRemove.has(ov.__parentArea);
+      if (kill){ try{ ov.setMap(null); }catch(_e){} }
+      return !kill;
+    });
+  }
+
+  pvLock?.addEventListener('click', ()=>{
     if (pvLock.dataset.state==='unlocked'){
       pvLock.dataset.state='locked'; pvLock.textContent='Unlock editing';
       layoutOverlays.forEach(ov=>{ try{ ov.setEditable(false); ov.setDraggable(false);}catch(_e){} });
@@ -996,195 +1121,234 @@
     }
   });
 
-  pvBuild.addEventListener('click', build);
+  pvBuild?.addEventListener('click', buildSimpleFill);
 
-  function build(){
-    const g=window._google, map=window._map;
-    if(!g || !map){ alert('Map not ready'); return; }
-    const cfg = getConfig();
-    // Guard: modules view auto-disable if > 5 MW
-    if (cfg.target.mode==='cap' && cfg.target.kwp>5000){ cfg.showModules=false; showModules.checked=false; }
 
-    // Get areas and obstacles from overlays created by drawing.js
-    const areas = getAreasSelected();
-    if(!areas.length){ alert('Draw or select an Area first.'); return; }
 
-    clearLayout();
 
-    areas.forEach(ovArea=>{
-      const areaName = ovArea.__name || 'Area';
-      const path = polygonPathFromOverlay(ovArea);
-      const inner = cfg.boundarySetback>0 ? offsetClosedPathInward(path, cfg.boundarySetback) : path.slice();
-      const polyArea = new g.maps.Polygon({paths:inner});
 
-      // Orientation to edge (optional): compute and update azimuth
-      if (cfg.orientation.edgeMode){
-        const bds = boundsOfPath(inner);
-        const dx = Math.abs(bds.maxX - bds.minX), dy = Math.abs(bds.maxY - bds.minY);
-        const edgeHeading = (cfg.orientation.edgeMode==='longest' ? (dx>=dy? 90:0) : (dx<dy?90:0));
-        // heading in ENU frame -> convert to azimuth (0 north) same
-        cfg.orientation.azimuth = edgeHeading;
-        azimuth.value = cfg.orientation.azimuth;
-      }
+  
+  function buildSimpleFill(){
+  const g = window._google, map = window._map;
+  if (!g || !map) { alert('Map not ready'); return; }
 
-      const origin = centroid(inner);
-      const proj = makeLocal(origin);
-      const innerXY = inner.map(p=>proj.toXY(p));
-      const bbox = boundsXY(innerXY);
+  const areas = getAreasSelected();
+  if (!areas.length) { alert('Select a PV Area first.'); return; }
 
-      // block/table metrics
-      const tW = cfg.table.w, tH = cfg.table.h;
-      const bW = cfg.block.w, bH = cfg.block.h;
-      const stepBX = bW + cfg.gaps.blkX;
-      const stepBY = bH + cfg.gaps.blkY;
-      const stepTX = tW + cfg.gaps.tabX;
-      const stepTY = tH + cfg.gaps.tabY;
+  clearLayoutForAreas(areas);
 
-      // Fill start ordering
-      const xRange = cfg.orientation.fillStart==='West' ? range(bbox.maxX, bbox.minX - bW, -stepBX)
-                    : cfg.orientation.fillStart==='Middle' ? range((bbox.minX+bbox.maxX)/2, bbox.minX - bW, -stepBX).concat(range((bbox.minX+bbox.maxX)/2 + stepBX, bbox.maxX + stepBX, stepBX))
-                    : range(bbox.minX, bbox.maxX + stepBX, stepBX); // East/default
-      const yRange = cfg.orientation.fillStart==='South' ? range(bbox.minY, bbox.maxY + stepBY, stepBY)
-                    : cfg.orientation.fillStart==='Middle' ? range((bbox.minY+bbox.maxY)/2, bbox.maxY + stepBY, stepBY).concat(range((bbox.minY+bbox.maxY)/2 - stepBY, bbox.minY - bH, -stepBY))
-                    : range(bbox.maxY, bbox.minY - bH, -stepBY); // North default (y increases north)
+  const cfg = getPreviewCfg();
+    const userSetback = parseFloat(document.getElementById('in-setback-boundary')?.value || '1');
 
-      // Obstacles polygons
-      const obstacles = getObjects().map(o=> new g.maps.Polygon({paths: polygonPathFromOverlay(o)}) );
+  const MOD_W = cfg._modXdim;
+  const MOD_H = cfg._modYdim;
+  const MOD_GX = cfg.table.gapModX;
+  const MOD_GY = cfg.table.gapModY;
 
-      let kwpSum = 0;
-      let stop = false;
+  const TAB_W = cfg.table.w;
+  const TAB_H = cfg.table.h;
+  const TAB_GX = cfg.gaps.tabX;
+  const TAB_GY = cfg.gaps.tabY;
 
-      for(const y0 of yRange){
-        if(stop) break;
-        for(const x0 of xRange){
-          if(stop) break;
+  const BLK_W = cfg.block.w;
+  const BLK_H = cfg.block.h;
+  const BLK_GX = cfg.gaps.blkX;
+  const BLK_GY = cfg.gaps.blkY;
 
-          // block rectangle (axis-aligned in ENU), optionally rotated by azimuth
-          const blk = rectXY(x0, y0, bW, bH);
-          const blkOk = rectInsidePolygon(blk, innerXY, cfg.orientation.azimuth, proj, polyArea, obstacles);
-          if(!blkOk) continue;
+  const TABLE_MOD_H = cfg.table.modH;
+  const TABLE_MOD_V = cfg.table.modV;
+  const BLOCK_TAB_H = cfg.block.tH;
+  const BLOCK_TAB_V = cfg.block.tV;
 
-          // place tables inside block
-          for(let r=0; r<cfg.block.tV; r++){
-            if(stop) break;
-            for(let c=0; c<cfg.block.tH; c++){
-              const tx = x0 + c*stepTX;
-              const ty = y0 + r*stepTY;
-              const tab = rectXY(tx, ty, tW, tH);
-              if(!rectInsidePolygon(tab, innerXY, cfg.orientation.azimuth, proj, polyArea, obstacles)) continue;
+  const STYLE = { 
+    strokeColor: '#1e3a8a', 
+    strokeOpacity: 0.7, 
+    strokeWeight: 0.6, 
+    fillColor: '#3a7afe', 
+    fillOpacity: 0.9,
+    zIndex: 1000
+  };
+  const MAX_MODULES = 50000;
+  let total = 0, hitCap = false;
 
-              // Draw geometry: table or modules
-              if(!cfg.showModules){
-                const pathLL = rectToLatLng(tab, cfg.orientation.azimuth, proj);
-                const poly = new g.maps.Polygon({
-                  map: window._map,
-                  paths: pathLL,
-                  strokeColor:'#0284c7', strokeOpacity:0.9, strokeWeight:1.2,
-                  fillColor:'#38bdf8', fillOpacity:0.18,
-                  clickable:true, draggable:!cfg.locked, editable:!cfg.locked
+  const theta = (cfg.orientation.azimuth || 0) * Math.PI / 180;
+  const cosT = Math.cos(theta), sinT = Math.sin(theta);
+  const uvToXY = (u, v) => ({ x: cosT * u + sinT * v, y: -sinT * u + cosT * v });
+  const xyToUV = (x, y) => ({ u: cosT * x - sinT * y, v: sinT * x + cosT * y });
+
+  // === Helper: safely treat edge points as inside ===
+  function safeContain(poly, latLng, tolerance = 0.02) { // 2 cm inward offset
+    if (contains(poly, latLng)) return true;
+    const center = centroid(poly.getPath().getArray());
+    const heading = g.maps.geometry.spherical.computeHeading(latLng, center);
+    const inward = g.maps.geometry.spherical.computeOffset(latLng, tolerance, heading);
+    return contains(poly, inward);
+  }
+
+  // === Helper: check overlap with any constraint/object ===
+  function intersectsAnyBlocker(cornersLL, blockers){
+    for (const blocker of blockers){
+      for (const pt of cornersLL){ if (safeContain(blocker, pt)) return true; }
+      const blockerCenter = centroid(blocker.getPath().getArray());
+      const testPoly = new g.maps.Polygon({ paths: cornersLL });
+      if (safeContain(testPoly, blockerCenter)) return true;
+    }
+    return false;
+  }
+
+  areas.forEach(ovArea => {
+    if (hitCap) return;
+
+    const path = polygonPathFromOverlay(ovArea);
+    if (!path.length) return;
+
+    const polyArea = new g.maps.Polygon({ paths: path });
+    const origin = centroid(path);
+    const proj = makeLocal(origin);
+    const xy = path.map(p => proj.toXY(p));
+
+
+
+
+    
+    const uvPoly = xy.map(p => xyToUV(p.x, p.y));
+
+    const minU = Math.min(...uvPoly.map(p => p.u));
+    const maxU = Math.max(...uvPoly.map(p => p.u));
+    const minV = Math.min(...uvPoly.map(p => p.v));
+    const maxV = Math.max(...uvPoly.map(p => p.v));
+
+    const startU = minU;
+    const startV = minV;
+
+    const allOverlays = window.__overlayRegistry ? Array.from(window.__overlayRegistry) : [];
+    const blockers = allOverlays
+      .filter(ov => (ov.__cat === 'constraint' || ov.__cat === 'object') && ov.getMap())
+      .map(ov => new g.maps.Polygon({ paths: polygonPathFromOverlay(ov) }));
+
+    const useBlocks = (cfg.block.tH > 1 || cfg.block.tV > 1);
+    const STEP_W = useBlocks ? (BLK_W + BLK_GX) : (TAB_W + TAB_GX);
+    const STEP_H = useBlocks ? (BLK_H + BLK_GY) : (TAB_H + TAB_GY);
+    const TOL = 0.01;
+
+    const nRows = Math.floor((maxV - minV + TOL) / STEP_H);
+    const nCols = Math.floor((maxU - minU + TOL) / STEP_W);
+
+    for (let r = 0; r < nRows; r++) {
+      const bv = Math.min(startV + r * STEP_H, maxV - (useBlocks ? BLK_H : TAB_H));
+      if (hitCap) break;
+      for (let c = 0; c < nCols; c++) {
+        const bu = Math.min(startU + c * STEP_W, maxU - (useBlocks ? BLK_W : TAB_W));
+        if (hitCap) break;
+
+        // --- Clamp final row/column flush to edges ---
+        const buClamped = Math.min(bu, maxU - (useBlocks ? BLK_W : TAB_W) + 0.001);
+        const bvClamped = Math.min(bv, maxV - (useBlocks ? BLK_H : TAB_H) + 0.001);
+
+        // --- CHECK FULL BLOCK INSIDE AREA ---
+        const blockCornersUV = [
+          { u: buClamped, v: bvClamped },
+          { u: buClamped + (useBlocks ? BLK_W : TAB_W), v: bvClamped },
+          { u: buClamped + (useBlocks ? BLK_W : TAB_W), v: bvClamped + (useBlocks ? BLK_H : TAB_H) },
+          { u: buClamped, v: bvClamped + (useBlocks ? BLK_H : TAB_H) }
+        ];
+        const blockCornersLL = blockCornersUV.map(p => {
+          const xyP = uvToXY(p.u, p.v);
+          return proj.fromXY(xyP.x, xyP.y);
+        });
+        if (!blockCornersLL.every(pt => safeContain(polyArea, pt))) continue;
+        if (intersectsAnyBlocker(blockCornersLL, blockers)) continue;
+
+        for (let tr = 0; tr < BLOCK_TAB_V; tr++) {
+          const tabV = bvClamped + tr * (TAB_H + TAB_GY);
+          for (let tc = 0; tc < BLOCK_TAB_H; tc++) {
+            const tabU = buClamped + tc * (TAB_W + TAB_GX);
+            const tableCornersUV = [
+              { u: tabU, v: tabV },
+              { u: tabU + TAB_W, v: tabV },
+              { u: tabU + TAB_W, v: tabV + TAB_H },
+              { u: tabU, v: tabV + TAB_H }
+            ];
+            const tableCornersLL = tableCornersUV.map(p => {
+              const xyP = uvToXY(p.u, p.v);
+              return proj.fromXY(xyP.x, xyP.y);
+            });
+            if (!tableCornersLL.every(pt => safeContain(polyArea, pt))) continue;
+            if (intersectsAnyBlocker(tableCornersLL, blockers)) continue;
+
+            for (let mr = 0; mr < TABLE_MOD_V; mr++) {
+              const baseV = tabV + mr * (MOD_H + MOD_GY);
+              for (let mc = 0; mc < TABLE_MOD_H; mc++) {
+                const baseU = tabU + mc * (MOD_W + MOD_GX);
+                const rectUV = [
+                  { u: baseU, v: baseV },
+                  { u: baseU + MOD_W, v: baseV },
+                  { u: baseU + MOD_W, v: baseV + MOD_H },
+                  { u: baseU, v: baseV + MOD_H }
+                ];
+                const rLL = rectUV.map(p => {
+                  const xyP = uvToXY(p.u, p.v);
+                  return proj.fromXY(xyP.x, xyP.y);
                 });
-                poly.__areaName = areaName;
-                poly.__kwp = cfg.table.kwp;
+                if (!rLL.every(pt => safeContain(polyArea, pt))) continue;
+                if (intersectsAnyBlocker(rLL, blockers)) continue;
+
+                const poly = new g.maps.Polygon(Object.assign({
+                  map,
+                  paths: rLL,
+                  clickable: true,
+                  draggable: (pvLock.dataset.state !== 'locked'),
+                  editable: (pvLock.dataset.state !== 'locked')
+                }, STYLE));
+                poly.__areaName = ovArea.__name || 'Area';
+                poly.__kwp = (cfg.module.pwr || 0) / 1000;
+                poly.__parentArea = ovArea;
                 layoutOverlays.push(poly);
-              }else{
-                // modules: draw outlines as thin polygons (limit count)
-                const mCols = cfg.table.modH, mRows = cfg.table.modV;
-                const modXdim = (cfg.module.orient==='portrait' ? cfg.module.wid : cfg.module.len);
-                const modYdim = (cfg.module.orient==='portrait' ? cfg.module.len : cfg.module.wid) * Math.cos((cfg.orientation.tilt||0)*Math.PI/180);
-                const offX = modXdim + cfg.table.gapModX;
-                const offY = modYdim + cfg.table.gapModY;
-                let modulesDrawn = 0, modulesCap = 4000; // soft cap for performance
-                for(let rr=0; rr<mRows; rr++){
-                  for(let cc=0; cc<mCols; cc++){
-                    if(modulesDrawn>modulesCap) break;
-                    const mx = tx + cc*offX;
-                    const my = ty + rr*offY;
-                    const mrect = rectXY(mx, my, modXdim, modYdim);
-                    if(!rectInsidePolygon(mrect, innerXY, cfg.orientation.azimuth, proj, polyArea, obstacles)) continue;
-                    const pathLL = rectToLatLng(mrect, cfg.orientation.azimuth, proj);
-                    const poly = new g.maps.Polygon({
-                      map: window._map,
-                      paths: pathLL,
-                      strokeColor:'#0f172a', strokeOpacity:0.6, strokeWeight:0.6,
-                      fillColor:'#cbd5e1', fillOpacity:0.22,
-                      clickable:true, draggable:!cfg.locked, editable:!cfg.locked
-                    });
-                    poly.__areaName = areaName;
-                    poly.__kwp = cfg.module.pwr/1000;
-                    layoutOverlays.push(poly);
-                    modulesDrawn++;
-                  }
+
+                total++;
+                if (total >= MAX_MODULES) {
+                  console.warn('Module cap reached:', MAX_MODULES);
+                  alert(`Module cap (${MAX_MODULES}) reached.`);
+                  hitCap = true;
+                  break;
                 }
               }
-
-              kwpSum += cfg.table.kwp;
-              if(cfg.target.mode==='cap' && kwpSum >= cfg.target.kwp){ stop=true; break; }
+              if (hitCap) break;
             }
+            if (hitCap) break;
           }
+          if (hitCap) break;
         }
       }
-    });
-
-    injectBadges();
-    // Center preview redraw (cos tilt) not necessary here
-  }
-
-  // Geometry helpers for layout
-  function range(start, end, step){
-    const out=[]; if(step===0) return out;
-    if(step>0){ for(let x=start; x<=end; x+=step) out.push(x); }
-    else{ for(let x=start; x>=end; x+=step) out.push(x); }
-    return out;
-  }
-  function rectXY(x, y, w, h){ // top-left (x,y), y grows north
-    return [ {x,y}, {x:x+w,y}, {x:x+w,y:y+h}, {x, y:y+h} ];
-  }
-  function rectToLatLng(rect, azDeg, proj){
-    // rotate around rect center by azDeg
-    const cx = (rect[0].x + rect[2].x)/2, cy = (rect[0].y + rect[2].y)/2;
-    const rp = rect.map(p=>rotateXY(p.x,p.y, azDeg, cx, cy));
-    // back to latlng
-    return rp.map(p=>proj.fromXY(p.x,p.y));
-  }
-  function rectInsidePolygon(rect, innerXY, azDeg, proj, polyArea, obstacles){
-    const cx = (rect[0].x + rect[2].x)/2, cy = (rect[0].y + rect[2].y)/2;
-    const rp = rect.map(p=>rotateXY(p.x,p.y, azDeg, cx, cy));
-    // quick bbox reject against inner polygon bbox
-    const bb = boundsXY(innerXY);
-    const rbb = {minX:Math.min(...rp.map(p=>p.x)), maxX:Math.max(...rp.map(p=>p.x)), minY:Math.min(...rp.map(p=>p.y)), maxY:Math.max(...rp.map(p=>p.y))};
-    if(rbb.minX<bb.minX || rbb.maxX>bb.maxX || rbb.minY<bb.minY || rbb.maxY>bb.maxY) return false;
-    // corner + center test inside area and outside obstacles
-    const pts = rp.concat([{x:cx,y:cy}]).map(p=>proj.fromXY(p.x,p.y));
-    for(const ll of pts){
-      if(!contains(polyArea, ll)) return false;
-      for(const ob of obstacles){ if(contains(ob, ll)) return false; }
     }
-    return true;
-  }
-  function boundsOfPath(path){ // compute ENU bounds by projecting to local centroid frame
-    const c = centroid(path);
-    const proj = makeLocal(c);
-    const xy = path.map(p=>proj.toXY(p));
-    return boundsXY(xy);
-  }
-  function boundsXY(xy){
-    const xs = xy.map(p=>p.x), ys=xy.map(p=>p.y);
-    return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys) };
-  }
-  function centroid(path){
-    const g=window._google;
-    let lat=0,lng=0; const n=path.length;
-    path.forEach(p=>{ lat+=p.lat(); lng+=p.lng(); });
-    return new g.maps.LatLng(lat/n, lng/n);
-  }
+  });
 
-  // initial draw
-  drawPreview();
+  console.log(`✅ Layout done: ${total} modules placed.`);
+}
+
+
+
+
+
+
+
+  const summaryEl = document.getElementById('summary');
+  const sumToggle = document.getElementById('sum-toggle');
+  function setSummary(open){
+    summaryEl.classList.toggle('collapsed', !open);
+    summaryEl.setAttribute('aria-expanded', String(open));
+  }
+  setSummary(false);
+  sumToggle?.addEventListener('click', ()=>{
+    const willOpen = summaryEl.classList.contains('collapsed');
+    setSummary(willOpen);
+  });
+
+  fitCanvasToContainer();
 
 })();
 </script>
 
-<!-- Google Maps -->
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry&callback=initMap"></script>
 </body>
 </html>
