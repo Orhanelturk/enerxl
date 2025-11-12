@@ -10,23 +10,30 @@
 
 
 
-  <script>
+<script>
 (async () => {
-  // network-first fetch of your build id
+  // 1) Try absolute path (avoid wrong relative folder)
   let v = "";
   try {
-    const r = await fetch("version.json", { cache: "no-store" });
+    const r = await fetch("https://orhanelturk.github.io/enerxl/version.json", { cache: "no-store" });
     v = (await r.json()).version || "";
-  } catch (_) { /* stay quiet on failures */ }
+  } catch (_) {}
 
+  // 2) Fallback: if version.json not reachable, use a one-time timestamp seed
   const url = new URL(location.href);
   const cur = url.searchParams.get("v") || "";
-  if (v && v !== cur) {
+  if (!v) {
+    v = cur || Math.floor(Date.now() / 1000).toString(36); // only seed when there's no ?v yet
+  }
+
+  // 3) Redirect if needed
+  if (v !== cur) {
     url.searchParams.set("v", v);
-    location.replace(url.toString()); // reload with ?v=...
+    location.replace(url.toString());
   }
 })();
 </script>
+
 
 
 
