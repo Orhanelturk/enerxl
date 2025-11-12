@@ -25,6 +25,15 @@
 })();
 </script>
 
+<script>
+(function () {
+  var v = new URLSearchParams(location.search).get("v") || "";
+  var s = document.createElement("script");
+  s.src = "./drawing.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+  document.head.appendChild(s);
+})();
+</script>
+
 
 <style>
   html, body {
@@ -631,7 +640,8 @@
 
 
 
-<script src="./drawing.js"></script>
+
+
 
 <script>
 
