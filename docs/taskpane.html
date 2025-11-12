@@ -9,6 +9,23 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
+<script>
+(async () => {
+  let v = "";
+  try {
+    const r = await fetch("version.json", { cache: "no-store" });
+    v = (await r.json()).version || "";
+  } catch (_) {}
+  const url = new URL(location.href);
+  const cur = url.searchParams.get("v") || "";
+  if (v && v !== cur) {
+    url.searchParams.set("v", v);
+    location.replace(url.toString());
+  }
+})();
+</script>
+
+
 <style>
   html, body {
   margin: 0 !important;
@@ -610,21 +627,7 @@
 
 
 
-<script>
-(async () => {
-  let v = "";
-  try {
-    const r = await fetch("version.json", { cache: "no-store" });
-    v = (await r.json()).version || "";
-  } catch (_) {}
-  const url = new URL(location.href);
-  const cur = url.searchParams.get("v") || "";
-  if (v && v !== cur) {
-    url.searchParams.set("v", v);
-    location.replace(url.toString());
-  }
-})();
-</script>
+
 
 
 
