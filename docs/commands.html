@@ -7,6 +7,29 @@
   <meta name="robots" content="noindex" />
   <title>EnerXL Commands (No-Log)</title>
 
+
+
+
+  <script>
+(async () => {
+  // network-first fetch of your build id
+  let v = "";
+  try {
+    const r = await fetch("version.json", { cache: "no-store" });
+    v = (await r.json()).version || "";
+  } catch (_) { /* stay quiet on failures */ }
+
+  const url = new URL(location.href);
+  const cur = url.searchParams.get("v") || "";
+  if (v && v !== cur) {
+    url.searchParams.set("v", v);
+    location.replace(url.toString()); // reload with ?v=...
+  }
+})();
+</script>
+
+
+
   <!-- Office runtime MUST load before the command handlers -->
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 

@@ -608,7 +608,37 @@
   </div>
 </div>
 
-<script src="./drawing.js"></script>
+
+
+<script>
+(async () => {
+  // network-first fetch of your build id
+  let v = "";
+  try {
+    const r = await fetch("version.json", { cache: "no-store" });
+    v = (await r.json()).version || "";
+  } catch (_) { /* stay quiet on failures */ }
+
+  const url = new URL(location.href);
+  const cur = url.searchParams.get("v") || "";
+  if (v && v !== cur) {
+    url.searchParams.set("v", v);
+    location.replace(url.toString()); // reload with ?v=...
+  }
+})();
+</script>
+
+
+
+<script>
+(function () {
+  const v = new URLSearchParams(location.search).get("v") || "";
+  const s = document.createElement("script");
+  s.src = "./drawing.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+  document.head.appendChild(s);
+})();
+</script>
+
 
 <script>
 
