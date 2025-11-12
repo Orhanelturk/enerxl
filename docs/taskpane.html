@@ -554,7 +554,7 @@
                   <input id="gb-tables" type="checkbox" checked> Tables
                 </label>
                 <label style="min-width:auto;display:inline-flex;align-items:center;gap:6px">
-                  <input id="gb-blocks" type="checkbox" checked> Block
+                  <input id="gb-blocks" type="checkbox" > Block
                 </label>
               </div>
             </div>
@@ -828,14 +828,119 @@ scrollwheel: true
   });
 
   const structDefaults = {
-    'ground-fixed':  { name:'Ground — Fixed Tilt', tilt:20, azimuth:180, pvH:2, pvV:3, tabX:0.6, tabY:1.6, blkX:3.0, blkY:4.0, tpbH:6, tpbV:4, orient:'portrait' },
-    'ground-tracker':{ name:'Ground — Single Axis', tilt:0,  azimuth:180, pvH:2, pvV:2, tabX:0.6, tabY:5.0, blkX:4.0, blkY:8.0, tpbH:8, tpbV:2, orient:'landscape' },
-    'roof-flush':    { name:'Rooftop — Flush',      tilt:10, azimuth:180, pvH:2, pvV:3, tabX:0.4, tabY:0.6, blkX:1.0, blkY:1.2, tpbH:5, tpbV:3, orient:'portrait' },
-    'roof-triangle': { name:'Rooftop — Triangle',   tilt:15, azimuth:180, pvH:2, pvV:3, tabX:0.4, tabY:0.8, blkX:1.2, blkY:1.2, tpbH:5, tpbV:3, orient:'portrait' },
-    'roof-ballasted':{ name:'Rooftop — Ballasted',  tilt:10, azimuth:180, pvH:2, pvV:3, tabX:0.4, tabY:0.7, blkX:1.0, blkY:1.0, tpbH:4, tpbV:3, orient:'portrait' },
-    'carport':       { name:'Specialty — Carport',  tilt:5,  azimuth:180, pvH:2, pvV:4, tabX:0.7, tabY:3.0, blkX:3.0, blkY:4.0, tpbH:4, tpbV:2, orient:'portrait' },
-    'canopy':        { name:'Specialty — Solar Canopy', tilt:5, azimuth:180, pvH:2, pvV:3, tabX:0.6, tabY:2.5, blkX:3.0, blkY:3.0, tpbH:3, tpbV:3, orient:'portrait' }
-  };
+  // Ground – Fixed Tilt (utility)
+  'ground-fixed': {
+    name: 'Ground — Fixed Tilt',
+    tilt: 20,                // 15–25° common; 20° good all-round
+    azimuth: 180,            // face south (N hemisphere)
+    orient: 'landscape',
+    pvH: 12,                  // 2 modules wide (portrait)
+    pvV: 2,                 // 12 high => 24 modules/table
+    tabX: 0.6,               // walkway between tables in a row
+    tabY: 6.0,               // row pitch (shadow + access) 5.5–7 m typical
+    blkX: 3.0,               // cross-aisle between table groups
+    blkY: 8.0,               // main service lane between blocks
+    tpbH: 10,                // ~10 tables per block horizontally
+    tpbV: 3                  // 3 table rows per block
+  },
+
+  // Ground – Single Axis Tracker (utility, 1P 30-portrait)
+  'ground-tracker': {
+    name: 'Ground — Single Axis',
+    tilt: 0,                 // trackers at 0° stow; tilt varies with tracking
+    azimuth: 180,            // N-S torque tube, module long edge E-W; az set for preview
+    orient: 'landscape',
+    pvH: 2,                  // 1 module wide (1P)
+    pvV: 30,                 // 30 modules long per tracker row string
+    tabX: 5,              // small gap between tracker “tables” on same row
+    tabY: .5,               // tracker row pitch, 5.5–6.5 m common
+    blkX: 3.0,               // cross-access between tracker strings
+    blkY: 8.0,               // main lane every few rows
+    tpbH: 12,                // 12 tracker “tables” per block across a row
+    tpbV: 2                  // 2 adjacent rows per block before a main lane
+  },
+
+  // Rooftop — Flush (industrial roof)
+  'roof-flush': {
+    name: 'Rooftop — Flush',
+    tilt: 10,                // 5–15° (rails on low tilt)
+    azimuth: 180,
+    orient: 'landscape',
+    pvH: 1,                  // 2×3 table is common on rail kits
+    pvV: 3,
+    tabX: 0,               // walkway between tables
+    tabY: 0.8,               // inter-row spacing for minimal shading on low tilt
+    blkX: 1.2,               // service corridor around skylights/HVAC
+    blkY: 1.5,
+    tpbH: 5,                 // small roof block
+    tpbV: 3
+  },
+
+  // Rooftop — Triangle (tilt frames)
+  'roof-triangle': {
+    name: 'Rooftop — Triangle',
+    tilt: 15,                // 10–15° typical for triangles
+    azimuth: 180,
+    orient: 'landscape',
+    pvH: 2,
+    pvV: 3,
+    tabX: 0.4,
+    tabY: 1.0,               // slightly larger to control self-shading
+    blkX: 1.5,
+    blkY: 2.0,
+    tpbH: 4,
+    tpbV: 3
+  },
+
+  // Rooftop — Ballasted (flat roof, low tilt)
+  'roof-ballasted': {
+    name: 'Rooftop — Ballasted',
+    tilt: 10,                // 5–10° low-tilt ballast
+    azimuth: 180,
+    orient: 'landscape',
+    pvH: 2,
+    pvV: 3,
+    tabX: 0.4,
+    tabY: 0.9,               // keep low to maximize density
+    blkX: 1.2,
+    blkY: 1.8,               // roof pathways / parapet offsets
+    tpbH: 5,
+    tpbV: 3
+  },
+
+  // Specialty — Carport
+  'carport': {
+    name: 'Specialty — Carport',
+    tilt: 4,                 // 3–6°
+    azimuth: 180,
+    orient: 'landscape',     // carports often use landscape for bay widths
+    pvH: 3,                  // 3 wide × 10 long (≈30 modules/table)
+    pvV: 10,
+    tabX: 0.3,               // small structural gap
+    tabY: 6.0,               // vehicle lane under next canopy
+    blkX: 3.0,               // access space between canopies
+    blkY: 7.5,               // wider main drive
+    tpbH: 4,
+    tpbV: 1
+  },
+
+  // Specialty — Solar Canopy / Walkway
+  'canopy': {
+    name: 'Specialty — Solar Canopy',
+    tilt: 5,
+    azimuth: 180,
+    orient: 'portralandscapeit',
+    pvH: 3,                  // 3 wide × 8 long (≈24 modules/table)
+    pvV: 8,
+    tabX: 0.3,
+    tabY: 3.0,               // pedestrian/clearance spacing
+    blkX: 2.5,
+    blkY: 4.0,
+    tpbH: 3,
+    tpbV: 2
+  }
+};
+
   function openCat(){ if(catBackdrop){ catBackdrop.style.display='block'; catBackdrop.setAttribute('aria-hidden','false'); } }
   function closeCat(){ if(catBackdrop){ catBackdrop.style.display='none'; catBackdrop.setAttribute('aria-hidden','true'); } }
   openCatalog?.addEventListener('click', openCat);
