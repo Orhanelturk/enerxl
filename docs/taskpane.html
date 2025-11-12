@@ -630,15 +630,7 @@
 
 
 
-<script>
-(function () {
-  const v = new URLSearchParams(location.search).get("v") || "";
-  const s = document.createElement("script");
-  s.src = "./drawing.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
-  document.head.appendChild(s);
-})();
-</script>
-
+<script src="./drawing.js"></script>
 
 <script>
 
