@@ -248,6 +248,11 @@
         <path d="M7 9h10M7 12h10"/>
       </svg>
     </button>
+     <button class="tool-btn" id="btn-export-excel" title="Export to Excel" aria-label="Export to Excel">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 16l5-5-5-5"/><path d="M21 11H9"/><rect x="3" y="4" width="6" height="16" rx="1"/>
+    </svg>
+  </button>
 
     <!-- Hidden (kept) -->
     <button class="tool-btn is-primary hidden" data-tool="select" title="Select/Edit" aria-label="Select">
@@ -1517,6 +1522,46 @@ function updateSummary() {
   totAcEl.textContent = (totalDC*0.8).toFixed(1);
   totM2El.textContent = totalArea.toFixed(0);
 }
+
+
+// === EXPORT TO EXCEL ===
+async function exportSummaryToExcel() {
+  try {
+    // Collect summary table rows
+    const table = document.getElementById('sum-body');
+    if (!table || !table.rows.length) {
+      alert('No summary data to export.');
+      return;
+    }
+
+    // Prepare data rows
+    const data = [['Area Name', 'DC kWp', 'AC kWp', 'Area (m²)', 'Tilt (°)', 'Azimuth (°)']];
+    for (const row of table.rows) {
+      const cells = [...row.cells].map(td => td.textContent.trim());
+      if (cells.length >= 6 && !cells[0].includes('No areas')) data.push(cells);
+    }
+
+    // Send to Excel
+    await Excel.run(async context => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      const startCell = sheet.getRange("B5"); // starting cell (you can change)
+      const range = startCell.getResizedRange(data.length - 1, data[0].length - 1);
+      range.values = data;
+      range.format.autofitColumns();
+      range.format.autofitRows();
+      await context.sync();
+    });
+
+    console.log('✅ Summary exported to Excel.');
+  } catch (err) {
+    console.error('Export failed:', err);
+    alert('Export failed. Check console for details.');
+  }
+}
+
+// Bind button
+document.getElementById('btn-export-excel')?.addEventListener('click', exportSummaryToExcel);
+
 
 
 
