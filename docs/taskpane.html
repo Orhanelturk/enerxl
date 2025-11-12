@@ -654,20 +654,6 @@
 
 <script>
 
-  Office.onReady(() => {
-  const pane = document.body.parentElement;
-  if (pane && pane.style) {
-    pane.style.marginTop = '0px';
-    pane.style.paddingTop = '0px';
-    pane.style.background = 'transparent';
-  }
-});
-</script>
-<script>
-
-
-
-
 
 
   window.initMap = function(){
@@ -1447,6 +1433,8 @@ function insetPolygonLL(pathLL, distMeters){
                 }, STYLE));
                 poly.__areaName = ovArea.__name || 'Area';
                 poly.__kwp = (cfg.module.pwr || 0) / 1000;
+                poly.__tilt = cfg.orientation.tilt;
+poly.__az = cfg.orientation.azimuth;
                 poly.__parentArea = ovArea;
                 layoutOverlays.push(poly);
 
@@ -1469,8 +1457,66 @@ function insetPolygonLL(pathLL, distMeters){
   });
 
   console.log(`✅ Layout done: ${total} modules placed.`);
+  updateSummary();
 }
 
+function updateSummary() {
+  const g = window._google;
+  if (!g) return;
+
+  const sumBody = document.getElementById('sum-body');
+  const totDcEl = document.getElementById('tot-dc');
+  const totAcEl = document.getElementById('tot-ac');
+  const totM2El = document.getElementById('tot-m2');
+
+  if (!sumBody) return;
+
+  sumBody.innerHTML = ''; // clear previous
+
+  const areas = [];
+  layoutOverlays.forEach(poly => {
+    const name = poly.__areaName || 'Area';
+    let rec = areas.find(a => a.name === name);
+    if (!rec) {
+      rec = { name, modules: 0, kwp: 0, area: 0, tilt: 0, az: 0, count: 0 };
+      areas.push(rec);
+    }
+    rec.modules++;
+    rec.kwp += poly.__kwp || 0;
+    rec.count++;
+    try {
+      rec.area += g.maps.geometry.spherical.computeArea(poly.getPath());
+    } catch (_) {}
+    if (poly.__tilt) rec.tilt = poly.__tilt;
+    if (poly.__az) rec.az = poly.__az;
+  });
+
+  if (!areas.length) {
+    sumBody.innerHTML = `<tr><td colspan="6" class="muted" style="padding:12px 10px">No areas yet</td></tr>`;
+    return;
+  }
+
+  let totalDC = 0, totalAC = 0, totalArea = 0;
+  const rows = [];
+  areas.forEach(a => {
+    totalDC += a.kwp;
+    totalArea += a.area;
+    rows.push(`
+      <tr>
+        <td>${a.name}</td>
+        <td class="num">${a.kwp.toFixed(1)}</td>
+        <td class="num">${(a.kwp*0.8).toFixed(1)}</td>
+        <td class="num">${(a.area).toFixed(0)}</td>
+        <td class="num">${a.tilt.toFixed(0)}</td>
+        <td class="num">${a.az.toFixed(0)}</td>
+      </tr>`);
+  });
+
+  sumBody.innerHTML = rows.join('');
+  totDcEl.textContent = totalDC.toFixed(1);
+  totAcEl.textContent = (totalDC*0.8).toFixed(1);
+  totM2El.textContent = totalArea.toFixed(0);
+}
 
 
 
