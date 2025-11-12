@@ -637,6 +637,20 @@ scrollwheel: true
     });
     window._map = map; window._google = google;
 
+
+
+    try {
+  const iframe = window.frameElement;
+  if (iframe) {
+    iframe.setAttribute("allow", "geolocation *; microphone *; camera *; fullscreen *; clipboard-read *; clipboard-write *; display-capture *");
+    iframe.style.touchAction = "auto";
+    iframe.style.pointerEvents = "auto";
+  }
+} catch (e) {
+  console.warn("iframe permission patch skipped:", e);
+}
+
+
     const fsWrap=document.createElement('div'); fsWrap.style.margin='10px';
     const fsBtn=document.createElement('button');
     Object.assign(fsBtn.style,{
