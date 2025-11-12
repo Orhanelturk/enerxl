@@ -4,6 +4,28 @@
 <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<style>
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+    background: #000; /* optional: hide flicker during load */
+  }
+  body > div:first-child {
+    margin-top: 0 !important;
+  }
+  #app, #map {
+    position: absolute;
+    inset: 0;
+  }
+</style>
+
+
 <title>EnerXL Map</title>
 <style>
   :root{
@@ -587,7 +609,21 @@
 
 <script src="./drawing.js"></script>
 
+
+
 <script>
+
+  Office.onReady(() => {
+  const pane = document.body.parentElement;
+  if (pane && pane.style) {
+    pane.style.marginTop = '0px';
+    pane.style.paddingTop = '0px';
+    pane.style.background = 'transparent';
+  }
+});
+
+
+
   window.initMap = function(){
     const START = { lat: 38.397550221066616, lng: 34.97863102806574 };
     const map = new google.maps.Map(document.getElementById('map'), {
