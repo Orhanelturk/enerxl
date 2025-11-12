@@ -592,7 +592,8 @@
     const START = { lat: 38.397550221066616, lng: 34.97863102806574 };
     const map = new google.maps.Map(document.getElementById('map'), {
       center: START, zoom: 17, mapTypeId: 'satellite',
-      mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: false
+      mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: false,gestureHandling: 'greedy',
+scrollwheel: true
     });
     window._map = map; window._google = google;
 
