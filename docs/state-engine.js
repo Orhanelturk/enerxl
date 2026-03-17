@@ -13,6 +13,16 @@ const StateEngine = {
         }, 15000); // Check every 15 seconds
     },
 
+    _showSaveToast() {
+        const toast = document.getElementById('save-toast');
+        if (toast) {
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500); // Hide after 2.5 seconds
+        }
+    },
+
     _hasDataToSave() {
         if (!window.SiteEngine) return false;
         return window.SiteEngine.overlays.length > 0;
@@ -95,6 +105,7 @@ const StateEngine = {
             Office.context.document.settings.saveAsync((res) => {
                 if (res.status === Office.AsyncResultStatus.Succeeded) {
                     if (!silent) console.log("Project state auto-saved to Excel.");
+                    this._showSaveToast();
                 } else {
                     console.error("Failed to save state to Excel:", res.error);
                 }
