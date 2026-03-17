@@ -763,6 +763,10 @@ const SiteEngine = {
     },
 
     getGeoJSON(overlay) {
+        if (overlay.type === google.maps.drawing.OverlayType.CIRCLE || (overlay.getRadius && overlay.getCenter)) {
+            const center = overlay.getCenter();
+            return turf.circle([center.lng(), center.lat()], overlay.getRadius(), { steps: 64, units: 'meters' });
+        }
         if (overlay.getPaths) {
             const coords = overlay.getPaths().getArray().map(path => {
                 const ring = path.getArray().map(p => [p.lng(), p.lat()]);
@@ -786,7 +790,7 @@ const SiteEngine = {
     },
 
     deleteSelected() {
-        if (this.selectedOverlays.length > 0 && confirm(`Delete ${this.selectedOverlays.length} items?`)) {
+        if (this.selectedOverlays.length > 0) {
             this.selectedOverlays.forEach(o => {
                 // If it's an area, clear the layout first
                 if (o.category === 'area' || (o.getPath && !o.subType)) {

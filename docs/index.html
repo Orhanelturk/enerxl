@@ -21,41 +21,7 @@
 
     <!-- Map Overlays -->
     <div class="ui-scaling-wrapper">
-        <!-- Project Summary Panel -->
-        <div id="project-summary-panel" class="hidden"
-            style="position: absolute; top: 1rem; right: 1rem; z-index: 2000; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0.6rem; border-radius: 6px; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); width: 280px; pointer-events: auto; transition: all 0.2s ease;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
-                <div style="display: flex; align-items: center; gap: 0.35rem; color: #0f172a;">
-                    <i data-lucide="bar-chart-3" style="width: 13px; height: 13px; color: #286944;"></i>
-                    <h4 style="margin: 0; font-family: 'Outfit'; font-size: 0.8rem; font-weight: 700;">Project Summary</h4>
-                </div>
-                <button onclick="toggleSummaryPanel(false)"
-                    style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 2px; display: flex;">
-                    <i data-lucide="x" style="width: 14px; height: 14px;"></i>
-                </button>
-            </div>
-            <div
-                style="max-height: 220px; overflow-y: auto; margin-bottom: 0.4rem; border: 1px solid #f1f5f9; border-radius: 3px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.62rem;">
-                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
-                        <tr style="text-align: left; color: #64748b; border-bottom: 1px solid #f1f5f9;">
-                            <th style="padding: 0.35rem 0.5rem;">Area</th>
-                            <th style="padding: 0.35rem 0.2rem;">DC</th>
-                            <th style="padding: 0.35rem 0.2rem;">AC</th>
-                            <th style="padding: 0.35rem 0.5rem; text-align: right;">sqm</th>
-                        </tr>
-                    </thead>
-                    <tbody id="summary-table-body" style="color: #334155;">
-                        <!-- Dynamically populated -->
-                    </tbody>
-                    <tfoot id="summary-table-footer"
-                        style="position: sticky; bottom: 0; background: #f8fafc; z-index: 10; font-weight: 800; border-top: 2px solid #e2e8f0;">
-                        <!-- Dynamically populated -->
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-    
+
 
     <!-- Landscape Toolbar -->
     <div class="toolbar">
@@ -81,9 +47,9 @@
             <button class="tool-btn" title="Measure Distance" id="tool-measure"><i data-lucide="ruler"></i></button>
             <button class="tool-btn" id="stats-trigger" title="Summary"><i data-lucide="bar-chart-3"></i></button>
             <button class="tool-btn" title="Map Mode"><i data-lucide="map"></i></button>
-            <div class="separator"></div>
-            <button class="tool-btn" id="btn-share-excel" title="Share"><i data-lucide="share"></i></button>
-            <div class="separator"></div>
+            <div class="tool-divider"></div>
+            <button class="tool-btn" id="btn-share-excel" title="Share project data to Excel"><i data-lucide="share"></i></button>
+            <button class="tool-btn" id="btn-master-reset" title="Master Reset"><i data-lucide="rotate-ccw" style="color: #ef4444;"></i></button>
             <button class="tool-btn" title="Profile"><i data-lucide="user"></i></button>
         </div>
     </div>
@@ -2050,6 +2016,67 @@
                 SiteEngine.createAreaFromCoords();
             });
 
+            // Master Reset Logic
+            const resetBtn = document.getElementById('btn-master-reset');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    try {
+                        // 1. Clear Map Overlays
+                        if (window.SiteEngine && window.SiteEngine.overlays) {
+                            window.SiteEngine.overlays.forEach(o => {
+                                if (o.setMap) o.setMap(null);
+                                if (o.labelMarker && o.labelMarker.setMap) o.labelMarker.setMap(null);
+                            });
+                            window.SiteEngine.overlays = [];
+                            window.SiteEngine.clearSelection();
+                        }
+                        
+                        // 2. Clear Generated Layout Store
+                        if (window.LayoutEngine) {
+                            if (window.LayoutEngine.layoutStore) {
+                                window.LayoutEngine.layoutStore.forEach((data, area) => {
+                                    if (data.overlays) {
+                                        data.overlays.forEach(o => { if (o && o.setMap) o.setMap(null); });
+                                    }
+                                });
+                                window.LayoutEngine.layoutStore.clear();
+                            }
+                            window.LayoutEngine.blocks = [];
+                            window.LayoutEngine.inverters = [];
+                        }
+
+                        // 3. Clear Cable Engine
+                        if (window.CablesEngine) {
+                            if (window.CablesEngine.mapPolylines) {
+                                window.CablesEngine.mapPolylines.forEach(l => { if (l && l.setMap) l.setMap(null); });
+                            }
+                            window.CablesEngine.mapPolylines = [];
+                        }
+
+                        // 4. Force Excel Autosave Reset
+                        if (window.StateEngine && typeof Office !== 'undefined' && Office.context && Office.context.document) {
+                            Office.context.document.settings.set("enerxl_project_state", "");
+                            Office.context.document.settings.saveAsync();
+                        }
+                        
+                        // 5. Reset SLD Modal
+                        const sldCanvas = document.getElementById('sld-canvas');
+                        if (sldCanvas) {
+                            const ctx = sldCanvas.getContext('2d');
+                            if (ctx) ctx.clearRect(0, 0, sldCanvas.width, sldCanvas.height);
+                        }
+                        
+                        // 6. Refresh Icons & Stats
+                        if (window._layoutStats) window._layoutStats = {};
+                        if (window._electricalStats) window._electricalStats = { counts: {}, lengths: {} };
+                        if (window.updateProjectSummary) window.updateProjectSummary();
+                        
+                    } catch (e) {
+                         console.error("Master Reset error", e);
+                    }
+                });
+            }
+
             // KML/KMZ Import Listeners
             document.getElementById('btn-import-kml').addEventListener('click', () => {
                 document.getElementById('kml-file-input').click();
@@ -2695,6 +2722,41 @@
         style="position: fixed; bottom: 1rem; right: 1rem; z-index: 10000; background: rgba(255,255,255,0.9); border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
         <i data-lucide="maximize" style="width: 18px; height: 18px; color: #1e293b;"></i>
     </button>
+    
+    <!-- Project Summary Panel -->
+    <div id="project-summary-panel" class="hidden"
+        style="position: fixed; top: 1rem; right: 1rem; z-index: 20000; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0.6rem; border-radius: 6px; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); width: 280px; transition: all 0.2s ease;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+            <div style="display: flex; align-items: center; gap: 0.35rem; color: #0f172a;">
+                <i data-lucide="bar-chart-3" style="width: 13px; height: 13px; color: #286944;"></i>
+                <h4 style="margin: 0; font-family: 'Outfit'; font-size: 0.8rem; font-weight: 700;">Project Summary</h4>
+            </div>
+            <button onclick="toggleSummaryPanel(false)"
+                style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 2px; display: flex;">
+                <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+            </button>
+        </div>
+        <div
+            style="max-height: 220px; overflow-y: auto; margin-bottom: 0.4rem; border: 1px solid #f1f5f9; border-radius: 3px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.62rem;">
+                <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                    <tr style="text-align: left; color: #64748b; border-bottom: 1px solid #f1f5f9;">
+                        <th style="padding: 0.35rem 0.5rem;">Area</th>
+                        <th style="padding: 0.35rem 0.2rem;">DC</th>
+                        <th style="padding: 0.35rem 0.2rem;">AC</th>
+                        <th style="padding: 0.35rem 0.5rem; text-align: right;">sqm</th>
+                    </tr>
+                </thead>
+                <tbody id="summary-table-body" style="color: #334155;">
+                    <!-- Dynamically populated -->
+                </tbody>
+                <tfoot id="summary-table-footer"
+                    style="position: sticky; bottom: 0; background: #f8fafc; z-index: 10; font-weight: 800; border-top: 2px solid #e2e8f0;">
+                    <!-- Dynamically populated -->
+                </tfoot>
+            </table>
+        </div>
+    </div>
     <!-- Auto-Save Notification -->
     <div id="save-toast" class="save-toast">
         <i data-lucide="check-circle"></i>
