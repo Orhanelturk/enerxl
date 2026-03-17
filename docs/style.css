@@ -27,6 +27,21 @@ html {
     font-family: var(--font-main);
 }
 
+.ui-scaling-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 133.33%; /* 100 / 0.75 */
+    height: 133.33%;
+    zoom: 0.75;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.ui-scaling-wrapper > * {
+    pointer-events: auto;
+}
+
 #map {
     height: 100%;
     width: 100%;
@@ -34,6 +49,11 @@ html {
     top: 0;
     left: 0;
     z-index: 1;
+}
+
+/* Hide Default Google Maps UI Elements */
+.gmnoprint, .gm-fullscreen-control, .gm-svpc, .gm-style-cc {
+    display: none !important;
 }
 
 .logo-container {
@@ -160,7 +180,6 @@ p {
     height: 2.25rem;
     width: 280px;
     transition: all 0.3s ease;
-    zoom: 0.75;
 }
 
 .search-panel.hidden {
@@ -322,7 +341,6 @@ p {
     flex-direction: column;
     animation: fadeInSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     font-family: var(--font-main);
-    zoom: 0.75;
 }
 
 .project-panel.hidden {
