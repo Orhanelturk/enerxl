@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>EnerX</title>
+
+<style>
+:root{
+  --ui-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* sizing safety: prevents panels/borders from pushing outside viewport */
+*, *::before, *::after{
+  box-sizing: border-box;
+}
+
+/* full-screen map app: no page scroll */
+html,body{
+  height:100%;
+  margin:0;
+  font-family:var(--ui-font);
+  overflow:hidden;
+}
+
+#map{height:100%;width:100%}
+
+/* TOP BAR */
+#top-bar{
+  position:absolute;
+  top:12px;
+  left:12px;
+  right:auto;
+  transform:none;
+  z-index:20;
+  padding:6px 8px;
+  border-radius:14px;
+  background:rgba(255,255,255,0.30);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 4px 12px rgba(0,0,0,0.10);
+  max-width:calc(100vw - 24px);
+}
+
+#top-bar-scroll{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+  overflow-x:auto;
+  max-width:100%;
+  scrollbar-width:none;
+}
+#top-bar-scroll::-webkit-scrollbar{display:none}
+
+.tool-btn{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  border:none;
+  background:rgba(255,255,255,0.22);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:background .15s ease,transform .12s ease;
+  flex:0 0 auto;
+  font-family:var(--ui-font);
+}
+.tool-btn:hover{background:rgba(255,255,255,0.32)}
+.tool-btn:active{transform:scale(.95)}
+.tool-btn.active{background:rgba(255,255,255,0.38)}
+
+.tool-btn svg{
+  width:18px;
+  height:18px;
+  stroke:#000;
+  stroke-width:2;
+  fill:none;
+  opacity:.70;
+}
+
+.tool-sep{
+  width:1px;
+  height:22px;
+  background:rgba(0,0,0,0.18);
+  margin:0 6px;
+  border-radius:1px;
+  flex:0 0 auto;
+}
+
+/* SUB BAR (search) */
+.sub-bar{
+  position:absolute;
+  top:66px;
+  left:12px;
+  right:auto;
+  transform:none;
+  z-index:19;
+  width:clamp(260px, 30vw, 420px);
+  max-width:calc(100vw - 24px);
+  padding:8px;
+  border-radius:12px;
+  background:rgba(255,255,255,0.30);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 4px 12px rgba(0,0,0,0.10);
+  display:flex;
+  align-items:center;
+}
+.sub-bar.hidden{display:none}
+
+#search-input{
+  width:100%;
+  height:34px;
+  border:none;
+  outline:none;
+  background:rgba(255,255,255,0.10);
+  border-radius:8px;
+  padding:0 10px;
+  font-size:14px;
+  font-family:var(--ui-font);
+}
+
+/* PANELS (auto size based on viewport) */
+.panel{
+  position:absolute;
+  top:66px;
+  left:12px;
+  right:auto;
+  transform:none;
+  z-index:18;
+
+  width:clamp(300px, 32vw, 520px);
+  max-width:calc(100vw - 24px);
+
+  max-height:calc(100vh - 90px);
+  overflow:auto;
+
+  padding:12px;
+  border-radius:14px;
+  background:rgba(255,255,255,0.30);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 4px 12px rgba(0,0,0,0.10);
+  border:1px solid rgba(255,255,255,0.20);
+}
+.panel.hidden{display:none}
+
+.panel .panel-title{
+  font-size:13px;
+  font-weight:700;
+  color:rgba(0,0,0,0.75);
+  margin:0;
+}
+
+/* Better scrollbar (panel) */
+.panel{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,0,0,.25) rgba(255,255,255,.06);
+}
+.panel::-webkit-scrollbar{width:10px}
+.panel::-webkit-scrollbar-track{background:rgba(255,255,255,.06);border-radius:10px}
+.panel::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.20);
+  border:3px solid rgba(255,255,255,.06);
+  border-radius:10px;
+}
+.panel::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.28)}
+
+/* Manual resize UI disabled */
+.panel-resize-handle{display:none!important}
+body.resizing, body.resizing *{cursor:default!important;user-select:auto!important}
+
+/* Tooltip */
+#tooltip{
+  position:fixed;
+  left:0;
+  top:0;
+  transform:translate(-9999px,-9999px);
+  padding:6px 12px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.55);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.35);
+  box-shadow:0 6px 16px rgba(0,0,0,0.12);
+  color:#000;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.2px;
+  white-space:nowrap;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .08s ease;
+  z-index:999999;
+  font-family:var(--ui-font);
+}
+#tooltip.show{opacity:1}
+
+/* ===== Project Area panel UI ===== */
+
+/* Make Project Area header fixed (sticky) while panel scrolls */
+/* Project Area: sticky header but same light/compact look */
+#sub-bar-area{
+  padding:12px;          /* keep original panel padding */
+  overflow:auto;
+}
+
+/* Sticky header (compact + no big background block) */
+#sub-bar-area .pa-head{
+  position: sticky;
+  top: 0;
+  z-index: 5;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+
+  padding:8px 0;         /* compact */
+  margin:0 0 10px 0;     /* keep your old spacing */
+  border-bottom:1px solid rgba(0,0,0,0.10);
+
+  background: transparent;     /* IMPORTANT: no different color block */
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  border-radius:0;
+}
+
+/* Title smaller + cleaner */
+#sub-bar-area .panel-title{
+  font-size:12px;
+  font-weight:700;
+  color:rgba(0,0,0,0.70);
+}
+
+/* Close button smaller + less “heavy” */
+#sub-bar-area .pa-close{
+  width:26px;
+  height:26px;
+  border-radius:9px;
+  background:rgba(255,255,255,0.16);
+}
+#sub-bar-area .pa-close:hover{
+  background:rgba(255,255,255,0.24);
+}
+
+
+/* Keep content aligned with header padding */
+#sub-bar-area > .pa-section{
+  padding-left:12px;
+  padding-right:12px;
+}
+
+/* Close button */
+.pa-close{
+  width:28px;height:28px;
+  border:none;
+  border-radius:10px;
+  background:rgba(255,255,255,0.18);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.pa-close:hover{background:rgba(255,255,255,0.28)}
+.pa-close svg{width:16px;height:16px;stroke:#000;stroke-width:2;opacity:.65;fill:none}
+
+.pa-section{
+  padding:6px 0;
+  border-bottom:1px solid rgba(0,0,0,0.10);
+}
+.pa-section:last-child{border-bottom:none}
+
+.pa-section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  cursor:pointer;
+  user-select:none;
+}
+.pa-section-title{
+  font-weight:600;
+  font-size:12px;
+  line-height:16px;
+}
+
+.pa-caret{
+  width:0;height:0;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:8px solid rgba(0,0,0,0.45);
+  transition:transform .12s ease;
+}
+.pa-section.collapsed .pa-caret{transform:rotate(-90deg)}
+.pa-body{margin-top:10px}
+.pa-section.collapsed .pa-body{display:none}
+
+.pa-pill{
+  display:flex;
+  gap:6px;
+  background:rgba(255,255,255,0.14);
+  border:1px solid rgba(0,0,0,0.10);
+  border-radius:10px;
+  padding:3px;
+  width:fit-content;
+}
+.pa-pill button{
+  height:26px;
+  padding:0 10px;
+  border:none;
+  border-radius:8px;
+  background:transparent;
+  cursor:pointer;
+  font-size:12px;
+  color:rgba(0,0,0,0.65);
+}
+.pa-pill button.active{
+  background:rgba(255,255,255,0.35);
+  color:rgba(0,0,0,0.82);
+  font-weight:800;
+}
+
+.pa-icons{display:flex;gap:10px;margin-top:10px}
+.pa-icon-btn{
+  width:44px;height:44px;
+  border-radius:12px;
+  border:2px solid rgba(0,0,0,0.22);
+  background:rgba(255,255,255,0.18);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.pa-icon-btn.active{
+  border-color:rgba(0,0,0,0.55);
+  background:rgba(255,255,255,0.30);
+}
+.pa-icon-btn svg{width:22px;height:22px;stroke:#000;stroke-width:2;fill:none;opacity:.75}
+
+.pa-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pa-action{
+  height:32px;
+  padding:0 12px;
+  border-radius:10px;
+  border:1px solid rgba(0,0,0,0.12);
+  background:rgba(255,255,255,0.22);
+  cursor:pointer;
+}
+.pa-action:hover{background:rgba(255,255,255,0.30)}
+
+.pa-grid{
+  width:100%;
+  height:120px;
+  border-radius:10px;
+  border:1px solid rgba(0,0,0,0.12);
+  background:rgba(255,255,255,0.12);
+  padding:6px;
+  font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size:12px;
+  outline:none;
+  resize:none;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,0,0,.25) rgba(255,255,255,.06);
+}
+.pa-grid::-webkit-scrollbar{width:10px}
+.pa-grid::-webkit-scrollbar-track{background:rgba(255,255,255,.06);border-radius:10px}
+.pa-grid::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.20);
+  border:3px solid rgba(255,255,255,.06);
+  border-radius:10px;
+}
+.pa-grid::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.28)}
+
+.pa-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.pa-label{flex:1;color:rgba(0,0,0,.65);font-size:13px}
+.pa-input{
+  width:140px;height:28px;
+  border-radius:8px;
+  border:1px solid rgba(0,0,0,0.12);
+  background:rgba(255,255,255,0.18);
+  outline:none;
+  padding:0 8px;
+  font-family:var(--ui-font);
+}
+
+#app-logo img {
+  height: 22px;
+  opacity: 0.85;
+}
+
+.area-label{
+  position:absolute;
+  transform:translate(-50%,-100%);
+  background:rgba(255,255,255,0.92);
+  border:1px solid rgba(230,232,238,0.9);
+  border-radius:8px;
+  padding:2px 6px;
+  font-size:12px;
+  font-weight:600;
+  color:#1e2433;
+  white-space:nowrap;
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
+  pointer-events:none;
+  z-index:100000;
+}
+
+#panel-system-inputs{
+  padding:12px;
+}
+#panel-system-inputs .pa-head{
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 0;
+  margin:0 0 10px 0;
+  border-bottom:1px solid rgba(0,0,0,0.10);
+  background:transparent;
+}
+#panel-system-inputs .panel-title{
+  font-size:12px;
+  font-weight:700;
+  color:rgba(0,0,0,0.70);
+}
+#panel-system-inputs .si-section{
+  padding:10px 0;
+  border-bottom:1px solid rgba(0,0,0,0.10);
+}
+#panel-system-inputs .si-section:last-child{border-bottom:none}
+#panel-system-inputs .si-section-title{
+  font-weight:700;
+  font-size:12px;
+  color:rgba(0,0,0,0.70);
+  margin:0 0 8px 0;
+}
+#panel-system-inputs .si-section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+#panel-system-inputs .si-hint{
+  font-size:12px;
+  color:rgba(0,0,0,0.55);
+  margin:6px 0 0 0;
+}
+#panel-system-inputs .si-grid2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+#panel-system-inputs .si-field label{
+  display:block;
+  font-size:12px;
+  color:rgba(0,0,0,0.65);
+  margin:0 0 4px 0;
+}
+#panel-system-inputs .si-select,
+#panel-system-inputs .si-input{
+  width:100%;
+  height:30px;
+  border-radius:8px;
+  border:1px solid rgba(0,0,0,0.12);
+  background:rgba(255,255,255,0.18);
+  outline:none;
+  padding:0 8px;
+  font-family:var(--ui-font);
+  font-size:12px;
+}
+#panel-system-inputs .si-input[disabled],
+#panel-system-inputs .si-select[disabled]{
+  opacity:.65;
+}
+#panel-system-inputs .si-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:8px;
+}
+#panel-system-inputs .si-row .si-label{
+  flex:1;
+  font-size:12px;
+  color:rgba(0,0,0,0.65);
+}
+#panel-system-inputs .si-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+#panel-system-inputs .si-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:10px;
+  border:1px solid rgba(0,0,0,0.12);
+  background:rgba(255,255,255,0.14);
+  font-size:12px;
+  color:rgba(0,0,0,0.70);
+}
+#panel-system-inputs .si-chip input{margin:0}
+#panel-system-inputs .si-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+  background:rgba(255,255,255,0.10);
+  border:1px solid rgba(0,0,0,0.10);
+  border-radius:10px;
+  overflow:hidden;
+}
+#panel-system-inputs .si-table thead th{
+  text-align:left;
+  font-weight:700;
+  padding:8px;
+  color:rgba(0,0,0,0.70);
+  border-bottom:1px solid rgba(0,0,0,0.10);
+  background:rgba(255,255,255,0.14);
+}
+#panel-system-inputs .si-table td{
+  padding:6px 8px;
+  border-bottom:1px solid rgba(0,0,0,0.08);
+  vertical-align:middle;
+}
+#panel-system-inputs .si-table tbody tr:last-child td{border-bottom:none}
+#panel-system-inputs .si-cell-input{
+  width:100%;
+  height:28px;
+  border-radius:8px;
+  border:1px solid rgba(0,0,0,0.12);
+  background:rgba(255,255,255,0.18);
+  outline:none;
+  padding:0 8px;
+  font-family:var(--ui-font);
+  font-size:12px;
+}
+#panel-system-inputs .si-mini-btn{
+  height:28px;
+  padding:0 10px;
+  border-radius:8px;
+  border:1px solid rgba(0,0,0,0.12);
+  background:rgba(255,255,255,0.18);
+  cursor:pointer;
+}
+#panel-system-inputs .si-mini-btn:hover{background:rgba(255,255,255,0.26)}
+
+/* Small screens */
+@media (max-width: 900px){
+  #top-bar{
+    left:10px;
+    right:10px;
+    max-width:none;
+  }
+  .sub-bar,
+  .panel{
+    left:10px;
+    right:10px;
+    width:auto;
+    max-width:calc(100vw - 20px);
+  }
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="top-bar">
+  <div id="top-bar-scroll">
+
+    <div id="app-logo">
+      <img src="EnerX.png">
+    </div>
+
+    <div class="tool-sep"></div>
+
+    <button id="search-btn" class="tool-btn" data-tool="search" data-tip="Search">
+      <svg viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7"></circle>
+        <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+      </svg>
+    </button>
+
+    <button id="area-btn" class="tool-btn" data-tool="area" data-tip="Project Area">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 24C6.8 19.3 4 15.6 4 10.5C4 5.9 8 2 12 2C16 2 20 5.9 20 10.5C20 15.6 17.2 19.3 12 24Z"></path>
+        <circle cx="12" cy="10.5" r="3.8"></circle>
+      </svg>
+    </button>
+
+    <button id="btn-system-inputs" class="tool-btn" data-tool="system-inputs" data-tip="System Inputs">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>
+    </button>
+
+    <button id="btn-pv-design" class="tool-btn" data-tool="pv-design" data-tip="PV Design">
+      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"></rect><rect x="14" y="4" width="6" height="6"></rect><rect x="4" y="14" width="6" height="6"></rect><rect x="14" y="14" width="6" height="6"></rect></svg>
+    </button>
+
+    <button id="btn-electrical-design" class="tool-btn" data-tool="electrical-design" data-tip="Electrical Design">
+      <svg viewBox="0 0 24 24"><polyline points="3 12 9 12 12 6 15 18 18 12 21 12"></polyline></svg>
+    </button>
+
+    <button id="btn-generate-layout" class="tool-btn" data-tool="generate-layout" data-tip="Generate Layout">
+      <svg viewBox="0 0 24 24"><polygon points="3 6 21 12 3 18"></polygon></svg>
+    </button>
+
+    <div class="tool-sep"></div>
+
+    <button id="btn-edit-tools" class="tool-btn" data-tool="edit-tools" data-tip="Edit Tools">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16 3l5 5-11 11H5v-5z"></path></svg>
+    </button>
+
+    <button id="btn-layers" class="tool-btn" data-tool="layers" data-tip="Layers">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4"></rect><rect x="3" y="10" width="18" height="4"></rect><rect x="3" y="16" width="18" height="4"></rect></svg>
+    </button>
+
+    <button id="btn-system-summary" class="tool-btn" data-tool="system-summary" data-tip="System Summary">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><circle cx="12" y1="16" r="1"></circle></svg>
+    </button>
+
+    <button id="btn-boq" class="tool-btn" data-tool="boq" data-tip="BOQ">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+    </button>
+
+    <div class="tool-sep"></div>
+
+    <button id="btn-library" class="tool-btn" data-tool="library" data-tip="Library">
+      <svg viewBox="0 0 24 24"><path d="M4 19h16"></path><path d="M4 5h16v12H4z"></path></svg>
+    </button>
+
+    <button id="btn-export" class="tool-btn" data-tool="export" data-tip="Export">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><rect x="4" y="17" width="16" height="4"></rect></svg>
+    </button>
+
+    <button id="btn-save" class="tool-btn" data-tool="save" data-tip="Save">
+      <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5z"></path></svg>
+    </button>
+
+  </div>
+</div>
+
+<div id="sub-bar-search" class="sub-bar hidden">
+  <input id="search-input" type="text" placeholder="Search location">
+</div>
+
+<!-- Project Area panel: reduced default width using data-density="sm" -->
+<div id="sub-bar-area" class="panel hidden" data-density="sm">
+  <div class="pa-head">
+    <div class="panel-title">Project Area</div>
+    <button class="pa-close" data-close-tool="area" data-tip="Close">
+      <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+    </button>
+  </div>
+
+  <div class="pa-section" data-pa-section="manual">
+    <div class="pa-section-head">
+      <div class="pa-section-title">Manual Draw</div>
+      <div class="pa-caret"></div>
+    </div>
+    <div class="pa-body">
+      <div class="pa-pill">
+        <button id="pa-type-pv" class="active" data-pa-type="pv">PV Area</button>
+        <button id="pa-type-ob" data-pa-type="obstacle">Obstacle</button>
+        <button id="pa-type-obj" data-pa-type="object">Object</button>
+      </div>
+
+      <div class="pa-icons">
+        <button id="pa-draw-polygon" class="pa-icon-btn" data-tip="Polygon">
+          <svg viewBox="0 0 24 24"><path d="M7 6 L18 7 L16 18 L6 16 Z"></path></svg>
+        </button>
+        <button id="pa-draw-rect" class="pa-icon-btn" data-tip="Rectangle">
+          <svg viewBox="0 0 24 24"><rect x="6" y="7" width="12" height="10"></rect></svg>
+        </button>
+        <button id="pa-draw-circle" class="pa-icon-btn" data-tip="Circle">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"></circle></svg>
+        </button>
+        <button id="pa-draw-line" class="pa-icon-btn" data-tip="Polyline">
+          <svg viewBox="0 0 24 24"><polyline points="6 16 10 8 14 12 18 7"></polyline></svg>
+        </button>
+      </div>
+
+      <div class="pa-actions">
+        <button id="pa-stop" class="pa-action">Stop</button>
+        <button id="pa-clear-type" class="pa-action">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="pa-section" data-pa-section="coords">
+    <div class="pa-section-head">
+      <div class="pa-section-title">PV Area By Coordinates</div>
+      <div class="pa-caret"></div>
+    </div>
+    <div class="pa-body">
+      <textarea id="pa-coords" class="pa-grid" placeholder="lat,lng
+lat,lng
+..."></textarea>
+      <div class="pa-actions">
+        <button id="pa-draw-coords" class="pa-action">Draw PV Area</button>
+        <button id="pa-clear-coords" class="pa-action">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="pa-section" data-pa-section="setbacks">
+    <div class="pa-section-head">
+      <div class="pa-section-title">Setbacks</div>
+      <div class="pa-caret"></div>
+    </div>
+    <div class="pa-body">
+      <div class="pa-row">
+        <div class="pa-label">Area Setbacks (m)</div>
+        <input id="pa-setback-area" class="pa-input" type="number" step="0.1">
+      </div>
+      <div class="pa-row">
+        <div class="pa-label">Object N (m)</div>
+        <input id="pa-setback-object" class="pa-input" type="number" step="0.1">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-system-inputs" class="panel hidden">
+  <div class="pa-head">
+    <div class="panel-title">System Inputs</div>
+    <button class="pa-close" data-close-tool="system-inputs" data-tip="Close">
+      <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+    </button>
+  </div>
+
+  <div class="si-section">
+    <div class="si-section-title">Capacity Mode</div>
+    <div class="pa-pill" id="si-cap-mode">
+      <button id="si-cap-all" type="button" class="active" data-si-cap="all">Use All Area</button>
+      <button id="si-cap-desired" type="button" data-si-cap="desired">Desired Capacity</button>
+    </div>
+    <div class="si-row">
+      <div class="si-label">Desired Capacity (MWp)</div>
+      <input id="si-desired-mwp" class="pa-input" type="number" step="0.1" placeholder="MWp" disabled>
+    </div>
+  </div>
+
+  <div class="si-section">
+    <div class="si-section-head">
+      <div class="si-section-title" style="margin:0">Points of Connection</div>
+      <div class="si-actions">
+        <button id="si-select-poc" class="pa-action" type="button">Select POC</button>
+        <button id="si-clear-pocs" class="pa-action" type="button">Clear POCs</button>
+      </div>
+    </div>
+    <div class="si-hint" id="si-poc-status"></div>
+
+    <table class="si-table" id="si-poc-table">
+      <thead>
+        <tr>
+          <th style="width:70px;">POC</th>
+          <th>Lat</th>
+          <th>Lng</th>
+          <th style="width:110px;">Voltage (kV)</th>
+          <th style="width:86px;">Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="si-section">
+    <div class="si-section-title">PV Module</div>
+    <div class="si-grid2">
+      <div class="si-field">
+        <label for="si-mod-mfr">Manufacturer</label>
+        <select id="si-mod-mfr" class="si-select">
+          <option value="">--</option>
+        </select>
+      </div>
+      <div class="si-field">
+        <label for="si-mod-model">Model</label>
+        <select id="si-mod-model" class="si-select" disabled>
+          <option value="">--</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="si-section">
+    <div class="si-section-title">Inverter</div>
+    <div class="si-grid2">
+      <div class="si-field">
+        <label for="si-inv-mfr">Manufacturer</label>
+        <select id="si-inv-mfr" class="si-select">
+          <option value="">--</option>
+        </select>
+      </div>
+      <div class="si-field">
+        <label for="si-inv-model">Model</label>
+        <select id="si-inv-model" class="si-select" disabled>
+          <option value="">--</option>
+        </select>
+      </div>
+    </div>
+    <div class="si-hint" id="si-inv-lv-hint"></div>
+  </div>
+
+  <div class="si-section">
+    <div class="si-section-title">System Architecture</div>
+
+    <div class="si-row" style="gap:12px;">
+      <label class="si-chip">
+        <input type="radio" name="si-inverter-type" value="string" checked>
+        String Inverters
+      </label>
+      <label class="si-chip">
+        <input type="radio" name="si-inverter-type" value="central">
+        Central Inverters
+      </label>
+    </div>
+
+    <div class="si-row" style="gap:12px;flex-wrap:wrap;">
+      <label class="si-chip">
+        <input id="si-dc-combiner" type="checkbox">
+        DC Combiner Box
+      </label>
+      <label class="si-chip">
+        <input id="si-mv-station" type="checkbox">
+        MV Station
+      </label>
+    </div>
+  </div>
+
+  <div class="si-section">
+    <div class="si-section-head">
+      <div class="si-section-title" style="margin:0">Voltage Levels</div>
+      <div class="si-actions">
+        <button id="si-add-voltage" class="pa-action" type="button">Add Level</button>
+        <button id="si-clear-voltage" class="pa-action" type="button">Clear Custom</button>
+      </div>
+    </div>
+
+    <table class="si-table" id="si-voltage-table">
+      <thead>
+        <tr>
+          <th style="width:160px;">Level</th>
+          <th style="width:140px;">Voltage (V/kV)</th>
+          <th style="width:86px;">Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="si-hint">LV is taken from the selected inverter. POC voltage is taken from the POC table.</div>
+  </div>
+
+</div>
+<div id="panel-pv-design" class="panel hidden"><div class="panel-title">PV Design</div></div>
+<div id="panel-electrical-design" class="panel hidden"><div class="panel-title">Electrical Design</div></div>
+<div id="panel-generate-layout" class="panel hidden"><div class="panel-title">Generate Layout</div></div>
+<div id="panel-edit-tools" class="panel hidden"><div class="panel-title">Edit Tools</div></div>
+<div id="panel-layers" class="panel hidden"><div class="panel-title">Layers</div></div>
+<div id="panel-system-summary" class="panel hidden"><div class="panel-title">System Summary</div></div>
+<div id="panel-boq" class="panel hidden"><div class="panel-title">BOQ</div></div>
+<div id="panel-library" class="panel hidden"><div class="panel-title">Library</div></div>
+<div id="panel-export" class="panel hidden"><div class="panel-title">Export</div></div>
+<div id="panel-save" class="panel hidden"><div class="panel-title">Save</div></div>
+
+<div id="map"></div>
+<div id="tooltip"></div>
+
+<script src="./ui.js" defer></script>
+<script src="./search.js" defer></script>
+<script src="./projectArea.js" defer></script>
+<script src="./Map.js" defer></script>
+
+<!-- IMPORTANT: add drawing library -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry&callback=initMap" defer></script>
+
+</body>
+</html>

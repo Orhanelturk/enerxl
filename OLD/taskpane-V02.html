@@ -9,9 +9,6 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-
-
-
 <script>
 (async () => {
   // 1) Try absolute path (avoid wrong relative folder)
@@ -36,7 +33,6 @@
 })();
 </script>
 
-
 <script>
 (function () {
   var v = new URLSearchParams(location.search).get("v") || "";
@@ -45,6 +41,26 @@
   document.head.appendChild(s);
 })();
 </script>
+
+<script>
+(function () {
+  var v = new URLSearchParams(location.search).get("v") || "";
+  var s = document.createElement("script");
+  s.src = "./zoning.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+  document.head.appendChild(s);
+})();
+</script>
+
+<!-- NEW: Load PV layout logic from a separate file -->
+<script>
+(function () {
+  var v = new URLSearchParams(location.search).get("v") || "";
+  var s = document.createElement("script");
+  s.src = "./pv-layout.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+  document.head.appendChild(s);
+})();
+</script>
+
 <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 
 <style>
@@ -63,7 +79,6 @@
     inset: 0;
   }
 </style>
-
 
 <title>EnerXL Map</title>
 <style>
@@ -168,7 +183,7 @@
   .summary tfoot td{font-weight:700;background:#fafbff}
   .summary col.col{width:var(--colw)}
   .summary td.num,.summary th.num{text-align:right}
-  .tbl-wrap{max-height:calc(var(--rowh)*5); overflow:auto;}
+  .tbl-wrap{max-height:calc( var(--rowh) * 5 ); overflow:auto;}
   .summary tbody tr{height:var(--rowh);}
 
   /* Name label (textbox) */
@@ -231,6 +246,418 @@
   .pv-card .ph{width:56px;height:40px;border-radius:6px;background:linear-gradient(135deg,#e5e7eb,#f3f4f6)}
 
   .pv-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:6px;background:#eef2ff;color:#1d4ed8;font-size:10px;font-weight:600}
+
+  /* ================== ZONING PANEL (updated, fixed width, no horizontal scroll) ================== */
+  .zn-section{ margin:10px 0 16px; }
+  .zn-section h4{ margin:0 0 8px; font-size:13px; color:#1e2433; }
+  .zn-field{ display:flex; align-items:center; gap:8px; margin:6px 0; }
+  .zn-field label{ min-width:125px; font-size:12px; color:#334; }
+  .zn-field input[type="number"],
+  .zn-field input[type="text"],
+  .zn-field select { width:100%; padding:6px 8px; border:1px solid #e5e7f2; border-radius:8px; font-size:12px; }
+  .zn-grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .zn-grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .zn-note{ font-size:12px; color:#667085; line-height:1.35; }
+  .zn-preview{ border:1px solid var(--panel-border); border-radius:10px; padding:8px; background:#fafbff; }
+  .zn-kv{ display:flex; align-items:center; gap:8px; margin:6px 0; }
+  .zn-kv label{ min-width:125px; font-size:12px; color:#334; }
+
+  .zn-badge{ display:inline-block; padding:2px 6px; border-radius:6px; background:#eef2ff; color:#1d4ed8; font-size:10px; font-weight:600; }
+  #zone-content{ overflow-x:hidden !important; }
+
+  /* ================= ELECTRICAL DESIGN (SLD WIZARD) ================= */
+  .ed-sheet{
+    position:absolute;
+    top:15px;
+    left:75px;
+    right:15px;
+    bottom:15px;
+    background:linear-gradient(180deg,#f9fafb,#eef2f6);
+    border:1px solid var(--panel-border);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    display:none;
+    flex-direction:column;
+    z-index:29;
+    overflow:hidden;
+  }
+  .ed-sheet.open{display:flex;}
+  .ed-sheet .hdr{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 12px;
+    border-bottom:1px solid var(--panel-border);
+    background:#fff;
+  }
+  .ed-sheet .ttl{
+    font-weight:700;
+    color:#1e2433;
+    font-size:14px;
+  }
+  .ed-sheet .x{
+    margin-left:auto;
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    width:30px;
+    height:30px;
+    border-radius:8px;
+  }
+  .ed-sheet .content{
+    flex:1 1 auto;
+    overflow:auto;
+    padding:10px 12px;
+  }
+
+  .ed-window{
+    --bg:#f7f9fc;
+    --bg-card:#ffffff;
+    --bg-soft:#f1f5f9;
+    --accent:#0ea5e9;
+    --accent-soft:rgba(14,165,233,0.12);
+    --border-soft:#d8dee4;
+    --text-main:#1e293b;
+    --text-soft:#64748b;
+    --danger:#e11d48;
+    --radius:12px;
+    --pad:14px;
+    width:100%;
+    color:var(--text-main);
+  }
+  .ed-window *{
+    box-sizing:border-box;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  .ed-window h1,
+  .ed-window h2,
+  .ed-window h3{
+    margin:0 0 8px;
+    font-weight:600;
+  }
+  .ed-window h1{
+    font-size:1.35rem;
+    letter-spacing:0.02em;
+  }
+  .ed-window .app-shell{
+    max-width:1200px;
+    margin:0 auto;
+    background:var(--bg-card);
+    border-radius:18px;
+    padding:16px 18px 18px;
+    box-shadow:0 12px 24px rgba(0,0,0,0.05),
+               0 0 0 1px rgba(0,0,0,0.05);
+  }
+  .ed-window .app-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+    gap:12px;
+  }
+  .ed-window .app-header-left{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .ed-window .app-title-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .ed-window .badge{
+    padding:3px 10px;
+    border-radius:999px;
+    border:1px solid var(--accent);
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-size:.7rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+  .ed-window .app-subtitle{
+    font-size:.82rem;
+    color:var(--text-soft);
+  }
+  .ed-window .app-header-right{
+    font-size:.75rem;
+    color:var(--text-soft);
+    text-align:right;
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .ed-window .layout{
+    display:grid;
+    grid-template-columns:.95fr 1.55fr;
+    gap:14px;
+  }
+  @media (max-width:880px){
+    .ed-window .layout{grid-template-columns:1fr;}
+  }
+  .ed-window .card{
+    background:var(--bg-card);
+    border-radius:var(--radius);
+    padding:var(--pad);
+    border:1px solid var(--border-soft);
+    box-shadow:0 8px 20px rgba(0,0,0,0.05);
+  }
+  .ed-window .card-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .ed-window .card-header h2{
+    font-size:.9rem;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--text-soft);
+  }
+  .ed-window .section-label{
+    font-size:.75rem;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    color:var(--text-soft);
+    margin:10px 0 6px;
+    border-top:1px dashed var(--border-soft);
+    padding-top:6px;
+  }
+  .ed-window .grid-2{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  @media (max-width:768px){
+    .ed-window .grid-2{grid-template-columns:1fr;}
+  }
+  .ed-window .field{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    margin-bottom:6px;
+  }
+  .ed-window .field label{
+    font-size:.75rem;
+    color:var(--text-soft);
+    display:flex;
+    justify-content:space-between;
+    gap:6px;
+  }
+  .ed-window .field label span.hint{
+    font-size:.7rem;
+    color:#94a3b8;
+  }
+  .ed-window input[type="number"],
+  .ed-window select{
+    width:100%;
+    padding:7px 10px;
+    border-radius:8px;
+    border:1px solid var(--border-soft);
+    background:#ffffff;
+    color:var(--text-main);
+    font-size:.82rem;
+    outline:none;
+    transition:border .15s, box-shadow .15s, background .15s;
+  }
+  .ed-window input::placeholder{
+    color:#cbd5e1;
+  }
+  .ed-window input:focus,
+  .ed-window select:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(14,165,233,0.25);
+    background:#ffffff;
+  }
+  .ed-window .inline-checkbox{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:.78rem;
+    color:var(--text-soft);
+    margin:4px 0 6px;
+  }
+  .ed-window .inline-checkbox input[type="checkbox"]{
+    margin:0;
+  }
+  .ed-window .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    font-size:.75rem;
+    padding:2px 8px;
+    border-radius:999px;
+    background:var(--bg-soft);
+    border:1px solid var(--border-soft);
+    color:var(--text-soft);
+  }
+  .ed-window .summary-block{
+    background:var(--bg-soft);
+    border-radius:10px;
+    border:1px solid var(--border-soft);
+    padding:8px 10px;
+    font-size:.78rem;
+    margin-bottom:8px;
+  }
+  .ed-window .summary-block strong{
+    color:var(--text-main);
+  }
+  .ed-window .summary-mini{
+    font-size:.78rem;
+    color:var(--text-main);
+    background:var(--bg-soft);
+    border:1px solid var(--border-soft);
+    padding:6px 10px;
+    border-radius:8px;
+    margin-bottom:10px;
+    line-height:1.35;
+  }
+  .ed-window .summary-mini strong{
+    color:var(--accent);
+    font-weight:600;
+  }
+  .ed-window .wizard-section{
+    border-radius:10px;
+    border:1px solid rgba(226,232,240,0.9);
+    margin:8px 0;
+    background:#ffffff;
+    overflow:hidden;
+  }
+  .ed-window .wizard-toggle{
+    width:100%;
+    border:none;
+    background:linear-gradient(90deg,#f8fafc,#e5f3ff);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:6px 10px;
+    cursor:pointer;
+    font-size:.8rem;
+    font-weight:600;
+    color:var(--text-main);
+  }
+  .ed-window .wizard-toggle span.title{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .ed-window .wizard-toggle span.step-badge{
+    font-size:.7rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    padding:2px 6px;
+    border-radius:999px;
+    background:#e0f2fe;
+    color:#0369a1;
+  }
+  .ed-window .wizard-toggle span.chevron{
+    font-size:.8rem;
+    transition:transform .15s ease;
+  }
+  .ed-window .wizard-toggle[data-collapsed="true"] span.chevron{
+    transform:rotate(-90deg);
+  }
+  .ed-window .wizard-body{
+    padding:8px 10px 10px;
+    border-top:1px solid rgba(226,232,240,0.9);
+  }
+  .ed-window .wizard-body.hidden{
+    display:none;
+  }
+  @media (max-width:600px){
+    .ed-window .wizard-toggle{
+      flex-wrap:wrap;
+      gap:4px;
+    }
+  }
+  .ed-window .left-scroll{
+    height:calc(100vh - 220px);
+    overflow-y:auto;
+    overflow-x:hidden;
+    padding-right:6px;
+  }
+  .ed-window .sld-full{
+    width:100%;
+    margin-top:20px;
+  }
+  .ed-window .sld-wrapper-wide{
+    width:100%;
+    height:420px;
+    border:1px solid var(--border-soft);
+    border-radius:10px;
+    background:#f8fafc;
+    padding:8px;
+    overflow:hidden;
+  }
+  .ed-window #sldCanvas{
+    width:100%;
+    height:100%;
+    display:block;
+    cursor:grab;
+  }
+  .ed-window #sldCanvas:active{
+    cursor:grabbing;
+  }
+  .ed-window svg text{
+    user-select:none;
+    pointer-events:none;
+  }
+  .ed-window .error{
+    color:var(--danger);
+    font-size:.78rem;
+    margin-top:4px;
+  }
+  .ed-window .top-btn{
+    padding:6px 14px;
+    font-size:.75rem;
+    border-radius:10px;
+    border:1px solid var(--border-soft);
+    background:#ffffff;
+    cursor:pointer;
+  }
+  .ed-window button.secondary.top-btn{
+    background:#ffffff;
+    border-color:var(--border-soft);
+    color:var(--text-soft);
+  }
+  .ed-window .collapsible-container{
+    background:var(--bg-soft);
+    border:1px solid var(--border-soft);
+    border-radius:8px;
+    margin-bottom:10px;
+  }
+  .ed-window .collapsible-header{
+    display:flex;
+    justify-content:space-between;
+    cursor:pointer;
+    padding:6px 8px;
+    font-size:.85rem;
+    user-select:none;
+    background:#e8f3ff;
+    border-radius:8px;
+  }
+  .ed-window .collapsible-body{
+    padding:6px 10px;
+    background:#f9fbff;
+    font-size:.78rem;
+  }
+  .ed-window .lv-panel-header{
+    cursor:pointer;
+    background:#eef6ff;
+    padding:4px 6px;
+    border-radius:6px;
+    margin:3px 0;
+    display:flex;
+    justify-content:space-between;
+  }
+  .ed-window .inv-line{
+    background:#f8fbff;
+    padding:4px 6px;
+    margin:4px 0;
+    border-left:2px solid #69a9ff;
+    border-radius:4px;
+    font-size:.78rem;
+  }
 </style>
 </head>
 <body>
@@ -251,11 +678,32 @@
         <path d="M7 9h10M7 12h10"/>
       </svg>
     </button>
-     <button class="tool-btn" id="btn-export-excel" title="Export to Excel" aria-label="Export to Excel">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M16 16l5-5-5-5"/><path d="M21 11H9"/><rect x="3" y="4" width="6" height="16" rx="1"/>
-    </svg>
-  </button>
+    <!-- NEW: Electrical Design button (under PV Layout) -->
+    <button class="tool-btn" data-tool="electrical" title="Electrical Design" aria-label="Electrical Design">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="16" rx="2"/>
+        <path d="M7 9h4M11 9l2-3M11 13h2M15 13h2M7 13h2"/>
+      </svg>
+    </button>
+
+    <button class="tool-btn" data-tool="zoning" title="Zoning" aria-label="Zoning">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <!-- layers icon -->
+        <path d="M12 2l9 5-9 5-9-5 9-5z"/>
+        <path d="M3 12l9 5 9-5"/>
+        <path d="M3 17l9 5 9-5"/>
+      </svg>
+    </button>
+    <button class="tool-btn" id="btn-export-excel" title="Export to Excel" aria-label="Export to Excel">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 16l5-5-5-5"/><path d="M21 11H9"/><rect x="3" y="4" width="6" height="16" rx="1"/>
+      </svg>
+    </button>
+    <button class="tool-btn" id="btn-export-dxf" title="Export DXF" aria-label="Export DXF">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 3h18v18H3z"/><path d="M8 7h8M8 12h8M8 17h4"/>
+      </svg>
+    </button>
 
     <!-- Hidden (kept) -->
     <button class="tool-btn is-primary hidden" data-tool="select" title="Select/Edit" aria-label="Select">
@@ -363,7 +811,22 @@
           <button id="grid-apply" class="btn">Apply</button>
         </div>
       </div>
-
+      <!-- PV Area by coordinates -->
+      <details id="area-coords-section" style="grid-column:1/-1;margin-top:6px">
+        <summary class="pv-caption" style="cursor:pointer">PV Area By Coordinates</summary>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+          <textarea id="area-coords-input"
+                    placeholder="Latitude; longitude"
+                    style="width:100%;min-height:110px;padding:6px 8px;
+                           border-radius:8px;border:1px solid #e5e7f2;
+                           font-family:monospace;font-size:11px;resize:vertical;"></textarea>
+          <div id="area-coords-error"
+               style="font-size:11px;color:#b91c1c;min-height:14px;"></div>
+          <button id="area-coords-draw" type="button" class="btn" style="align-self:flex-start">
+            Draw PV Area
+          </button>
+        </div>
+      </details>
       <!-- Objects & Setbacks (inputs retained) -->
       <div style="grid-column:1/-1;margin-top:6px;font-weight:700;color:#1e2433">Objects & Setbacks</div>
 
@@ -459,6 +922,31 @@
           </tr>
         </tfoot>
       </table>
+    </div>
+  </div>
+
+  <!-- ================= ZONING SHEET (new) ================= -->
+  <div id="zone-sheet" class="pv-sheet" role="dialog" aria-modal="false" aria-label="Zoning">
+    <div class="hdr">
+      <div class="ttl">Zoning</div>
+      <button class="x" id="zone-close" title="Close" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Content is injected by zoning.js into this div -->
+    <div id="zone-content" class="content"></div>
+
+    <div class="pv-actions">
+      <div class="left">
+        <button id="zn-poi-pick" class="btn">Pick POI (grid tie)</button>
+      </div>
+      <div class="right">
+        <button id="zn-clear" class="btn">Clear zoning</button>
+        <button id="zn-run" class="btn primary">Auto Zoning</button>
+      </div>
     </div>
   </div>
 
@@ -627,6 +1115,357 @@
     </div>
   </div>
 
+  <!-- ================= ELECTRICAL DESIGN / SLD WIZARD ================= -->
+  <div id="ed-sheet" class="ed-sheet" role="dialog" aria-modal="false" aria-label="Electrical Design">
+    <div class="hdr">
+      <div class="ttl">Electrical Design</div>
+      <button class="x" id="ed-close" title="Close" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="content">
+      <div class="ed-window">
+        <div class="app-shell">
+          <div class="app-header">
+            <div class="app-header-left">
+              <div class="app-title-row">
+                <h1>PV Plant SLD Wizard</h1>
+              </div>
+            </div>
+
+            <div class="app-header-right">
+              <button id="btnCalculate" type="button" class="top-btn">Calculate</button>
+              <button id="btnReset" type="button" class="secondary top-btn">Reset</button>
+            </div>
+          </div>
+
+          <div class="layout">
+            <!-- LEFT: INPUTS -->
+            <div class="card left-scroll">
+              <div class="card-header">
+                <h2>INPUTS</h2>
+                <span class="pill">Plant &amp; Grid Configuration</span>
+              </div>
+
+              <div class="wizard-section">
+                <button type="button" class="wizard-toggle" data-target="section-config" data-collapsed="false">
+                  <span class="title">
+                    <span class="step-badge">CONFIG</span> Plant &amp; Electrical Setup
+                  </span>
+                  <span class="chevron">▾</span>
+                </button>
+
+                <div class="wizard-body" id="section-config">
+                  <!-- PLANT & CAPACITY -->
+                  <div class="section-label">Plant Capacity &amp; Inverters</div>
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>Plant DC size <span class="hint">MWp</span></label>
+                      <input type="number" id="dcSize" value="100" step="0.1" min="0">
+                    </div>
+                    <div class="field">
+                      <label>Target AC export (optional) <span class="hint">MW</span></label>
+                      <input type="number" id="acExport" placeholder="auto from DC/(DC-AC)" step="0.1" min="0">
+                    </div>
+                  </div>
+
+                  <div class="section-label">DC Array Details</div>
+
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>Module Wattage <span class="hint">W</span></label>
+                      <input type="number" id="moduleWp" value="620" min="200" step="10">
+                    </div>
+                    <div class="field">
+                      <label>Modules per String <span class="hint">pcs</span></label>
+                      <input type="number" id="modulesPerString" value="30" min="10" max="40" step="1">
+                    </div>
+                  </div>
+
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>Strings per Inverter <span class="hint">optional</span></label>
+                      <input type="number" id="stringsPerInverter" placeholder="auto" min="1" step="1">
+                    </div>
+                    <div class="field">
+                      <label>&nbsp;</label>
+                    </div>
+                  </div>
+
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>DC/AC ratio <span class="hint">e.g. 1.2</span></label>
+                      <input type="number" id="dcAcRatio" value="1.2" step="0.01" min="0.8">
+                    </div>
+                    <div class="field">
+                      <label>Max MW per MV loop <span class="hint">based on MV level</span></label>
+                      <select id="loopMaxMw"></select>
+                    </div>
+                  </div>
+
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>Inverter AC rating <span class="hint">kW</span></label>
+                      <input type="number" id="invRating" value="300" step="1" min="1">
+                    </div>
+                    <div class="field">
+                      <label>Inverters per MV transformer <span class="hint">pcs (optional)</span></label>
+                      <input type="number" id="invPerMvTxf" placeholder="auto from MVA &amp; loading" step="1" min="1">
+                    </div>
+                  </div>
+
+                  <!-- VOLTAGES -->
+                  <div class="section-label">Voltage Levels</div>
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>POI / Grid voltage <span class="hint">kV (connection)</span></label>
+                      <select id="gridVoltage">
+                        <option value="0.4">0.4 kV (LV)</option>
+                        <option value="6.6">6.6 kV</option>
+                        <option value="11">11 kV</option>
+                        <option value="22">22 kV</option>
+                        <option value="33">33 kV</option>
+                        <option value="66">66 kV</option>
+                        <option value="69">69 kV</option>
+                        <option value="110">110 kV</option>
+                        <option value="115">115 kV</option>
+                        <option value="132" selected>132 kV</option>
+                        <option value="150">150 kV</option>
+                        <option value="161">161 kV</option>
+                        <option value="220">220 kV</option>
+                        <option value="230">230 kV</option>
+                        <option value="275">275 kV</option>
+                        <option value="300">300 kV</option>
+                        <option value="330">330 kV</option>
+                        <option value="380">380 kV</option>
+                        <option value="400">400 kV</option>
+                        <option value="500">500 kV</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>POI outgoing feeders <span class="hint">pcs</span></label>
+                      <select id="gridOutFeeders">
+                        <option value="0">0</option>
+                        <option value="1" selected>1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                      </select>
+                    </div>
+
+                    <div class="field">
+                      <label>MV collection voltage <span class="hint">kV</span></label>
+                      <select id="mvVoltage">
+                        <option value="3.3">3.3 kV</option>
+                        <option value="6.6">6.6 kV</option>
+                        <option value="10.5">10.5 kV</option>
+                        <option value="11">11 kV</option>
+                        <option value="13.8">13.8 kV</option>
+                        <option value="22">22 kV</option>
+                        <option value="24">24 kV</option>
+                        <option value="33" selected>33 kV</option>
+                        <option value="34.5">34.5 kV</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>Inverter AC / LV voltage <span class="hint">kV</span></label>
+                      <select id="lvVoltage">
+                        <option value="0.4">0.40 kV</option>
+                        <option value="0.60">0.60 kV</option>
+                        <option value="0.63">0.63 kV</option>
+                        <option value="0.69">0.69 kV</option>
+                        <option value="0.72">0.72 kV</option>
+                        <option value="0.80" selected>0.80 kV (typical)</option>
+                        <option value="0.88">0.88 kV</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>&nbsp;</label>
+                    </div>
+                  </div>
+
+                  <div class="section-label">LV Panels</div>
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>LV panel rating <span class="hint">kW capacity</span></label>
+                      <select id="lvPanelRating">
+                        <option value="50">50 kW</option>
+                        <option value="150">150 kW</option>
+                        <option value="250">250 kW</option>
+                        <option value="400">400 kW</option>
+                        <option value="500">500 kW</option>
+                        <option value="630">630 kW</option>
+                        <option value="800">800 kW</option>
+                        <option value="1000">1000 kW</option>
+                        <option value="1250">1250 kW</option>
+                        <option value="1600">1600 kW</option>
+                        <option value="2000">2000 kW</option>
+                        <option value="2500">2500 kW</option>
+                        <option value="3150">3150 kW</option>
+                        <option value="4000" selected>4000 kW</option>
+                        <option value="5000">5000 kW</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>&nbsp;</label>
+                    </div>
+                  </div>
+
+                  <!-- LV/MV TRANSFORMERS -->
+                  <div class="section-label">LV / MV Transformers</div>
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>LV/MV transformer rating <span class="hint">MVA</span></label>
+                      <select id="mvTxfMva">
+                        <option value="1.0">1.0 MVA</option>
+                        <option value="1.6">1.6 MVA</option>
+                        <option value="2.0">2.0 MVA</option>
+                        <option value="2.5">2.5 MVA</option>
+                        <option value="3.15">3.15 MVA</option>
+                        <option value="4.0">4.0 MVA</option>
+                        <option value="5.0">5.0 MVA</option>
+                        <option value="6.3">6.3 MVA</option>
+                        <option value="8.0">8.0 MVA</option>
+                        <option value="9.0" selected>9.0 MVA</option>
+                        <option value="10.0">10.0 MVA</option>
+                        <option value="12.5">12.5 MVA</option>
+                        <option value="15.0">15.0 MVA</option>
+                        <option value="20.0">20.0 MVA</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>Max loading LV/MV txf <span class="hint">% cont.</span></label>
+                      <input type="number" id="mvTxfLoading" value="85" step="1" min="50" max="110">
+                    </div>
+                  </div>
+
+                  <!-- GRID TRANSFORMERS -->
+                  <div class="section-label">Grid Transformers (MV → HV, if POI &gt; MV)</div>
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>Grid transformer rating <span class="hint">MVA</span></label>
+                      <select id="gridTxfMva">
+                        <option value="20">20 MVA</option>
+                        <option value="25">25 MVA</option>
+                        <option value="31.5">31.5 MVA</option>
+                        <option value="40">40 MVA</option>
+                        <option value="50">50 MVA</option>
+                        <option value="63">63 MVA</option>
+                        <option value="80">80 MVA</option>
+                        <option value="100">100 MVA</option>
+                        <option value="125" selected>125 MVA</option>
+                        <option value="160">160 MVA</option>
+                        <option value="200">200 MVA</option>
+                        <option value="250">250 MVA</option>
+                        <option value="315">315 MVA</option>
+                        <option value="400">400 MVA</option>
+                        <option value="500">500 MVA</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>Max loading grid txf <span class="hint">% cont.</span></label>
+                      <input type="number" id="gridTxfLoading" value="90" step="1" min="50" max="110">
+                    </div>
+                  </div>
+
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>Number of grid transformers <span class="hint">pcs (optional)</span></label>
+                      <input type="number" id="gridTxfCount" placeholder="auto sized" step="1" min="1">
+                    </div>
+                    <div class="field">
+                      <label>&nbsp;</label>
+                      <div class="inline-checkbox">
+                        <input type="checkbox" id="gridN1">
+                        <label for="gridN1">Require N-1 at grid transformer</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- SWITCHGEAR -->
+                  <div class="section-label">Switchgear &amp; Busbars</div>
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>MV busbar type <span class="hint">concept</span></label>
+                      <select id="mvBusType">
+                        <option value="single" selected>Single bus</option>
+                        <option value="double">Double bus</option>
+                        <option value="ring">Ring main</option>
+                        <option value="b&h">Breaker-and-half</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>MV busbar rated current <span class="hint">A (continuous)</span></label>
+                      <select id="mvBusCurrent">
+                        <option value="630">630 A</option>
+                        <option value="800">800 A</option>
+                        <option value="1000">1000 A</option>
+                        <option value="1250">1250 A</option>
+                        <option value="1600">1600 A</option>
+                        <option value="2000" selected>2000 A</option>
+                        <option value="2500">2500 A</option>
+                        <option value="3150">3150 A</option>
+                        <option value="4000">4000 A</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>&nbsp;</label>
+                      <div class="inline-checkbox">
+                        <input type="checkbox" id="mvBusCoupler">
+                        <label for="mvBusCoupler">MV bus coupler present</label>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>&nbsp;</label>
+                      <div class="inline-checkbox">
+                        <input type="checkbox" id="hvBusCoupler">
+                        <label for="hvBusCoupler">HV bus coupler present</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Hidden HV bus type (kept for compatibility, always "single") -->
+                  <input type="hidden" id="hvBusType" value="single">
+                </div>
+              </div>
+
+              <div id="errorBox" class="error" style="display:none;"></div>
+              <div id="warningBox" class="error" style="display:none; font-style:italic;"></div>
+            </div>
+
+            <!-- RIGHT: OUTPUTS -->
+            <div class="card">
+              <div class="card-header">
+                <h2>RESULTS &amp; SLD STRUCTURE</h2>
+                <span class="pill">Step 5 &mdash; Review concept</span>
+              </div>
+              <div id="resultsContainer">
+                <div class="summary-block">
+                  <strong>Waiting for inputs...</strong><br>
+                  Enter data on the left and click <em>Calculate SLD Concept</em>.
+                </div>
+              </div>
+            </div>
+          </div> <!-- .layout -->
+
+          <div class="sld-full">
+            <div class="sld-wrapper-wide">
+              <svg id="sldCanvas"></svg>
+            </div>
+          </div>
+        </div> <!-- .app-shell -->
+      </div> <!-- .ed-window -->
+    </div> <!-- .content -->
+  </div> <!-- #ed-sheet -->
+
   <!-- Catalog modal -->
   <div id="pv-cat-backdrop" class="pv-modal-backdrop" aria-hidden="true">
     <div class="pv-modal" role="dialog" aria-label="Mounting Structure Catalog">
@@ -649,43 +1488,49 @@
       </div>
     </div>
   </div>
-</div>
+</div> <!-- #app -->
 
-
-
-
-
-
-
-
-
+<!-- Load electrical-design.js after DOM so it can bind to SLD elements -->
+<script>
+(function () {
+  var v = new URLSearchParams(location.search).get("v") || "";
+  var s = document.createElement("script");
+  s.src = "./electrical-design.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+  document.head.appendChild(s);
+})();
+</script>
 
 <script>
-
-
-
   window.initMap = function(){
     const START = { lat: 38.397550221066616, lng: 34.97863102806574 };
+
+    // DXF Export button listener
+    document.getElementById("btn-export-dxf")?.addEventListener("click", () => {
+      if (typeof exportToDXF === "function") {
+        exportToDXF();
+      } else {
+        console.error("exportToDXF() not found");
+        alert("DXF exporter not loaded");
+      }
+    });
+
     const map = new google.maps.Map(document.getElementById('map'), {
       center: START, zoom: 17, mapTypeId: 'satellite',
       mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: false,gestureHandling: 'greedy',
-scrollwheel: true
+      scrollwheel: true
     });
     window._map = map; window._google = google;
 
-
-
     try {
-  const iframe = window.frameElement;
-  if (iframe) {
-    iframe.setAttribute("allow", "geolocation *; microphone *; camera *; fullscreen *; clipboard-read *; clipboard-write *; display-capture *");
-    iframe.style.touchAction = "auto";
-    iframe.style.pointerEvents = "auto";
-  }
-} catch (e) {
-  console.warn("iframe permission patch skipped:", e);
-}
-
+      const iframe = window.frameElement;
+      if (iframe) {
+        iframe.setAttribute("allow", "geolocation *; microphone *; camera *; fullscreen *; clipboard-read *; clipboard-write *; display-capture *");
+        iframe.style.touchAction = "auto";
+        iframe.style.pointerEvents = "auto";
+      }
+    } catch (e) {
+      console.warn("iframe permission patch skipped:", e);
+    }
 
     const fsWrap=document.createElement('div'); fsWrap.style.margin='10px';
     const fsBtn=document.createElement('button');
@@ -715,982 +1560,10 @@ scrollwheel: true
     } else {
       console.error('mountDrawing is not available; make sure drawing.js is loaded');
     }
+    if (typeof window.mountZoning === 'function') {
+      window.mountZoning({ google, map, document });
+    }
   };
-</script>
-
-<script>
-(function(){
-  const drawer = document.getElementById('drawer');
-  const pvBtn = document.querySelector('[data-tool="pv"]');
-  const toolsBtn = document.querySelector('[data-tool="tools"]');
-  const searchBtn = document.querySelector('[data-tool="search"]');
-  const searchWrap = document.getElementById('search-wrap');
-
-  const pvSheet = document.getElementById('pv-sheet');
-  const pvClose = document.getElementById('pv-close');
-  const panBrowse = document.getElementById('pv-pan-browse');
-  const panInput = document.getElementById('pv-pan-input');
-  const panName = document.getElementById('pv-pan-name');
-
-  const catBackdrop = document.getElementById('pv-cat-backdrop');
-  const catClose = document.getElementById('pv-cat-close');
-  const openCatalog = document.getElementById('open-catalog');
-  const catGrid = document.getElementById('pv-catalog');
-  const structPicked = document.getElementById('struct-picked');
-
-  const pvLib = document.getElementById('pv-lib');
-  const mdName = document.getElementById('md-name');
-  const mdPwr  = document.getElementById('md-pwr');
-  const mdLen  = document.getElementById('md-len');
-  const mdWid  = document.getElementById('md-wid');
-  const pvH = document.getElementById('pv-h');
-  const pvV = document.getElementById('pv-v');
-  const tpbH = document.getElementById('tab-per-blk-h');
-  const tpbV = document.getElementById('tab-per-blk-v');
-  const orientSeg = document.getElementById('pv-orient');
-
-  const gbTables = document.getElementById('gb-tables');
-  const gbBlocks = document.getElementById('gb-blocks');
-
-  const gapModX = document.getElementById('gap-mod-x');
-  const gapModY = document.getElementById('gap-mod-y');
-  const gapTabX = document.getElementById('gap-tab-x');
-  const gapTabY = document.getElementById('gap-tab-y');
-  const gapBlkX = document.getElementById('gap-blk-x');
-  const gapBlkY = document.getElementById('gap-blk-y');
-  const tilt = document.getElementById('tilt');
-  const azimuth = document.getElementById('azimuth');
-  const edgeMode = document.getElementById('edge-mode'); // kept for compatibility
-  const fillStart = document.getElementById('fill-start');
-  const fillMethod = document.getElementById('fill-method');
-  const targetKwp = document.getElementById('pv-target-kwp');
-  const showModules = document.getElementById('show-modules');
-  const pvBuild = document.getElementById('pv-build');
-  const pvLock = document.getElementById('pv-lock');
-
-  const alignEdgeBtn = document.getElementById('align-edge');
-  const edgeHelp = document.getElementById('edge-help');
-
-  const canvas = document.getElementById('pv-preview');
-  const ctx = canvas.getContext('2d');
-  const meta = document.getElementById('pv-preview-meta');
-  const zoom = document.getElementById('pv-zoom');
-  const zoomIn = document.getElementById('pv-zoom-in');
-  const zoomOut = document.getElementById('pv-zoom-out');
-  let previewScale = 1;
-  let panX = 0, panY = 0;
-  let dragging = false, dragStartX = 0, dragStartY = 0;
-  const arrangeDetails = document.getElementById('pv-arrange'); // *** single declaration ***
-
-  function updateTargetControls(){
-    const mode = document.querySelector('input[name="pv-target"]:checked')?.value;
-    if (mode === 'cap'){
-      targetKwp.disabled = false;
-    } else {
-      targetKwp.disabled = true;
-    }
-  }
-  document.querySelectorAll('input[name="pv-target"]').forEach(r=>r.addEventListener('change', updateTargetControls));
-  updateTargetControls();
-
-  function closeDrawer(){ drawer?.classList.remove('open'); }
-  function closeSearch(){ searchWrap?.classList.remove('open'); searchWrap?.setAttribute('aria-expanded','false'); }
-
-  pvBtn?.addEventListener('click', ()=>{
-    const willOpen = !pvSheet.classList.contains('open');
-    if (willOpen){ closeDrawer(); closeSearch(); }
-    pvSheet.classList.toggle('open');
-    if (pvSheet.classList.contains('open')) { setTimeout(fitCanvasToContainer, 50); }
-  });
-  pvClose?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
-  toolsBtn?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
-  searchBtn?.addEventListener('click', ()=> pvSheet.classList.remove('open'));
-
-  panBrowse?.addEventListener('click', ()=> panInput?.click());
-  panInput?.addEventListener('change', ()=>{ if(panName) panName.textContent = panInput.files?.[0]?.name || 'No file selected'; });
-
-  orientSeg?.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      orientSeg.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      drawPreview();
-    });
-  });
-
-  const presets = {
-    GEN600:{ name:'Generic 600 Wp', pwr:600, len:2100, wid:1134 },
-    GEN550:{ name:'Generic 550 Wp', pwr:550, len:2094, wid:1134 },
-    GEN450:{ name:'Generic 450 Wp', pwr:450, len:1960, wid:992 },
-  };
-  pvLib?.addEventListener('change', ()=>{
-    const p = presets[pvLib.value];
-    if (p){ mdName.value=p.name; mdPwr.value=p.pwr; mdLen.value=p.len; mdWid.value=p.wid; drawPreview(); }
-  });
-
-  const structDefaults = {
-  // Ground – Fixed Tilt (utility)
-  'ground-fixed': {
-    name: 'Ground — Fixed Tilt',
-    tilt: 20,                // 15–25° common; 20° good all-round
-    azimuth: 180,            // face south (N hemisphere)
-    orient: 'landscape',
-    pvH: 12,                  // 2 modules wide (portrait)
-    pvV: 2,                 // 12 high => 24 modules/table
-    tabX: 0.6,               // walkway between tables in a row
-    tabY: 6.0,               // row pitch (shadow + access) 5.5–7 m typical
-    blkX: 3.0,               // cross-aisle between table groups
-    blkY: 8.0,               // main service lane between blocks
-    tpbH: 10,                // ~10 tables per block horizontally
-    tpbV: 3                  // 3 table rows per block
-  },
-
-  // Ground – Single Axis Tracker (utility, 1P 30-portrait)
-  'ground-tracker': {
-    name: 'Ground — Single Axis',
-    tilt: 0,                 // trackers at 0° stow; tilt varies with tracking
-    azimuth: 180,            // N-S torque tube, module long edge E-W; az set for preview
-    orient: 'landscape',
-    pvH: 2,                  // 1 module wide (1P)
-    pvV: 30,                 // 30 modules long per tracker row string
-    tabX: 5,              // small gap between tracker “tables” on same row
-    tabY: .5,               // tracker row pitch, 5.5–6.5 m common
-    blkX: 3.0,               // cross-access between tracker strings
-    blkY: 8.0,               // main lane every few rows
-    tpbH: 12,                // 12 tracker “tables” per block across a row
-    tpbV: 2                  // 2 adjacent rows per block before a main lane
-  },
-
-  // Rooftop — Flush (industrial roof)
-  'roof-flush': {
-    name: 'Rooftop — Flush',
-    tilt: 10,                // 5–15° (rails on low tilt)
-    azimuth: 180,
-    orient: 'landscape',
-    pvH: 1,                  // 2×3 table is common on rail kits
-    pvV: 3,
-    tabX: 0,               // walkway between tables
-    tabY: 0.8,               // inter-row spacing for minimal shading on low tilt
-    blkX: 1.2,               // service corridor around skylights/HVAC
-    blkY: 1.5,
-    tpbH: 5,                 // small roof block
-    tpbV: 3
-  },
-
-  // Rooftop — Triangle (tilt frames)
-  'roof-triangle': {
-    name: 'Rooftop — Triangle',
-    tilt: 15,                // 10–15° typical for triangles
-    azimuth: 180,
-    orient: 'landscape',
-    pvH: 2,
-    pvV: 3,
-    tabX: 0.4,
-    tabY: 1.0,               // slightly larger to control self-shading
-    blkX: 1.5,
-    blkY: 2.0,
-    tpbH: 4,
-    tpbV: 3
-  },
-
-  // Rooftop — Ballasted (flat roof, low tilt)
-  'roof-ballasted': {
-    name: 'Rooftop — Ballasted',
-    tilt: 10,                // 5–10° low-tilt ballast
-    azimuth: 180,
-    orient: 'landscape',
-    pvH: 2,
-    pvV: 3,
-    tabX: 0.4,
-    tabY: 0.9,               // keep low to maximize density
-    blkX: 1.2,
-    blkY: 1.8,               // roof pathways / parapet offsets
-    tpbH: 5,
-    tpbV: 3
-  },
-
-  // Specialty — Carport
-  'carport': {
-    name: 'Specialty — Carport',
-    tilt: 4,                 // 3–6°
-    azimuth: 180,
-    orient: 'landscape',     // carports often use landscape for bay widths
-    pvH: 3,                  // 3 wide × 10 long (≈30 modules/table)
-    pvV: 10,
-    tabX: 0.3,               // small structural gap
-    tabY: 6.0,               // vehicle lane under next canopy
-    blkX: 3.0,               // access space between canopies
-    blkY: 7.5,               // wider main drive
-    tpbH: 4,
-    tpbV: 1
-  },
-
-  // Specialty — Solar Canopy / Walkway
-  'canopy': {
-    name: 'Specialty — Solar Canopy',
-    tilt: 5,
-    azimuth: 180,
-    orient: 'portralandscapeit',
-    pvH: 3,                  // 3 wide × 8 long (≈24 modules/table)
-    pvV: 8,
-    tabX: 0.3,
-    tabY: 3.0,               // pedestrian/clearance spacing
-    blkX: 2.5,
-    blkY: 4.0,
-    tpbH: 3,
-    tpbV: 2
-  }
-};
-
-  function openCat(){ if(catBackdrop){ catBackdrop.style.display='block'; catBackdrop.setAttribute('aria-hidden','false'); } }
-  function closeCat(){ if(catBackdrop){ catBackdrop.style.display='none'; catBackdrop.setAttribute('aria-hidden','true'); } }
-  openCatalog?.addEventListener('click', openCat);
-  catClose?.addEventListener('click', closeCat);
-  catBackdrop?.addEventListener('click', e=>{ if(e.target===catBackdrop) closeCat(); });
-  catGrid?.querySelectorAll('.pv-card').forEach(card=>{
-    card.addEventListener('click', ()=>{
-      const key = card.getAttribute('data-struct'); const s = structDefaults[key]; if(!s) return;
-      if(structPicked) structPicked.textContent = s.name;
-      tilt.value = s.tilt; azimuth.value = s.azimuth;
-      pvH.value = s.pvH; pvV.value = s.pvV;
-      gapTabX.value=s.tabX; gapTabY.value=s.tabY;
-      gapBlkX.value=s.blkX; gapBlkY.value=s.blkY;
-      tpbH.value=s.tpbH; tpbV.value=s.tpbV;
-      orientSeg?.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.val===s.orient));
-      drawPreview();
-      closeCat();
-    });
-  });
-
-  function updateGapControls(){
-    const useTables = !!(gbTables && gbTables.checked);
-    const useBlocks = !!(gbBlocks && gbBlocks.checked);
-
-    // Table gaps follow "Tables"
-    if (gapTabX) gapTabX.disabled = !useTables;
-    if (gapTabY) gapTabY.disabled = !useTables;
-
-    // PV per table only matters when tables are enabled
-    if (pvH) pvH.disabled = !useTables;
-    if (pvV) pvV.disabled = !useTables;
-
-    // Block gaps & counts follow "Block"
-    if (gapBlkX) gapBlkX.disabled = !useBlocks;
-    if (gapBlkY) gapBlkY.disabled = !useBlocks;
-    if (tpbH)    tpbH.disabled    = !useBlocks;
-    if (tpbV)    tpbV.disabled    = !useBlocks;
-  }
-  gbTables?.addEventListener('change', ()=>{ updateGapControls(); drawPreview(); });
-  gbBlocks?.addEventListener('change', ()=>{ updateGapControls(); drawPreview(); });
-  updateGapControls();
-
-  [mdPwr, mdLen, mdWid, pvH, pvV, tpbH, tpbV, gapModX, gapModY, gapTabX, gapTabY, gapBlkX, gapBlkY, tilt, azimuth, gbTables, gbBlocks].forEach(inp=>{
-    inp?.addEventListener?.('input', drawPreview);
-    inp?.addEventListener?.('change', drawPreview);
-  });
-
-  function fitCanvasToContainer(){
-    if (!canvas) return;
-    const w = canvas.clientWidth || 300;
-    const h = canvas.clientHeight || 200;
-    if (canvas.width !== w) canvas.width = w;
-    if (canvas.height !== h) canvas.height = h;
-    drawPreview();
-  }
-  arrangeDetails?.addEventListener('toggle', ()=>{ if(arrangeDetails.open) { setTimeout(fitCanvasToContainer, 50); } });
-
-  zoom?.addEventListener('input', ()=>{ previewScale=parseFloat(zoom.value); drawPreview(); });
-  zoomIn?.addEventListener('click', ()=>{ zoom.value=Math.min(20, (parseFloat(zoom.value)+0.2)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); });
-  zoomOut?.addEventListener('click', ()=>{ zoom.value=Math.max(0.5, (parseFloat(zoom.value)-0.2)).toFixed(2); previewScale=parseFloat(zoom.value); drawPreview(); });
-  canvas?.addEventListener('wheel', (e)=>{
-    e.preventDefault();
-    const delta = e.deltaY>0 ? -0.5 : 0.5;
-    const old = parseFloat(zoom.value);
-    const next = Math.min(20, Math.max(0.5, old + delta));
-    zoom.value = next.toFixed(2); previewScale = parseFloat(zoom.value);
-    drawPreview();
-  }, {passive:false});
-  canvas?.addEventListener('mousedown', (e)=>{ dragging=true; dragStartX=e.clientX; dragStartY=e.clientY; });
-  window.addEventListener('mousemove', (e)=>{ if(!dragging) return; panX += (e.clientX - dragStartX); panY += (e.clientY - dragStartY); dragStartX=e.clientX; dragStartY=e.clientY; drawPreview(); });
-  window.addEventListener('mouseup', ()=>{ dragging=false; });
-
-  function getPreviewCfg(){
-  const orient = orientSeg?.querySelector('.active')?.getAttribute('data-val') || 'portrait';
-  const H = Math.max(1, Number(pvH.value||1));
-  const V = Math.max(1, Number(pvV.value||1));
-  const modLenM = Number(mdLen.value||0)/1000;
-  const modWidM = Number(mdWid.value||0)/1000;
-  const modX = orient==='portrait' ? modWidM : modLenM;
-  const modY = orient==='portrait' ? modLenM : modWidM;
-
-  const useTables = !!(gbTables && gbTables.checked);
-  const useBlocks = !!(gbBlocks && gbBlocks.checked);
-
-  const cfg = {
-    module:{ name: mdName.value||'Module', pwr: Number(mdPwr.value||0), len: modLenM, wid: modWidM, orient, modX, modY },
-    table:{ modH: H, modV: V, gapModX: Number(gapModX.value||0), gapModY: Number(gapModY.value||0) },
-    block:{ tH: Math.max(1, Number(tpbH.value||1)), tV: Math.max(1, Number(tpbV.value||1)) },
-    gaps:{
-      tabX: useTables ? Number(gapTabX.value||0) : 0,
-      tabY: useTables ? Number(gapTabY.value||0) : 0,
-      blkX: useBlocks ? Number(gapBlkX.value||0) : 0,
-      blkY: useBlocks ? Number(gapBlkY.value||0) : 0
-    },
-    orientation:{ tilt: Number(tilt.value||0), azimuth: Number(azimuth.value||0) }
-  };
-
-  // 👉 Collapse tables when "Tables" is OFF
-  if (!useTables) {
-    cfg.table.modH = 1;
-    cfg.table.modV = 1;
-    cfg.gaps.tabX = Number(gapModX.value||0);
-    cfg.gaps.tabY = Number(gapModY.value||0);
-    cfg.table.gapModX = 0;
-    cfg.table.gapModY = 0;
-  }
-
-  // Tilt projection (top-view Y dimension)
-  const modXdim = modX;
-  const modYdim = modY * Math.cos((cfg.orientation.tilt||0) * Math.PI/180);
-  cfg._modXdim = modXdim;
-  cfg._modYdim = modYdim;
-
-  // Table footprint
-  cfg.table.w = cfg.table.modH * modXdim + (cfg.table.modH - 1) * cfg.table.gapModX;
-  cfg.table.h = cfg.table.modV * modYdim + (cfg.table.modV - 1) * cfg.table.gapModY;
-  cfg.table.kwp = (cfg.table.modH * cfg.table.modV * cfg.module.pwr) / 1000;
-
-  // 👉 Collapse blocks when "Block" grouping is OFF
-  if (!useBlocks) {
-    cfg.block.tH = 1;
-    cfg.block.tV = 1;
-    cfg.gaps.blkX = 0;
-    cfg.gaps.blkY = 0;
-  }
-
-  // ✅ Always compute block size after final table and gap setup
-  cfg.block.w = (cfg.block.tH * cfg.table.w) + ((cfg.block.tH - 1) * cfg.gaps.tabX);
-  cfg.block.h = (cfg.block.tV * cfg.table.h) + ((cfg.block.tV - 1) * cfg.gaps.tabY);
-
-  return cfg;
-}
-
-
-  function drawPreview(){
-    if (!canvas) return;
-    const cfg = getPreviewCfg();
-    const useTables = !!(gbTables && gbTables.checked);
-    const W = canvas.width, Hc = canvas.height;
-    ctx.clearRect(0,0,W,Hc);
-
-    const colsB = 2, rowsB = 2;
-    const padPx = 12;
-
-    const contentW = colsB*cfg.block.w + (colsB-1)*cfg.gaps.blkX;
-    const contentH = rowsB*cfg.block.h + (rowsB-1)*cfg.gaps.blkY;
-
-    const theta = (cfg.orientation.azimuth||0) * Math.PI/180;
-    const cosT = Math.cos(theta), sinT = Math.sin(theta);
-    const uvToXY = (u,v)=>({ x: cosT*u + sinT*v, y: -sinT*u + cosT*v });
-
-    const cornersUV = [{u:0,v:0},{u:contentW,v:0},{u:contentW,v:contentH},{u:0,v:contentH}];
-    const cornersXY = cornersUV.map(p=>uvToXY(p.u,p.v));
-    const minX = Math.min(...cornersXY.map(p=>p.x));
-    const maxX = Math.max(...cornersXY.map(p=>p.x));
-    const minY = Math.min(...cornersXY.map(p=>p.y));
-    const maxY = Math.max(...cornersXY.map(p=>p.y));
-    const rotW = maxX - minX, rotH = maxY - minY;
-
-    const scaleBase = Math.min((W - 2*padPx)/rotW, (Hc - 2*padPx)/rotH);
-    const scale = Math.max(0.0001, scaleBase * previewScale);
-
-    const offX = (W - rotW*scale)/2 - (minX*scale) + panX;
-    const offY = (Hc - rotH*scale)/2 - (minY*scale) + panY;
-
-    function pathRectUV(u0,v0,w,h){
-      const p0 = uvToXY(u0,     v0);
-      const p1 = uvToXY(u0+w,   v0);
-      const p2 = uvToXY(u0+w,   v0+h);
-      const p3 = uvToXY(u0,     v0+h);
-      ctx.beginPath();
-      ctx.moveTo(offX + p0.x*scale, offY + p0.y*scale);
-      ctx.lineTo(offX + p1.x*scale, offY + p1.y*scale);
-      ctx.lineTo(offX + p2.x*scale, offY + p2.y*scale);
-      ctx.lineTo(offX + p3.x*scale, offY + p3.y*scale);
-      ctx.closePath();
-    }
-
-    ctx.lineWidth = 1;
-
-    const tW = cfg.table.w, tH = cfg.table.h, tGapX = cfg.gaps.tabX, tGapY = cfg.gaps.tabY;
-
-    for (let br=0;br<rowsB;br++){
-      for (let bc=0;bc<colsB;bc++){
-        const bu = bc*(cfg.block.w + cfg.gaps.blkX);
-        const bv = br*(cfg.block.h + cfg.gaps.blkY);
-
-        ctx.strokeStyle = '#9ca3af';
-        pathRectUV(bu, bv, cfg.block.w, cfg.block.h);
-        ctx.stroke();
-
-        for(let rr=0; rr<cfg.block.tV; rr++){
-          for(let cc=0; cc<cfg.block.tH; cc++){
-            const tu = bu + cc*(tW + tGapX);
-            const tv = bv + rr*(tH + tGapY);
-
-            if (useTables) {
-              ctx.fillStyle = '#e2e8f0'; 
-              ctx.strokeStyle = '#64748b';
-              pathRectUV(tu, tv, tW, tH);
-              ctx.fill(); 
-              ctx.stroke();
-            }
-
-            const mWpx = cfg._modXdim * scale;
-            const mHpx = cfg._modYdim * scale;
-            if (mWpx > 4 && mHpx > 4){
-              for (let mr=0; mr<cfg.table.modV; mr++){
-                for (let mc=0; mc<cfg.table.modH; mc++){
-                  const mu = tu + mc*(cfg._modXdim + cfg.table.gapModX);
-                  const mv = tv + mr*(cfg._modYdim + cfg.table.gapModY);
-                  ctx.fillStyle = '#f8fafc';
-                  ctx.strokeStyle = '#94a3b8';
-                  pathRectUV(mu, mv, cfg._modXdim, cfg._modYdim);
-                  ctx.fill(); ctx.stroke();
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    meta.textContent = `Table: ${cfg.table.w.toFixed(2)}m × ${cfg.table.h.toFixed(2)}m · ${cfg.table.kwp.toFixed(2)} kWp/table · Block: ${cfg.block.tH*cfg.block.tV} tables`;
-  }
-  drawPreview();
-
-  window.__overlayRegistry = window.__overlayRegistry || new Set();
-  function patchOverlayRegistry(){
-    const g = window._google; if(!g) return;
-    ['Polygon','Rectangle','Circle','Polyline'].forEach(klass=>{
-      const C = g.maps[klass]; if(!C || C.__patched) return;
-      const proto = C.prototype; const orig = proto.setMap;
-      proto.setMap = function(map){ try{ window.__overlayRegistry.add(this); }catch(_e){} return orig.apply(this, arguments); };
-      C.__patched = true;
-    });
-  }
-  window.addEventListener('load', ()=>setTimeout(patchOverlayRegistry, 0));
-
-  function getOverlaysBy(pred){
-    const out=[]; window.__overlayRegistry?.forEach(ov=>{ try{ if(ov.getMap && ov.getMap() && pred(ov)) out.push(ov); }catch(_e){} });
-    return out;
-  }
-  function getAreasSelected(){
-    const sel = getOverlaysBy(ov=>ov.__cat==='area' && ov.__selected===true);
-    if(sel.length) return sel;
-    return [];
-  }
-  function polygonPathFromOverlay(ov){
-  const g = window._google;
-  if (!ov) return [];
-
-  // ✅ Polygon
-  if (ov.getPath) {
-    return ov.getPath().getArray();
-  }
-
-  // ✅ Rectangle
-  if (ov.getBounds && ov.__type === g.maps.drawing.OverlayType.RECTANGLE) {
-    const b = ov.getBounds(), ne = b.getNorthEast(), sw = b.getSouthWest();
-    const nw = new g.maps.LatLng(ne.lat(), sw.lng());
-    const se = new g.maps.LatLng(sw.lat(), ne.lng());
-    return [nw, ne, se, sw, nw];
-  }
-
-  // ✅ Circle (generate smooth circular path)
-  if (ov.getCenter && ov.getRadius && ov.__type === g.maps.drawing.OverlayType.CIRCLE) {
-    const c = ov.getCenter(), r = ov.getRadius();
-    const pts = [];
-    const N = 64; // smoother circle resolution
-    for (let i = 0; i < N; i++) {
-      pts.push(g.maps.geometry.spherical.computeOffset(c, r, i * (360 / N)));
-    }
-    pts.push(pts[0]); // close the loop
-    return pts;
-  }
-
-  // Fallback (no geometry)
-  return [];
-}
-
-
-  function makeLocal(origin){
-    const g=window._google;
-    return {
-      toXY(p){
-        const d = g.maps.geometry.spherical.computeDistanceBetween(origin, p);
-        const h = g.maps.geometry.spherical.computeHeading(origin, p) * Math.PI/180;
-        return { x: d*Math.sin(h), y: d*Math.cos(h) };
-      },
-      fromXY(x,y){
-        const d = Math.hypot(x,y);
-        const h = Math.atan2(x,y) * 180/Math.PI;
-        return g.maps.geometry.spherical.computeOffset(origin, d, h);
-      }
-    };
-  }
-  function centroid(path){
-    const g=window._google;
-    let lat=0,lng=0; const n=path.length;
-    path.forEach(p=>{ lat+=p.lat(); lng+=p.lng(); });
-    return new g.maps.LatLng(lat/n, lng/n);
-  }
-  function contains(poly, latLng){ return window._google.maps.geometry.poly.containsLocation(latLng, poly); }
-
-  function findNearestEdge(areas, latLng){
-    const g=window._google;
-    let best={dist2:Infinity, angle:0};
-    areas.forEach(ov=>{
-      const path = polygonPathFromOverlay(ov);
-      if (!path.length) return;
-      const org = centroid(path);
-      const prj = makeLocal(org);
-      const P = prj.toXY(latLng);
-      const pts = path.map(p=>prj.toXY(p));
-      const n = pts.length;
-      for (let i=0;i<n;i++){
-        const a=pts[i], b=pts[(i+1)%n];
-        const vx=b.x-a.x, vy=b.y-a.y;
-        const wx=P.x-a.x, wy=P.y-a.y;
-        const denom = vx*vx+vy*vy || 1;
-        let t=(wx*vx+wy*vy)/denom; if(t<0)t=0; if(t>1)t=1;
-        const qx=a.x+t*vx, qy=a.y+t*vy;
-        const dx=P.x-qx, dy=P.y-qy;
-        const d2=dx*dx+dy*dy;
-        if (d2<best.dist2){
-          const heading = Math.atan2(vx, vy)*180/Math.PI;
-          best={dist2:d2, angle:(heading+360)%360, edgeIndex:i, ov};
-        }
-      }
-    });
-    return best;
-  }
-
-  let edgePickListener=null;
-  alignEdgeBtn?.addEventListener('click', ()=>{
-    const g=window._google, map=window._map;
-    if(!g||!map){ alert('Map not ready'); return; }
-    const areas = getAreasSelected();
-    if(!areas.length){ alert('Select a PV Area first.'); return; }
-    if(edgePickListener){ g.maps.event.removeListener(edgePickListener); edgePickListener=null; }
-    alignEdgeBtn.textContent = 'Click an edge on map…';
-    edgeHelp.style.display='inline';
-    map.setOptions({ draggableCursor:'crosshair' });
-    edgePickListener = g.maps.event.addListener(map, 'click', (e)=>{
-      const pick = findNearestEdge(areas, e.latLng);
-      const az = Math.round((pick.angle+360)%360);
-      azimuth.value = az;
-      drawPreview();
-      g.maps.event.removeListener(edgePickListener); edgePickListener=null;
-      map.setOptions({ draggableCursor:null });
-      edgeHelp.style.display='none';
-      alignEdgeBtn.textContent = 'Pick edge on map';
-    });
-  });
-
-  let layoutOverlays = [];
-  function clearLayoutForAreas(areas){
-    const toRemove = new Set(areas);
-    layoutOverlays = layoutOverlays.filter(ov=>{
-      const kill = toRemove.has(ov.__parentArea);
-      if (kill){ try{ ov.setMap(null); }catch(_e){} }
-      return !kill;
-    });
-  }
-
-  pvLock?.addEventListener('click', ()=>{
-    if (pvLock.dataset.state==='unlocked'){
-      pvLock.dataset.state='locked'; pvLock.textContent='Unlock editing';
-      layoutOverlays.forEach(ov=>{ try{ ov.setEditable(false); ov.setDraggable(false);}catch(_e){} });
-    }else{
-      pvLock.dataset.state='unlocked'; pvLock.textContent='Lock editing';
-      layoutOverlays.forEach(ov=>{ try{ ov.setEditable(true); ov.setDraggable(true);}catch(_e){} });
-    }
-  });
-
-  pvBuild?.addEventListener('click', buildSimpleFill);
-
-
-
-// === Inset helpers (LL = LatLng space) ===
-function avgHeading(h1, h2){
-  const r1 = h1*Math.PI/180, r2 = h2*Math.PI/180;
-  const x = Math.cos(r1)+Math.cos(r2), y = Math.sin(r1)+Math.sin(r2);
-  return Math.atan2(y, x) * 180/Math.PI;
-}
-function signedAreaApproxLL(path){
-  // planar-ish orientation test over lat/lng (good enough for inner/outer normal)
-  let a = 0, n = path.length;
-  for (let i=0;i<n;i++){
-    const p = path[i], q = path[(i+1)%n];
-    a += (q.lng() - p.lng()) * (q.lat() + p.lat());
-  }
-  return -a; // ccw positive
-}
-function insetPolygonLL(pathLL, distMeters){
-  const g = window._google;
-  if (!g || !pathLL || pathLL.length < 3) return null;
-
-  // ensure open (no duplicate last = first)
-  const closed = pathLL[0].equals(pathLL[pathLL.length-1]) ? pathLL.slice(0,-1) : pathLL.slice();
-  if (closed.length < 3) return null;
-
-  // inward = left normal when polygon is CCW
-  const ccw = signedAreaApproxLL(closed) > 0;
-  const N = closed.length;
-  const out = [];
-  for (let i=0; i<N; i++){
-    const prev = closed[(i-1+N)%N], curr = closed[i], next = closed[(i+1)%N];
-    const hPrev = g.maps.geometry.spherical.computeHeading(prev, curr);
-    const hNext = g.maps.geometry.spherical.computeHeading(curr, next);
-    const hAvg  = avgHeading(hPrev, hNext);
-    const normal = ccw ? (hAvg - 90) : (hAvg + 90);
-    out.push(g.maps.geometry.spherical.computeOffset(curr, distMeters, normal));
-  }
-  return out; // polygon rings are implicitly closed by Google Maps
-}
-
-
-  
-  function buildSimpleFill(){
-  const g = window._google, map = window._map;
-  if (!g || !map) { alert('Map not ready'); return; }
-
-  const areas = getAreasSelected();
-  if (!areas.length) { alert('Select a PV Area first.'); return; }
-
-  clearLayoutForAreas(areas);
-
-  const cfg = getPreviewCfg();
-    const userSetback = parseFloat(document.getElementById('in-setback-boundary')?.value || '1');
-
-  const MOD_W = cfg._modXdim;
-  const MOD_H = cfg._modYdim;
-  const MOD_GX = cfg.table.gapModX;
-  const MOD_GY = cfg.table.gapModY;
-
-  const TAB_W = cfg.table.w;
-  const TAB_H = cfg.table.h;
-  const TAB_GX = cfg.gaps.tabX;
-  const TAB_GY = cfg.gaps.tabY;
-
-  const BLK_W = cfg.block.w;
-  const BLK_H = cfg.block.h;
-  const BLK_GX = cfg.gaps.blkX;
-  const BLK_GY = cfg.gaps.blkY;
-
-  const TABLE_MOD_H = cfg.table.modH;
-  const TABLE_MOD_V = cfg.table.modV;
-  const BLOCK_TAB_H = cfg.block.tH;
-  const BLOCK_TAB_V = cfg.block.tV;
-
-  const STYLE = { 
-    strokeColor: '#1e3a8a', 
-    strokeOpacity: 0.7, 
-    strokeWeight: 0.6, 
-    fillColor: '#3a7afe', 
-    fillOpacity: 0.9,
-    zIndex: 1000
-  };
-  const MAX_MODULES = 50000;
-  let total = 0, hitCap = false;
-
-  const theta = (cfg.orientation.azimuth || 0) * Math.PI / 180;
-  const cosT = Math.cos(theta), sinT = Math.sin(theta);
-  const uvToXY = (u, v) => ({ x: cosT * u + sinT * v, y: -sinT * u + cosT * v });
-  const xyToUV = (x, y) => ({ u: cosT * x - sinT * y, v: sinT * x + cosT * y });
-
-  // === Helper: safely treat edge points as inside ===
-  function safeContain(poly, latLng, tolerance = 0.02) { // 2 cm inward offset
-    if (contains(poly, latLng)) return true;
-    const center = centroid(poly.getPath().getArray());
-    const heading = g.maps.geometry.spherical.computeHeading(latLng, center);
-    const inward = g.maps.geometry.spherical.computeOffset(latLng, tolerance, heading);
-    return contains(poly, inward);
-  }
-
-  // === Helper: check overlap with any constraint/object ===
-  function intersectsAnyBlocker(cornersLL, blockers){
-    for (const blocker of blockers){
-      for (const pt of cornersLL){ if (safeContain(blocker, pt)) return true; }
-      const blockerCenter = centroid(blocker.getPath().getArray());
-      const testPoly = new g.maps.Polygon({ paths: cornersLL });
-      if (safeContain(testPoly, blockerCenter)) return true;
-    }
-    return false;
-  }
-
-  areas.forEach(ovArea => {
-    if (hitCap) return;
-
-  // 1) Get original boundary
-  let path = polygonPathFromOverlay(ovArea);
-  if (!path.length) return;
-
-  // 2) Inset by user setback (meters) if provided
-  const setback = Math.max(0, userSetback || 0);
-  if (setback > 0) {
-    const inset = insetPolygonLL(path, setback);
-    // If the area is too small for this setback, skip placing inside it
-    if (!inset || inset.length < 3) return;
-    path = inset;
-  }
-
-
-    const polyArea = new g.maps.Polygon({ paths: path });
-    const origin = centroid(path);
-    const proj = makeLocal(origin);
-    const xy = path.map(p => proj.toXY(p));
-
-
-
-
-    
-    const uvPoly = xy.map(p => xyToUV(p.x, p.y));
-
-    const minU = Math.min(...uvPoly.map(p => p.u));
-    const maxU = Math.max(...uvPoly.map(p => p.u));
-    const minV = Math.min(...uvPoly.map(p => p.v));
-    const maxV = Math.max(...uvPoly.map(p => p.v));
-
-    const startU = minU;
-    const startV = minV;
-
-    const allOverlays = window.__overlayRegistry ? Array.from(window.__overlayRegistry) : [];
-    const blockers = allOverlays
-      .filter(ov => (ov.__cat === 'constraint' || ov.__cat === 'object') && ov.getMap())
-      .map(ov => new g.maps.Polygon({ paths: polygonPathFromOverlay(ov) }));
-
-    const useBlocks = (cfg.block.tH > 1 || cfg.block.tV > 1);
-    const STEP_W = useBlocks ? (BLK_W + BLK_GX) : (TAB_W + TAB_GX);
-    const STEP_H = useBlocks ? (BLK_H + BLK_GY) : (TAB_H + TAB_GY);
-    const TOL = 0.01;
-
-    const nRows = Math.floor((maxV - minV + TOL) / STEP_H);
-    const nCols = Math.floor((maxU - minU + TOL) / STEP_W);
-
-    for (let r = 0; r < nRows; r++) {
-      const bv = Math.min(startV + r * STEP_H, maxV - (useBlocks ? BLK_H : TAB_H));
-      if (hitCap) break;
-      for (let c = 0; c < nCols; c++) {
-        const bu = Math.min(startU + c * STEP_W, maxU - (useBlocks ? BLK_W : TAB_W));
-        if (hitCap) break;
-
-        // --- Clamp final row/column flush to edges ---
-        const buClamped = Math.min(bu, maxU - (useBlocks ? BLK_W : TAB_W) + 0.001);
-        const bvClamped = Math.min(bv, maxV - (useBlocks ? BLK_H : TAB_H) + 0.001);
-
-        // --- CHECK FULL BLOCK INSIDE AREA ---
-        const blockCornersUV = [
-          { u: buClamped, v: bvClamped },
-          { u: buClamped + (useBlocks ? BLK_W : TAB_W), v: bvClamped },
-          { u: buClamped + (useBlocks ? BLK_W : TAB_W), v: bvClamped + (useBlocks ? BLK_H : TAB_H) },
-          { u: buClamped, v: bvClamped + (useBlocks ? BLK_H : TAB_H) }
-        ];
-        const blockCornersLL = blockCornersUV.map(p => {
-          const xyP = uvToXY(p.u, p.v);
-          return proj.fromXY(xyP.x, xyP.y);
-        });
-        if (!blockCornersLL.every(pt => safeContain(polyArea, pt))) continue;
-        if (intersectsAnyBlocker(blockCornersLL, blockers)) continue;
-
-        for (let tr = 0; tr < BLOCK_TAB_V; tr++) {
-          const tabV = bvClamped + tr * (TAB_H + TAB_GY);
-          for (let tc = 0; tc < BLOCK_TAB_H; tc++) {
-            const tabU = buClamped + tc * (TAB_W + TAB_GX);
-            const tableCornersUV = [
-              { u: tabU, v: tabV },
-              { u: tabU + TAB_W, v: tabV },
-              { u: tabU + TAB_W, v: tabV + TAB_H },
-              { u: tabU, v: tabV + TAB_H }
-            ];
-            const tableCornersLL = tableCornersUV.map(p => {
-              const xyP = uvToXY(p.u, p.v);
-              return proj.fromXY(xyP.x, xyP.y);
-            });
-            if (!tableCornersLL.every(pt => safeContain(polyArea, pt))) continue;
-            if (intersectsAnyBlocker(tableCornersLL, blockers)) continue;
-
-            for (let mr = 0; mr < TABLE_MOD_V; mr++) {
-              const baseV = tabV + mr * (MOD_H + MOD_GY);
-              for (let mc = 0; mc < TABLE_MOD_H; mc++) {
-                const baseU = tabU + mc * (MOD_W + MOD_GX);
-                const rectUV = [
-                  { u: baseU, v: baseV },
-                  { u: baseU + MOD_W, v: baseV },
-                  { u: baseU + MOD_W, v: baseV + MOD_H },
-                  { u: baseU, v: baseV + MOD_H }
-                ];
-                const rLL = rectUV.map(p => {
-                  const xyP = uvToXY(p.u, p.v);
-                  return proj.fromXY(xyP.x, xyP.y);
-                });
-                if (!rLL.every(pt => safeContain(polyArea, pt))) continue;
-                if (intersectsAnyBlocker(rLL, blockers)) continue;
-
-                const poly = new g.maps.Polygon(Object.assign({
-                  map,
-                  paths: rLL,
-                  clickable: true,
-                  draggable: (pvLock.dataset.state !== 'locked'),
-                  editable: (pvLock.dataset.state !== 'locked')
-                }, STYLE));
-                poly.__areaName = ovArea.__name || 'Area';
-                poly.__kwp = (cfg.module.pwr || 0) / 1000;
-                poly.__tilt = cfg.orientation.tilt;
-poly.__az = cfg.orientation.azimuth;
-                poly.__parentArea = ovArea;
-                layoutOverlays.push(poly);
-
-                total++;
-                if (total >= MAX_MODULES) {
-                  console.warn('Module cap reached:', MAX_MODULES);
-                  alert(`Module cap (${MAX_MODULES}) reached.`);
-                  hitCap = true;
-                  break;
-                }
-              }
-              if (hitCap) break;
-            }
-            if (hitCap) break;
-          }
-          if (hitCap) break;
-        }
-      }
-    }
-  });
-
-  console.log(`✅ Layout done: ${total} modules placed.`);
-  updateSummary();
-}
-
-function updateSummary() {
-  const g = window._google;
-  if (!g) return;
-
-  const sumBody = document.getElementById('sum-body');
-  const totDcEl = document.getElementById('tot-dc');
-  const totAcEl = document.getElementById('tot-ac');
-  const totM2El = document.getElementById('tot-m2');
-
-  if (!sumBody) return;
-
-  sumBody.innerHTML = ''; // clear previous
-
-  const areas = [];
-  layoutOverlays.forEach(poly => {
-    const name = poly.__areaName || 'Area';
-    let rec = areas.find(a => a.name === name);
-    if (!rec) {
-      rec = { name, modules: 0, kwp: 0, area: 0, tilt: 0, az: 0, count: 0 };
-      areas.push(rec);
-    }
-    rec.modules++;
-    rec.kwp += poly.__kwp || 0;
-    rec.count++;
-    try {
-      rec.area += g.maps.geometry.spherical.computeArea(poly.getPath());
-    } catch (_) {}
-    if (poly.__tilt) rec.tilt = poly.__tilt;
-    if (poly.__az) rec.az = poly.__az;
-  });
-
-  if (!areas.length) {
-    sumBody.innerHTML = `<tr><td colspan="6" class="muted" style="padding:12px 10px">No areas yet</td></tr>`;
-    return;
-  }
-
-  let totalDC = 0, totalAC = 0, totalArea = 0;
-  const rows = [];
-  areas.forEach(a => {
-    totalDC += a.kwp;
-    totalArea += a.area;
-    rows.push(`
-      <tr>
-        <td>${a.name}</td>
-        <td class="num">${a.kwp.toFixed(1)}</td>
-        <td class="num">${(a.kwp*0.8).toFixed(1)}</td>
-        <td class="num">${(a.area).toFixed(0)}</td>
-        <td class="num">${a.tilt.toFixed(0)}</td>
-        <td class="num">${a.az.toFixed(0)}</td>
-      </tr>`);
-  });
-
-  sumBody.innerHTML = rows.join('');
-  totDcEl.textContent = totalDC.toFixed(1);
-  totAcEl.textContent = (totalDC*0.8).toFixed(1);
-  totM2El.textContent = totalArea.toFixed(0);
-}
-
-
-// === EXPORT TO EXCEL ===
-async function exportSummaryToExcel() {
-  try {
-    // Collect summary table rows
-    const table = document.getElementById('sum-body');
-    if (!table || !table.rows.length) {
-      alert('No summary data to export.');
-      return;
-    }
-
-    // Prepare data rows
-    const data = [['Area Name', 'DC kWp', 'AC kWp', 'Area (m²)', 'Tilt (°)', 'Azimuth (°)']];
-    for (const row of table.rows) {
-      const cells = [...row.cells].map(td => td.textContent.trim());
-      if (cells.length >= 6 && !cells[0].includes('No areas')) data.push(cells);
-    }
-
-    // Send to Excel
-    await Excel.run(async context => {
-      const sheet = context.workbook.worksheets.getActiveWorksheet();
-      const startCell = sheet.getRange("B5"); // starting cell (you can change)
-      const range = startCell.getResizedRange(data.length - 1, data[0].length - 1);
-      range.values = data;
-      range.format.autofitColumns();
-      range.format.autofitRows();
-      await context.sync();
-    });
-
-    console.log('✅ Summary exported to Excel.');
-  } catch (err) {
-    console.error('Export failed:', err);
-    alert('Export failed. Check console for details.');
-  }
-}
-
-// Bind button
-document.getElementById('btn-export-excel')?.addEventListener('click', exportSummaryToExcel);
-
-
-
-
-
-
-
-  const summaryEl = document.getElementById('summary');
-  const sumToggle = document.getElementById('sum-toggle');
-  function setSummary(open){
-    summaryEl.classList.toggle('collapsed', !open);
-    summaryEl.setAttribute('aria-expanded', String(open));
-  }
-  setSummary(false);
-  sumToggle?.addEventListener('click', ()=>{
-    const willOpen = summaryEl.classList.contains('collapsed');
-    setSummary(willOpen);
-  });
-
-  fitCanvasToContainer();
-
-})();
 </script>
 
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry&callback=initMap"></script>

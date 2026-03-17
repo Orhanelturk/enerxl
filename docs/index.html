@@ -1,0 +1,2647 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Satellite View - ENERXL</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@400;700&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="layers-engine.js"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <!-- Map Overlays -->
+    <!-- Project Summary Panel -->
+    <div id="project-summary-panel" class="hidden"
+        style="position: absolute; top: 1rem; right: 1rem; z-index: 2000; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0.6rem; border-radius: 6px; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); width: 280px; pointer-events: auto; transition: all 0.2s ease;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+            <div style="display: flex; align-items: center; gap: 0.35rem; color: #0f172a;">
+                <i data-lucide="bar-chart-3" style="width: 13px; height: 13px; color: #286944;"></i>
+                <h4 style="margin: 0; font-family: 'Outfit'; font-size: 0.8rem; font-weight: 700;">Project Summary</h4>
+            </div>
+            <button onclick="toggleSummaryPanel(false)"
+                style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 2px; display: flex;">
+                <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+            </button>
+        </div>
+        <div
+            style="max-height: 220px; overflow-y: auto; margin-bottom: 0.4rem; border: 1px solid #f1f5f9; border-radius: 3px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.62rem;">
+                <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                    <tr style="text-align: left; color: #64748b; border-bottom: 1px solid #f1f5f9;">
+                        <th style="padding: 0.35rem 0.5rem;">Area</th>
+                        <th style="padding: 0.35rem 0.2rem;">DC</th>
+                        <th style="padding: 0.35rem 0.2rem;">AC</th>
+                        <th style="padding: 0.35rem 0.5rem; text-align: right;">sqm</th>
+                    </tr>
+                </thead>
+                <tbody id="summary-table-body" style="color: #334155;">
+                    <!-- Dynamically populated -->
+                </tbody>
+                <tfoot id="summary-table-footer"
+                    style="position: sticky; bottom: 0; background: #f8fafc; z-index: 10; font-weight: 800; border-top: 2px solid #e2e8f0;">
+                    <!-- Dynamically populated -->
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Landscape Toolbar -->
+    <div class="toolbar">
+        <button class="tool-btn" id="menu-trigger" title="Menu"><i data-lucide="menu"></i></button>
+        <div id="toolbar-collapsible" class="toolbar-content">
+            <button class="tool-btn" id="search-trigger" title="Search"><i data-lucide="search"></i></button>
+            <button class="tool-btn" id="project-area" title="Site configuration"><i data-lucide="map-pin"></i></button>
+            <button class="tool-btn" id="layout-trigger" title="Engine Layout"><i
+                    data-lucide="drafting-compass"></i></button>
+            <button class="tool-btn" id="electrical-sld-trigger" title="Electrical Design & SLD"><i
+                    data-lucide="zap"></i></button>
+            <button class="tool-btn" id="master-generate-btn" title="Generate Layout" onclick="LayoutEngine.generate()">
+                <i data-lucide="play"></i>
+            </button>
+            <button class="tool-btn" id="btn-view-sld-main" title="View Master SLD">
+                <i data-lucide="file-text"></i>
+            </button>
+            <div class="separator"></div>
+            <button class="tool-btn" id="layers-trigger" title="Layers"><i data-lucide="layers"></i></button>
+            <button class="tool-btn" title="Grid View"><i data-lucide="layout-grid"></i></button>
+            <button class="tool-btn" title="Select" id="tool-marquee"><i
+                    data-lucide="square-dashed-mouse-pointer"></i></button>
+            <button class="tool-btn" title="Measure Distance" id="tool-measure"><i data-lucide="ruler"></i></button>
+            <button class="tool-btn" id="stats-trigger" title="Summary"><i data-lucide="bar-chart-3"></i></button>
+            <button class="tool-btn" title="Map Mode"><i data-lucide="map"></i></button>
+            <div class="separator"></div>
+            <button class="tool-btn" title="Share"><i data-lucide="share"></i></button>
+            <div class="separator"></div>
+            <button class="tool-btn" title="Profile"><i data-lucide="user"></i></button>
+        </div>
+    </div>
+
+    <!-- Independent Search Bar (Hidden by default, appears below toolbar) -->
+    <div class="search-panel hidden" id="search-panel">
+        <input type="text" id="pac-input" class="search-input" placeholder="Search location...">
+        <button id="clear-search" class="clear-btn" title="Clear"><i data-lucide="x"></i></button>
+    </div>
+
+    <!-- Site configuration Panel (Styled based on Analysis Reference) -->
+    <div class="project-panel hidden" id="project-panel">
+        <div class="panel-header">
+            <h3>Site Configuration</h3>
+            <button class="close-panel" id="close-project-panel"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="area" title="Site Area">
+                <i data-lucide="map"></i>
+                <span class="tab-label">Area</span>
+            </button>
+            <button class="tab-btn" data-tab="topography" title="Topo Analysis">
+                <i data-lucide="mountain"></i>
+                <span class="tab-label">Topo</span>
+            </button>
+            <button class="tab-btn" data-tab="constraints" title="Constraints">
+                <i data-lucide="alert-triangle"></i>
+                <span class="tab-label">Constraints</span>
+            </button>
+            <button class="tab-btn" data-tab="poc" title="Point of Connection">
+                <i data-lucide="zap"></i>
+                <span class="tab-label">POC</span>
+            </button>
+        </div>
+
+        <div class="panel-body">
+            <!-- Project Area Tab -->
+            <div id="tab-area" class="tab-content active">
+                <div class="control-group">
+                    <label>Draw Boundaries</label>
+                    <div class="tool-grid">
+                        <button class="draw-tool-btn" data-shape="polygon" title="Polygon">
+                            <i data-lucide="pentagon"></i>
+                        </button>
+                        <button class="draw-tool-btn" data-shape="rectangle" title="Rectangle">
+                            <i data-lucide="rectangle-horizontal"></i>
+                        </button>
+                        <button class="draw-tool-btn" data-shape="circle" title="Circle">
+                            <i data-lucide="circle"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Import Coordinates</label>
+                    <textarea id="area-coords-input" class="modern-textarea"
+                        placeholder="lat, lng&#10;lat, lng..."></textarea>
+                    <button class="btn-secondary" style="margin-top: 0.5rem; width: 100%;">Create Area</button>
+                    <!-- Import KML/KMZ Additions -->
+                    <div style="margin-top: 0.75rem; border-top: 1px solid #e2e8f0; padding-top: 0.75rem;">
+                        <button id="btn-import-kml" class="btn-secondary"
+                            style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i data-lucide="map"></i>Import KMZ / KML
+                        </button>
+                        <input type="file" id="kml-file-input" accept=".kml,.kmz" style="display: none;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topography Tab -->
+            <div id="tab-topography" class="tab-content">
+                <div class="control-group">
+                    <label>Point Cloud Data (Lat, Lng, Elev)</label>
+                    <textarea id="topo-data-input" class="modern-textarea" style="height: 120px;"
+                        placeholder="25.123, 55.456, 12.5&#10;25.124, 55.457, 13.0..."></textarea>
+                    <button id="btn-create-mesh" class="btn-secondary" style="margin-top: 0.5rem; width: 100%;">Create
+                        Mesh</button>
+                </div>
+                <div class="control-group">
+                    <label>Max Install Slope (%)</label>
+                    <input type="number" id="topo-max-slope" class="modern-input" value="10">
+                </div>
+                <div class="control-group">
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <input type="checkbox" id="topo-apply-grading"
+                            style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                        <label for="topo-apply-grading" style="margin: 0; cursor: pointer; font-weight: 600;">Apply
+                            Grading (Cut/Fill)</label>
+                    </div>
+                    <div id="grading-controls" class="hidden">
+                        <label>Grade areas < %slope</label>
+                                <input type="number" id="topo-grading-slope" class="modern-input" value="5">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button id="btn-apply-topo" class="btn-secondary" style="flex: 1;">Apply</button>
+                        <button id="btn-clear-topo" class="btn-secondary" style="flex: 1;"
+                            title="Clear constraints in selection">Clear</button>
+                    </div>
+                </div>
+                <div id="topo-stats" class="stats-box hidden" style="margin-top: 1rem;">
+                    <div class="stat-item">
+                        <label>Excluded Area</label>
+                        <span class="stat-value text-red"><span id="topo-failed-count">0</span> m²</span>
+                    </div>
+                    <div id="grading-stats" class="hidden">
+                        <div class="stat-item"
+                            style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.5rem; margin-top: 0.5rem;">
+                            <label>Est. Cut Volume</label>
+                            <span class="stat-value"><span id="topo-cut-vol">0</span> m³</span>
+                        </div>
+                        <div class="stat-item">
+                            <label>Est. Fill Volume</label>
+                            <span class="stat-value"><span id="topo-fill-vol">0</span> m³</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Constraints Tab -->
+            <div id="tab-constraints" class="tab-content">
+                <div class="control-group">
+                    <label>Obstacles</label>
+                    <div class="tool-grid">
+                        <button class="draw-tool-btn" data-shape="polygon" title="Polygon">
+                            <i data-lucide="pentagon"></i>
+                        </button>
+                        <button class="draw-tool-btn" data-shape="rectangle" title="Rectangle">
+                            <i data-lucide="rectangle-horizontal"></i>
+                        </button>
+                        <button class="draw-tool-btn" data-shape="circle" title="Circle">
+                            <i data-lucide="circle"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Setback (m)</label>
+                    <div class="setback-config">
+                        <input type="number" id="default-setback" class="modern-input" placeholder="e.g. 10" step="1" value="10">
+                        <div class="segmented-control modern">
+                            <button class="seg-btn active" data-type="inner">Inner</button>
+                            <button class="seg-btn" data-type="outer">Outer</button>
+                        </div>
+                    </div>
+                    <button class="btn-secondary" style="margin-top: 0.5rem; width: 100%;">Apply Setback</button>
+                </div>
+
+                <p class="tab-hint">Setbacks define the distance from boundaries where no panels are placed.</p>
+            </div>
+
+            <!-- POC Tab -->
+            <div id="tab-poc" class="tab-content">
+                <div class="control-group">
+                    <label>Electrical Infrastructure</label>
+                    <div class="tool-stack">
+                        <button class="draw-tool-btn" data-shape="poc"
+                            style="width: 100%; justify-content: flex-start; padding: 0 1rem; gap: 1rem;"
+                            title="Point of Connection">
+                            <i data-lucide="map-pin"></i>
+                            <span class="btn-text">Point of Connection</span>
+                        </button>
+                    </div>
+                    <div class="mini-grid" style="margin-top: 0.5rem;">
+                        <div>
+                            <span class="mini-label">POC Width (m)</span>
+                            <input type="number" id="poc-width" class="modern-input" value="30">
+                        </div>
+                        <div>
+                            <span class="mini-label">POC Height (m)</span>
+                            <input type="number" id="poc-height" class="modern-input" value="15">
+                        </div>
+                        <div>
+                            <span class="mini-label">Rotation (°)</span>
+                            <input type="number" id="poc-rotation" class="modern-input" value="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top: 1rem;">
+                    <button class="draw-tool-btn" data-shape="station"
+                        style="width: 100%; justify-content: flex-start; padding: 0 1rem; gap: 1rem;"
+                        title="Power Collection/Delivery Station">
+                        <i data-lucide="factory"></i>
+                        <span class="btn-text">Delivery Station (DS)</span>
+                    </button>
+                    <div class="mini-grid" style="margin-top: 0.5rem;">
+                        <div>
+                            <span class="mini-label">DS Width (m)</span>
+                            <input type="number" id="ds-width" class="modern-input" value="30">
+                        </div>
+                        <div>
+                            <span class="mini-label">DS Height (m)</span>
+                            <input type="number" id="ds-height" class="modern-input" value="15">
+                        </div>
+                        <div>
+                            <span class="mini-label">Rotation (°)</span>
+                            <input type="number" id="ds-rotation" class="modern-input" value="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layers Panel will be moved later in this call -->
+
+
+    <div class="project-panel hidden" id="electrical-design-panel">
+        <div class="panel-header">
+            <h3>Electrical Design</h3>
+            <button class="close-panel" id="close-elec-panel"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="tab-bar" id="elec-design-tabs"
+            style="display: grid; grid-template-columns: repeat(4, 1fr); padding: 0.5rem; gap: 0.25rem; height: auto;">
+            <button class="tab-btn active" data-elec-tab="system" title="System Design">
+                <i data-lucide="cpu"></i>
+                <span class="tab-label">System</span>
+            </button>
+            <button class="tab-btn" data-elec-tab="inverters" title="Inverters">
+                <i data-lucide="cpu"></i>
+                <span class="tab-label">Inverters</span>
+            </button>
+            <button class="tab-btn" data-elec-tab="lv" title="LV Panels">
+                <i data-lucide="box"></i>
+                <span class="tab-label">LV Panels</span>
+            </button>
+            <button class="tab-btn" data-elec-tab="transformer" title="LV/MV Transformer">
+                <i data-lucide="layers-2"></i>
+                <span class="tab-label">LV/MV TR</span>
+            </button>
+            <button class="tab-btn" data-elec-tab="mvswg" title="MV Switchgear">
+                <i data-lucide="activity"></i>
+                <span class="tab-label">MV SWG</span>
+            </button>
+            <!-- Second Row -->
+            <button class="tab-btn" data-elec-tab="mvhvtr" title="MV/HV Transformer">
+                <i data-lucide="zap-off"></i>
+                <span class="tab-label">MV/HV TR</span>
+            </button>
+            <button class="tab-btn" data-elec-tab="hvswg" title="HV & Point of Connection">
+                <i data-lucide="shield-check"></i>
+                <span class="tab-label">HV&POC</span>
+            </button>
+            <button class="tab-btn" data-elec-tab="lines" title="Overhead Lines">
+                <i data-lucide="trending-up"></i>
+                <span class="tab-label">Lines</span>
+            </button>
+        </div>
+
+        <div class="panel-body">
+            <!-- 1. System Tab -->
+            <div id="elec-tab-system" class="elec-tab-content active">
+                <div class="mini-grid">
+                    <div>
+                        <span class="mini-label">LV Voltage (V)</span>
+                        <input type="number" id="lv-v" class="modern-input" value="400" disabled
+                            title="Reads from selected inverter">
+                    </div>
+                    <div>
+                        <span class="mini-label">MV Voltage (kV)</span>
+                        <input type="number" id="mv-v" class="modern-input" value="33">
+                    </div>
+                </div>
+                <div class="mini-grid" style="margin-top: 0.5rem;">
+                    <div>
+                        <span class="mini-label">HV Voltage (kV)</span>
+                        <input type="number" id="hv-v" class="modern-input" value="132">
+                    </div>
+                    <div>
+                        <span class="mini-label">POC Voltage Level</span>
+                        <select id="poc-v-level" class="modern-input">
+                            <option value="LV">LV</option>
+                            <option value="MV">MV</option>
+                            <option value="HV" selected>HV</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mini-grid" style="margin-top: 0.5rem;">
+                    <div>
+                        <span class="mini-label">Power Factor (PF)</span>
+                        <input type="number" class="modern-input" id="sys-pf" value="0.9" step="0.01">
+                    </div>
+                </div>
+
+                <div class="control-group"
+                    style="border-top: 1px solid #f1f5f9; padding-top: 0.5rem; margin-top: 0.25rem;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span class="mini-label" style="color: #1e293b;">System Capacity</span>
+                        <div style="display: flex; align-items: center; gap: 0.3rem;">
+                            <input type="checkbox" id="chk-manual-cap" style="width: 12px; height: 12px; margin: 0;">
+                            <span style="font-size: 0.65rem; color: #64748b; font-weight: 500;">Manual</span>
+                        </div>
+                    </div>
+                    <div class="mini-grid">
+                        <div>
+                            <span class="mini-label">DC (MWp)</span>
+                            <input type="number" class="modern-input" id="sys-dc-cap" value="100.0" disabled>
+                        </div>
+                        <div>
+                            <span class="mini-label">AC (MWac)</span>
+                            <input type="number" class="modern-input" id="sys-ac-cap" value="80.0" disabled>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+                    <button class="btn-primary"
+                        style="width: 100%; height: 2.5rem; background: #286944; color: white; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border: none; border-radius: 6px; cursor: pointer;"
+                        id="btn-open-area-config">
+                        <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
+                        Area Design Configuration
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inverters Tab (Moved from Engine Layout) -->
+            <div id="elec-tab-inverters" class="elec-tab-content">
+                <div class="control-group">
+                    <label>Site Design Conditions</label>
+                    <div class="mini-grid">
+                        <div>
+                            <span class="mini-label">Min Temp (°C)</span>
+                            <input type="number" class="modern-input" id="site-temp-min" value="-5">
+                        </div>
+                        <div>
+                            <span class="mini-label">Max Temp (°C)</span>
+                            <input type="number" class="modern-input" id="site-temp-max" value="50">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OND File Upload Zone -->
+                <div class="file-upload-zone" id="ond-drop-zone">
+                    <i data-lucide="upload-cloud"></i>
+                    <span>Drag & Drop OND File</span>
+                    <small>or click to browse your computer</small>
+                    <input type="file" id="ond-file-input" class="hidden-file-input" accept=".ond" multiple>
+                </div>
+
+                <div class="control-group">
+                    <label>Inverter Type</label>
+                    <select class="modern-input" id="inverter-select">
+                        <option>Sungrow SG350HX</option>
+                        <option>Huawei SUN2000-215KTL</option>
+                        <option>SMA Sunny Highpower</option>
+                    </select>
+                </div>
+
+                <!-- Inverter Details Collapsible -->
+                <div class="collapsible-section">
+                    <button class="collapse-trigger"
+                        onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');">
+                        <span>Inverter Details</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="collapse-content">
+                        <div class="control-group">
+                            <label class="mini-label" style="opacity: 0.5; margin-bottom: 0.25rem;">Electrical
+                                Specifications</label>
+                            <div class="mini-grid">
+                                <div>
+                                    <span class="mini-label">Pnom (kW AC)</span>
+                                    <input type="number" class="modern-input" id="inv-pnom" value="125">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Vout (V AC)</span>
+                                    <input type="number" class="modern-input" id="inv-vout" value="400">
+                                </div>
+                                <div>
+                                    <span class="mini-label">MPPT Min (V)</span>
+                                    <input type="number" class="modern-input" id="inv-vmpp-min" value="180">
+                                </div>
+                                <div>
+                                    <span class="mini-label">MPPT Max (V)</span>
+                                    <input type="number" class="modern-input" id="inv-vmpp-max" value="1000">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Nominal DC (V)</span>
+                                    <input type="number" class="modern-input" id="inv-vmpp-nom" value="600">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Max DC (V)</span>
+                                    <input type="number" class="modern-input" id="inv-vmax-dc" value="1100">
+                                </div>
+                                <div>
+                                    <span class="mini-label">MPPTs</span>
+                                    <input type="number" class="modern-input" id="inv-nb-mppt" value="12">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Max AC (A)</span>
+                                    <input type="number" class="modern-input" id="inv-imax-ac" value="181.1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Inverter Distribution</label>
+                    <div class="segmented-control modern" id="inv-distribution-seg">
+                        <button class="seg-btn" data-value="station">Centralized Station</button>
+                        <button class="seg-btn active" data-value="rows">Distributed to Rows</button>
+                    </div>
+                </div>
+
+
+
+                <div class="control-group">
+                    <label class="modern-checkbox-group">
+                        <input type="checkbox" id="enable-manual-station-loc"
+                            style="width: 1.1rem; height: 1.1rem; accent-color: #286944; cursor: pointer; margin: 0;">
+                        <span
+                            style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Set
+                            Inverter Hub Manually</span>
+                    </label>
+                </div>
+
+                <div id="manual-station-picker" class="control-group hidden">
+                    <button class="btn-secondary" style="width: 100%; border-color: #286944; color: #286944;"
+                        id="btn-pick-station-loc">
+                        <i data-lucide="map-pin" style="width: 14px; height: 14px; margin-right: 0.5rem;"></i>
+                        Pick Hub Location on Map
+                    </button>
+                    <div id="station-loc-status"
+                        style="font-size: 0.65rem; color: #64748b; margin-top: 0.4rem; text-align: center;">No location
+                        set. Click above to pick.</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Inverter Dims (W x L m)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <input type="number" class="modern-input" id="inv-dim-w" value="2.0" step="0.1">
+                        <input type="number" class="modern-input" id="inv-dim-l" value="0.5" step="0.1">
+                    </div>
+                </div>
+
+
+
+                <div class="control-group">
+                    <label>Desired DC/AC Ratio</label>
+                    <input type="number" class="modern-input" id="inv-acdc-ratio" value="1.2" step="0.1">
+                </div>
+
+
+
+                <div class="control-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+                    <button class="btn-secondary" style="width: 100%;" id="btn-open-mv-config">
+                        <i data-lucide="layers" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                        Configure Block Design
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. LV Panels Tab -->
+            <div id="elec-tab-lv" class="elec-tab-content">
+                <div class="control-group">
+                    <span class="mini-label">Inv CB (A) <span id="lv-inv-kw-hint"
+                            style="color: #286944; text-transform: none; font-weight: normal; margin-left: 0.25rem;">(~0
+                            kW)</span></span>
+                    <div class="selector-group">
+                        <select class="modern-input std-selector" data-target="lv-inv-cb">
+                            <option value="">Custom...</option>
+                            <option value="160">160 A</option>
+                            <option value="200">200 A</option>
+                            <option value="250" selected>250 A</option>
+                            <option value="400">400 A</option>
+                            <option value="630">630 A</option>
+                            <option value="800">800 A</option>
+                            <option value="1000">1000 A</option>
+                            <option value="1250">1250 A</option>
+                            <option value="1600">1600 A</option>
+                            <option value="2000">2000 A</option>
+                            <option value="2500">2500 A</option>
+                        </select>
+                        <input type="number" id="lv-inv-cb" class="modern-input" value="250">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <span class="mini-label">Main CB (A) <span id="lv-main-kw-hint"
+                            style="color: #286944; text-transform: none; font-weight: normal; margin-left: 0.25rem;">(~0
+                            kW)</span></span>
+                    <div class="selector-group">
+                        <select class="modern-input std-selector" data-target="lv-main-cb">
+                            <option value="">Custom...</option>
+                            <option value="1250">1250 A</option>
+                            <option value="1600">1600 A</option>
+                            <option value="2000" selected>2000 A</option>
+                            <option value="2500">2500 A</option>
+                            <option value="3200">3200 A</option>
+                            <option value="4000">4000 A</option>
+                            <option value="5000">5000 A</option>
+                            <option value="6300">6300 A</option>
+                        </select>
+                        <input type="number" id="lv-main-cb" class="modern-input" value="2000">
+                    </div>
+                </div>
+
+                <div class="poc-outgoing-container" id="lv-poc-out-box" style="margin-top: 0.75rem; display: none;">
+                    <span class="mini-label">no of outgoing to POC</span>
+                    <input type="number" id="lv-poc-outgoing" class="modern-input" value="1">
+                </div>
+
+
+                <!-- LV Summary Collapsible -->
+                <div class="collapsible-section" style="margin-top: 1rem;">
+                    <button class="collapse-trigger"
+                        onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');">
+                        <span>LV System Summary</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="collapse-content">
+                        <div
+                            style="padding: 0.75rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.75rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total Project Inverters:</span>
+                                <b id="lv-sum-total-inv">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Panel AC Cap:</span>
+                                <b id="lv-sum-ac">0 kW</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Inverters / Panel:</span>
+                                <b id="lv-sum-inv-qty">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total LV Panels:</span>
+                                <b id="lv-sum-total-panels">0</b>
+                            </div>
+                            <div class="poc-summary-row"
+                                style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; display: none;">
+                                <span style="color: #64748b;">Total Incomers (Inverters):</span>
+                                <b id="lv-sum-incomers">0</b>
+                            </div>
+                            <div class="poc-summary-row"
+                                style="display: flex; justify-content: space-between; display: none;">
+                                <span style="color: #64748b;">Total Outgoing (to POC):</span>
+                                <b id="lv-sum-outgoing">0</b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Transformer Tab -->
+            <div id="elec-tab-transformer" class="elec-tab-content">
+                <div class="control-group">
+                    <label>Standard LV/MV Transformer Rating (MVA)</label>
+                    <select class="modern-input std-selector" data-target="substation-size">
+                        <option value="">Custom...</option>
+                        <option value="2.5">2.5 MVA</option>
+                        <option value="3.15" selected>3.15 MVA</option>
+                        <option value="5.0">5.0 MVA</option>
+                        <option value="6.3">6.3 MVA</option>
+                        <option value="7.5">7.5 MVA</option>
+                        <option value="9.0">9.0 MVA</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Rating (MVA) <small style="color: #64748b; font-weight: normal;">(Eg: 9 or 9;6;3)</small></label>
+                    <input type="text" class="modern-input" id="substation-size" value="3.15" placeholder="9;6;3">
+                </div>
+                <div class="control-group">
+                    <label>Transformer Type</label>
+                    <select class="modern-input" id="tr-winding-type">
+                        <option value="2" selected>2-Winding</option>
+                        <option value="3">3-Winding (Dual LV)</option>
+                    </select>
+                </div>
+                <div class="mini-grid">
+                    <div>
+                        <span class="mini-label">V MV (kV)</span>
+                        <input type="number" id="elec-mv-v" class="modern-input" value="33">
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top: 1rem;">
+                    <label>Station Placement Strategy</label>
+                    <select class="modern-input" id="inv-placement-strategy">
+                        <option value="roads">Inside Roads (Clear Blocks)</option>
+                        <option value="partition" selected>Block Partition (Clear Roads)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Station Dims (W x L m)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <input type="number" class="modern-input" id="station-dim-w" value="10.0" step="0.1">
+                        <input type="number" class="modern-input" id="station-dim-l" value="5.0" step="0.1">
+                    </div>
+                </div>
+
+                <div class="control-group"
+                    style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9;">
+                    <label class="modern-checkbox-group" style="margin-bottom: 0.5rem;">
+                        <input type="checkbox" id="enable-mv-stations" checked
+                            style="width: 1.1rem; height: 1.1rem; accent-color: #286944; cursor: pointer; margin: 0;">
+                        <span
+                            style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">USE
+                            MV Station</span>
+                    </label>
+
+                    <label class="mini-label"
+                        style="margin-top: 0.5rem; opacity: 0.7; font-size: 0.62rem; text-transform: none; letter-spacing: 0; margin-bottom: 0.25rem;">Min
+                        Block Loading (%)</label>
+                    <input type="number" class="modern-input" id="min-block-loading" value="50" min="0" max="100">
+                </div>
+
+                <!-- Transformer Summary Collapsible -->
+                <div class="collapsible-section" style="margin-top: 1rem;">
+                    <button class="collapse-trigger"
+                        onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');">
+                        <span>Transformer System Summary</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="collapse-content">
+                        <div
+                            style="padding: 0.75rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.75rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total LV Panels:</span>
+                                <b id="tr-sum-total-panels">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">LV Panel / Winding:</span>
+                                <b id="tr-sum-panel-winding">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total LV Panel / Transformer:</span>
+                                <b id="tr-sum-panel-tr">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #64748b;">Total MV Stations:</span>
+                                <b id="tr-sum-total-stations">0</b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. MV SWG Tab -->
+            <div id="elec-tab-mvswg" class="elec-tab-content">
+                <div class="control-group">
+                    <label>MV to IN bay CB (A) <span id="mv-bay-cb-hint"
+                            style="color: #286944; text-transform: none; font-weight: normal; margin-left: 0.25rem;">(~0
+                            MW)</span></label>
+                    <div class="selector-group">
+                        <select class="modern-input std-selector" data-target="mv-bay-cb">
+                            <option value="">Custom...</option>
+                            <option value="400">400 A</option>
+                            <option value="630" selected>630 A</option>
+                            <option value="800">800 A</option>
+                            <option value="1250">1250 A</option>
+                        </select>
+                        <input type="number" id="mv-bay-cb" class="modern-input" value="630">
+                    </div>
+                </div>
+
+                <div class="mini-grid" style="margin-top: 0.75rem;">
+                    <div>
+                        <span class="mini-label">Connection Type</span>
+                        <select id="mv-conn-type" class="modern-input">
+                            <option value="loop" selected>Loop</option>
+                            <option value="radial">One MV Block/Bay</option>
+                        </select>
+                    </div>
+                    <div>
+                        <span class="mini-label">MV Blocks / Loop <span id="mv-blocks-loop-hint"
+                                style="color: #286944; text-transform: none; font-weight: normal; margin-left: 0.25rem;">(~0
+                                MW)</span></span>
+                        <input type="number" id="mv-blocks-per-loop" class="modern-input" value="1">
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top: 1rem;">
+                    <label>Bus Rating (A) <span id="mv-bus-hint"
+                            style="color: #286944; text-transform: none; font-weight: normal; margin-left: 0.25rem;">(~0
+                            MW)</span></label>
+                    <div class="selector-group">
+                        <select class="modern-input std-selector" data-target="mv-bus">
+                            <option value="">Custom...</option>
+                            <option value="400">400 A</option>
+                            <option value="630">630 A</option>
+                            <option value="800">800 A</option>
+                            <option value="1250">1250 A</option>
+                            <option value="2000">2000 A</option>
+                            <option value="2500" selected>2500 A</option>
+                            <option value="3150">3150 A</option>
+                        </select>
+                        <input type="number" id="mv-bus" class="modern-input" value="2500">
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top: 1rem;">
+                    <label>Transformer Bay CB Rating (A) <span id="mv-tr-bay-cb-hint"
+                            style="color: #286944; text-transform: none; font-weight: normal; margin-left: 0.25rem;">(~0
+                            MW)</span></label>
+                    <div class="selector-group">
+                        <select class="modern-input std-selector" data-target="mv-tr-bay-cb">
+                            <option value="">Custom...</option>
+                            <option value="630">630 A</option>
+                            <option value="800">800 A</option>
+                            <option value="1250">1250 A</option>
+                            <option value="1600">1600 A</option>
+                            <option value="2000">2000 A</option>
+                            <option value="2500" selected>2500 A</option>
+                            <option value="3150">3150 A</option>
+                        </select>
+                        <input type="number" id="mv-tr-bay-cb" class="modern-input" value="2500">
+                    </div>
+                </div>
+
+                <div class="poc-outgoing-container" id="mv-poc-out-box" style="margin-top: 0.75rem; display: none;">
+                    <span class="mini-label">no of outgoing to POC</span>
+                    <input type="number" id="mv-poc-outgoing" class="modern-input" value="1">
+                </div>
+
+                <!-- 4b. MV Summary -->
+                <div class="collapsible-section" style="margin-top: 1rem;">
+                    <button class="collapse-trigger"
+                        onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');">
+                        <span>MV SWG Summary</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="collapse-content">
+                        <div
+                            style="padding: 0.75rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.75rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total MV Stations:</span>
+                                <b id="mv-sum-total-stations">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">MV Station / Bay:</span>
+                                <b id="mv-sum-stations-bay">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">no of IN bays/bus:</span>
+                                <b id="mv-sum-in-bays-bus">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total MV Stations / Bus:</span>
+                                <b id="mv-sum-stations-bus">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total MV Buses:</span>
+                                <b id="mv-sum-total-buses">0</b>
+                            </div>
+                            <div class="poc-summary-row"
+                                style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; display: none;">
+                                <span style="color: #64748b;">Total Incomers (Transformers):</span>
+                                <b id="mv-sum-incomers">0</b>
+                            </div>
+                            <div class="poc-summary-row"
+                                style="display: flex; justify-content: space-between; display: none;">
+                                <span style="color: #64748b;">Total Outgoing (to POC):</span>
+                                <b id="mv-sum-outgoing">0</b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. MV/HV TR Tab -->
+            <div id="elec-tab-mvhvtr" class="elec-tab-content">
+                <div class="control-group">
+                    <label>Standard Main TR</label>
+                    <select class="modern-input std-selector" data-target="mvhv-mva">
+                        <option value="">Custom...</option>
+                        <option value="40">40 MVA</option>
+                        <option value="63">63 MVA</option>
+                        <option value="80">80 MVA</option>
+                        <option value="100" selected>100 MVA</option>
+                        <option value="120">120 MVA</option>
+                        <option value="125">125 MVA</option>
+                        <option value="160">160 MVA</option>
+                        <option value="200">200 MVA</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Transformer Type</label>
+                    <select class="modern-input" id="mvhv-winding-type">
+                        <option value="2" selected>2-Winding</option>
+                        <option value="3">3-Winding (Dual MV)</option>
+                    </select>
+                </div>
+                <div class="mini-grid">
+                    <div>
+                        <span class="mini-label">Rating (MVA)</span>
+                        <input type="number" id="mvhv-mva" class="modern-input" value="100">
+                    </div>
+                </div>
+
+                <!-- Main Transformer Summary Collapsible -->
+                <div class="collapsible-section" style="margin-top: 1rem;">
+                    <button class="collapse-trigger"
+                        onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');">
+                        <span>Main Transformer Summary</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="collapse-content">
+                        <div
+                            style="padding: 0.75rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.75rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total MV Buses:</span>
+                                <b id="mvhv-sum-total-buses">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">MV Bus / Winding:</span>
+                                <b id="mvhv-sum-bus-winding">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <span style="color: #64748b;">Total MV Bus / Transformer:</span>
+                                <b id="mvhv-sum-bus-tr">0</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #64748b;">Total Main TRs:</span>
+                                <b id="mvhv-sum-total-tr">0</b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="elec-tab-hvswg" class="elec-tab-content">
+                <div
+                    style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; padding: 0.5rem; background: #f1f5f9; border-radius: 6px;">
+                    <input type="checkbox" id="chk-use-hvswg" checked
+                        style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                    <label for="chk-use-hvswg" style="font-weight: 500; cursor: pointer; margin: 0;">Use HV
+                        Switchgear</label>
+                </div>
+
+                <div id="hvswg-controls-container">
+                    <div class="control-group">
+                        <label>HV Bus Rating (A) <span id="hv-bus-hint"
+                                style="color: #286944; text-transform: none; font-weight: normal; margin-left: 0.25rem;">(~0
+                                MW)</span></label>
+                        <div class="selector-group">
+                            <select class="modern-input std-selector" data-target="hv-bus">
+                                <option value="">Custom...</option>
+                                <option value="1250">1250 A</option>
+                                <option value="2000" selected>2000 A</option>
+                                <option value="2500">2500 A</option>
+                                <option value="3150">3150 A</option>
+                                <option value="4000">4000 A</option>
+                            </select>
+                            <input type="number" id="hv-bus" class="modern-input" value="2000">
+                        </div>
+                    </div>
+
+                    <div class="control-group" style="margin-top: 1rem;">
+                        <label>POC Interconnection Type</label>
+                        <select id="poc-connect-type" class="modern-input">
+                            <option value="available" selected>Available CB for connections</option>
+                            <option value="extension">Extension Required/New Bay</option>
+                        </select>
+                    </div>
+
+                    <div class="mini-grid" style="margin-top: 0.75rem;">
+                        <div>
+                            <span class="mini-label">no of outgoing to POC</span>
+                            <input type="number" id="hv-poc-outgoing" class="modern-input" value="1">
+                        </div>
+                    </div>
+
+                    <!-- 6b. HV Summary -->
+                    <div class="collapsible-section" style="margin-top: 1rem;">
+                        <button class="collapse-trigger"
+                            onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');">
+                            <span>HV SWG Summary</span>
+                            <i data-lucide="chevron-down"></i>
+                        </button>
+                        <div class="collapse-content">
+                            <div
+                                style="padding: 0.75rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.75rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                    <span style="color: #64748b;">Total Incomers (Transformers):</span>
+                                    <b id="hv-sum-incomers">0</b>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span style="color: #64748b;">Total Outgoing (to POC):</span>
+                                    <b id="hv-sum-outgoing">0</b>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- 8. Cables & Lines Tab -->
+            <div id="elec-tab-lines" class="elec-tab-content">
+                <div class="control-group">
+                    <label>Installation & Environment</label>
+                    <div class="mini-grid">
+                        <div>
+                            <span class="mini-label">Soil R. (K·m/W)</span>
+                            <input type="number" id="cable-soil-res" class="modern-input" value="1.5" step="0.1">
+                        </div>
+                        <div>
+                            <span class="mini-label">Thermal R. (K·m/W)</span>
+                            <input type="number" id="cable-therm-res" class="modern-input" value="1.0" step="0.1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top: 0.75rem;">
+                    <label>Installation Method</label>
+                    <select id="cable-install-method" class="modern-input">
+                        <option value="direct">Direct Buried</option>
+                        <option value="ducts">In Ducts / Pipes</option>
+                        <option value="air">In Air (Overhead / Trays)</option>
+                    </select>
+                </div>
+
+                <div class="control-group" style="margin-top: 1rem;">
+                    <label>Calculations Standard</label>
+                    <select id="cable-standard" class="modern-input" disabled>
+                        <option value="iec" selected>IEC Standard (Default)</option>
+                    </select>
+                </div>
+
+                <div class="control-group"
+                    style="margin-top: 1.5rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                    <button class="btn-primary" id="btn-open-cables-lib"
+                        style="width: 100%; display: flex; justify-content: center; gap: 0.5rem;">
+                        <i data-lucide="book-open"></i> Open Cables Library
+                    </button>
+                    <p style="font-size: 0.7rem; color: #64748b; margin-top: 0.5rem; text-align: center;">Program will
+                        automatically select best cable/line if no manual selection is made in the library.</p>
+                </div>
+
+            </div>
+
+
+        </div>
+    </div>
+
+    <!-- Cables Library Modal -->
+    <div id="cables-lib-modal" class="hidden"
+        style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 4000; display: flex; justify-content: center; align-items: center;">
+        <div
+            style="background: white; width: 900px; max-width: 95%; height: 700px; max-height: 95vh; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden;">
+            <div class="panel-header">
+                <h3>Electrical Cables Library</h3>
+                <button class="close-panel"
+                    onclick="document.getElementById('cables-lib-modal').classList.add('hidden')"><i
+                        data-lucide="x"></i></button>
+            </div>
+            <div style="padding: 1rem; border-bottom: 1px solid #e2e8f0; display: flex; gap: 1rem;">
+                <button class="tab-btn active" data-cable-tab="dc">DC Strings</button>
+                <button class="tab-btn" data-cable-tab="lvac">LV AC Cables</button>
+                <button class="tab-btn" data-cable-tab="mv">MV Cables</button>
+                <button class="tab-btn" data-cable-tab="ohl">Overhead Lines</button>
+            </div>
+            <div id="cables-lib-content" style="flex: 1; overflow-y: auto; padding: 1rem; background: #f8fafc;">
+                <!-- Table rendered here by engine -->
+            </div>
+            <div
+                style="padding: 1rem; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <span id="cable-lib-status" style="font-size: 0.8rem; color: #10b981; font-weight: 500;">Auto-select
+                    enabled for all categories.</span>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn-secondary"
+                        onclick="document.getElementById('cables-lib-modal').classList.add('hidden')">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Draggable SLD Window -->
+    <div id="sld-window" class="hidden"
+        style="position: fixed; bottom: 2rem; right: 2rem; z-index: 3000; width: 1320px; height: 850px; background: white; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; resize: both; min-width: 600px; min-height: 400px;">
+        <div id="sld-handle"
+            style="padding: 0.5rem 1rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; cursor: move; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <i data-lucide="zap" style="width: 16px; height: 16px; color: #286944;"></i>
+                <h3 style="margin: 0; font-size: 0.85rem; font-family: 'Outfit'; font-weight: 700; color: #1e293b;">
+                    Project SLD</h3>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.5rem;" onmousedown="event.stopPropagation()">
+                <button id="btn-back-mv"
+                    style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 8px; cursor: pointer; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: bold; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i> Back to MV SLD
+                </button>
+                <select id="sld-type-select" class="modern-input"
+                    style="padding: 0.2rem 0.5rem; height: 28px; font-size: 0.75rem;">
+                    <option value="mvhv">MV / HV System</option>
+                    <option value="lv">LV Hierarchy Viewer</option>
+                </select>
+                <div style="width: 1px; height: 1.5rem; background: #cbd5e1; margin: 0 0.25rem;"></div>
+                <button id="sld-zoom-in" title="Zoom In"
+                    style="background: white; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; cursor: pointer; display: flex;"><i
+                        data-lucide="zoom-in" style="width: 14px; height: 14px;"></i></button>
+                <button id="sld-zoom-out" title="Zoom Out"
+                    style="background: white; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; cursor: pointer; display: flex;"><i
+                        data-lucide="zoom-out" style="width: 14px; height: 14px;"></i></button>
+                <button id="sld-zoom-reset" title="Reset View"
+                    style="background: white; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; cursor: pointer; display: flex;"><i
+                        data-lucide="maximize" style="width: 14px; height: 14px;"></i></button>
+                <button onclick="document.getElementById('sld-window').classList.add('hidden')"
+                    style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 4px; display: flex; border-radius: 4px; margin-left: 0.5rem;"><i
+                        data-lucide="x" style="width: 16px; height: 16px;"></i></button>
+            </div>
+        </div>
+        <div id="sld-viewport" style="flex: 1; overflow: hidden; background: #fff; position: relative; cursor: grab;">
+            <div id="sld-workspace" style="position: absolute; top: 0; left: 0; transform-origin: 0 0;">
+                <canvas id="sld-canvas" width="2000" height="2000" style="display: block;"></canvas>
+            </div>
+            <div id="sld-loading"
+                style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #94a3b8;">
+                <i data-lucide="cpu" style="width: 48px; height: 48px; opacity: 0.2; margin-bottom: 1rem;"></i>
+                <p>Generating project topology...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout Configuration Panel -->
+    <div class="project-panel hidden" id="layout-panel">
+        <div class="panel-header">
+            <h3>Engine Layout</h3>
+            <button class="close-panel" id="close-layout-panel"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="pv" title="PV Modules">
+                <i data-lucide="grid"></i>
+                <span class="tab-label">PV Modules</span>
+            </button>
+            <button class="tab-btn" data-tab="mounting" title="Mounting Structures">
+                <i data-lucide="building"></i>
+                <span class="tab-label">Mounting</span>
+            </button>
+            <button class="tab-btn" data-tab="layout-config" title="Configuration">
+                <i data-lucide="settings"></i>
+                <span class="tab-label">Config</span>
+            </button>
+        </div>
+
+        <div class="panel-body">
+            <!-- PV Modules Tab -->
+            <div id="tab-pv" class="tab-content active">
+                <!-- PAN File Upload Zone -->
+                <div class="file-upload-zone" id="pan-drop-zone">
+                    <i data-lucide="upload-cloud"></i>
+                    <span>Drag & Drop PAN File</span>
+                    <small>or click to browse your computer</small>
+                    <input type="file" id="pan-file-input" class="hidden-file-input" accept=".pan" multiple>
+                </div>
+
+                <div class="control-group">
+                    <label>Module Type</label>
+                    <select class="modern-input" id="pv-module-select">
+                        <option>Longi 550W Bifacial</option>
+                        <option>Jinko 540W Mono</option>
+                        <option>Trina 600W Vertex</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Module Dimensions (mm)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <input type="number" class="modern-input" id="pv-width" placeholder="Width" value="1134">
+                        <input type="number" class="modern-input" id="pv-height" placeholder="Length" value="2278">
+                    </div>
+                </div>
+                <!-- Collapsible Wrapper to prevent flex-gap -->
+                <div class="collapsible-section">
+                    <button class="collapse-trigger"
+                        onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('open');">
+                        <span>Module Details</span>
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="collapse-content">
+                        <div class="control-group">
+                            <label class="mini-label" style="opacity: 0.5; margin-bottom: 0.25rem;">Electrical Sizing
+                                Data</label>
+                            <div class="mini-grid">
+                                <div>
+                                    <span class="mini-label">Pnom (W)</span>
+                                    <input type="number" class="modern-input" id="pv-pnom" value="550">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Voc (V)</span>
+                                    <input type="number" class="modern-input" id="pv-voc" value="49.8">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Isc (A)</span>
+                                    <input type="number" class="modern-input" id="pv-isc" value="13.98">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Vmpp (V)</span>
+                                    <input type="number" class="modern-input" id="pv-vmpp" value="41.95">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Impp (A)</span>
+                                    <input type="number" class="modern-input" id="pv-impp" value="13.12">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Pmax (%/°C)</span>
+                                    <input type="number" class="modern-input" id="pv-pmax-coeff" value="-0.34"
+                                        step="0.001">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Voc (%/°C)</span>
+                                    <input type="number" class="modern-input" id="pv-voc-coeff" value="-0.26"
+                                        step="0.001">
+                                </div>
+                                <div>
+                                    <span class="mini-label">Isc (%/°C)</span>
+                                    <input type="number" class="modern-input" id="pv-isc-coeff" value="0.05"
+                                        step="0.001">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Mounting Tab -->
+            <div id="tab-mounting" class="tab-content">
+                <div class="control-group">
+                    <label>Installation Type</label>
+                    <select class="modern-input" id="mounting-type-select">
+                        <option value="free">Free Drawing</option>
+                        <option value="ground_tracker">Ground Single axis Tracking</option>
+                        <option value="ground_fixed">Ground Fixed</option>
+                        <option value="rooftop_canopy">Rooftop Canopy</option>
+                        <option value="rooftop_flushed">Rooftop Flushed/Metalic Roof</option>
+                        <option value="rooftop_tri_single">Rooftop Triangles Single Side</option>
+                        <option value="rooftop_tri_double">Rooftop Triangles Two Side</option>
+                        <option value="car_parking">Car Parking</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Orientation</label>
+                    <div class="segmented-control modern" id="mounting-orientation-seg">
+                        <button class="seg-btn active" data-value="Portrait">Portrait</button>
+                        <button class="seg-btn" data-value="Landscape">Landscape</button>
+                    </div>
+                </div>
+
+                <div class="mini-grid">
+                    <div>
+                        <span class="mini-label">Tilt Angle (°)</span>
+                        <input type="number" class="modern-input" id="mount-tilt" value="25">
+                    </div>
+                    <div>
+                        <span class="mini-label">Azimuth (°)</span>
+                        <input type="number" class="modern-input" id="mount-azimuth" value="180">
+                    </div>
+                    <div>
+                        <span class="mini-label">Dist b/w Mod X (m)</span>
+                        <input type="number" class="modern-input" id="mount-mod-dist-x" value="0.02" step="0.01">
+                    </div>
+                    <div>
+                        <span class="mini-label">Dist b/w Mod Y (m)</span>
+                        <input type="number" class="modern-input" id="mount-mod-dist-y" value="0.02" step="0.01">
+                    </div>
+                    <div>
+                        <span class="mini-label">Mod/Table (Along)</span>
+                        <input type="number" class="modern-input" id="mount-mod-table-x" value="25">
+                    </div>
+                    <div>
+                        <span class="mini-label">Mod/Table (Across)</span>
+                        <input type="number" class="modern-input" id="mount-mod-table-y" value="2">
+                    </div>
+                    <div>
+                        <span class="mini-label">dist adj tables</span>
+                        <input type="number" class="modern-input" id="mount-table-dist-x" value="0.5" step="0.1">
+                    </div>
+                    <div>
+                        <span class="mini-label">row-row distance</span>
+                        <input type="number" class="modern-input" id="mount-table-dist-y" value="5" step="0.1">
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top: 1.25rem; margin-bottom: 0.75rem;">
+                    <label class="modern-checkbox-group">
+                        <input type="checkbox" id="enable-block-config"
+                            style="width: 1.1rem; height: 1.1rem; accent-color: #286944; cursor: pointer; margin: 0;">
+                        <span
+                            style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">USE
+                            Block Config</span>
+                    </label>
+                </div>
+
+                <div class="mini-grid">
+                    <div>
+                        <span class="mini-label">Table/Block X</span>
+                        <input type="number" class="modern-input" id="mount-block-x" value="20" disabled>
+                    </div>
+                    <div>
+                        <span class="mini-label">Table/Block Y</span>
+                        <input type="number" class="modern-input" id="mount-block-y" value="5" disabled>
+                    </div>
+                    <div>
+                        <span class="mini-label">Dist Block X (m)</span>
+                        <input type="number" class="modern-input" id="mount-block-dist-x" value="5" step="0.1" disabled>
+                    </div>
+                    <div>
+                        <span class="mini-label">Dist Block Y (m)</span>
+                        <input type="number" class="modern-input" id="mount-block-dist-y" value="5" step="0.1" disabled>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Configuration Tab -->
+            <div id="tab-layout-config" class="tab-content">
+                <!-- 1. Target Sizing -->
+                <div class="control-group">
+                    <label>Layout Objective</label>
+                    <div class="segmented-control modern" id="layout-objective-seg">
+                        <button class="seg-btn active" data-value="fill">Fill All</button>
+                        <button class="seg-btn" data-value="capacity">Target MW</button>
+                    </div>
+                    <div id="target-capacity-container" class="hidden" style="margin-top: 0.5rem;">
+                        <span class="mini-label">Desired Capacity (MW)</span>
+                        <input type="number" class="modern-input" id="cfg-target-mw" value="10" step="0.5">
+                    </div>
+                </div>
+
+                <!-- 2. System Division -->
+                <div class="control-group">
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <label class="modern-checkbox-group">
+                            <input type="checkbox" id="cfg-divide-mv" checked
+                                style="width: 1.1rem; height: 1.1rem; accent-color: #286944; cursor: pointer; margin: 0;">
+                            <span
+                                style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Divide
+                                into MV Blocks</span>
+                        </label>
+                        <label class="modern-checkbox-group">
+                            <input type="checkbox" id="cfg-color-blocks"
+                                style="width: 1.1rem; height: 1.1rem; accent-color: #286944; cursor: pointer; margin: 0;">
+                            <span
+                                style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Colorize
+                                blocks</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 3. Hierarchy Spacing -->
+                <div class="mini-grid">
+                    <div>
+                        <span class="mini-label">Every (X) MV Blocks</span>
+                        <input type="number" class="modern-input" id="cfg-dist-x-count" value="1">
+                    </div>
+                    <div>
+                        <span class="mini-label">Every (Y) MV Blocks</span>
+                        <input type="number" class="modern-input" id="cfg-dist-y-count" value="1">
+                    </div>
+                    <div>
+                        <span class="mini-label">Gap X (m)</span>
+                        <input type="number" class="modern-input" id="cfg-gap-dist-x" value="5" step="0.5">
+                    </div>
+                    <div>
+                        <span class="mini-label">Gap Y (m)</span>
+                        <input type="number" class="modern-input" id="cfg-gap-dist-y" value="5" step="0.5">
+                    </div>
+                </div>
+
+                <!-- 4. Fill Direction -->
+                <div class="control-group" style="margin-top: 1rem;">
+                    <label>Start Filling From</label>
+                    <select class="modern-input" id="cfg-fill-direction">
+                        <option value="top">Top</option>
+                        <option value="bottom">Bottom</option>
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                        <option value="middle">Middle</option>
+                    </select>
+                </div>
+
+                <!-- 5. Adaptive or Block Layout -->
+                <div class="control-group">
+                    <label>Layout Method</label>
+                    <div class="segmented-control modern" id="layout-method-seg" style="width: 100%;">
+                        <button class="seg-btn" style="flex: 1;" data-value="adaptive">Adaptive</button>
+                        <button class="seg-btn active" style="flex: 1;" data-value="block">Block Layout</button>
+                    </div>
+                </div>
+
+                <!-- 6. Edge Alignment -->
+                <button class="btn-secondary"
+                    style="width: 100%; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                    id="btn-select-edge">
+                    <i data-lucide="mouse-pointer-2" style="width: 16px; height: 16px;"></i>
+                    Select Alignment Edge
+                </button>
+
+                <!-- 7. Resolution -->
+                <div class="control-group">
+                    <label>Drawing Resolution</label>
+                    <div class="segmented-control modern" id="draw-resolution-seg" style="width: 100%;">
+                        <button class="seg-btn active" style="flex: 1;" data-value="tables">Tables</button>
+                        <button class="seg-btn" style="flex: 1;" data-value="modules">PV Modules</button>
+                    </div>
+                    <div id="resolution-warning" class="hidden"
+                        style="font-size: 0.65rem; color: #ef4444; margin-top: 0.4rem; font-style: italic;">
+                        PV Modules disabled for systems > 50MW to maintain performance.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Rotation Slider (Above Toolbar) -->
+    <div id="rotation-popup" class="rotation-slider-panel hidden">
+        <div class="slider-header" style="justify-content: center;">
+            <span id="rotation-value">0°</span>
+        </div>
+        <input type="range" id="rotation-slider" min="-180" max="180" value="0" step="1">
+    </div>
+
+    <!-- Floating Edit Toolbar -->
+    <div id="floating-edit-bar" class="floating-toolbar hidden">
+        <div class="edit-bar-content">
+            <button id="btn-delete" class="edit-bar-btn danger" title="Delete Selection">
+                <i data-lucide="trash-2"></i>
+            </button>
+            <div class="edit-bar-divider"></div>
+            <button id="btn-move-toggle" class="edit-bar-btn" title="Move Mode">
+                <i data-lucide="move"></i>
+            </button>
+            <button id="btn-rotate-toggle" class="edit-bar-btn" title="Rotate Selection">
+                <i data-lucide="rotate-cw"></i>
+            </button>
+            <div class="edit-bar-divider"></div>
+            <button id="btn-copy" class="edit-bar-btn" title="Copy Selection">
+                <i data-lucide="copy"></i>
+            </button>
+            <button id="btn-paste-toggle" class="edit-bar-btn" title="Paste Mode (Click map to paste)">
+                <i data-lucide="clipboard"></i>
+            </button>
+            <div class="edit-bar-divider"></div>
+            <button id="btn-grid" class="edit-bar-btn" title="Create Grid">
+                <i data-lucide="layout-grid"></i>
+            </button>
+            <button id="btn-align-menu" class="edit-bar-btn" title="Alignment Tools">
+                <i data-lucide="align-center"></i>
+            </button>
+            <button id="btn-distribute-menu" class="edit-bar-btn" title="Distribution Tools">
+                <i data-lucide="columns"></i>
+            </button>
+            <div class="edit-bar-divider"></div>
+            <button id="btn-close-edit" class="edit-bar-btn" title="Deselect">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+
+        <!-- Align Sub-menu -->
+        <div id="align-menu" class="edit-sub-menu hidden">
+            <button class="sub-btn" data-action="align-top" title="Align Top"><i
+                    data-lucide="align-start-horizontal"></i></button>
+            <button class="sub-btn" data-action="align-bottom" title="Align Bottom"><i
+                    data-lucide="align-end-horizontal"></i></button>
+            <button class="sub-btn" data-action="align-left" title="Align Left"><i
+                    data-lucide="align-start-vertical"></i></button>
+            <button class="sub-btn" data-action="align-right" title="Align Right"><i
+                    data-lucide="align-end-vertical"></i></button>
+            <button class="sub-btn" data-action="align-center" title="Align Center"><i
+                    data-lucide="align-center-vertical"></i></button>
+        </div>
+
+        <!-- Distribute Sub-menu -->
+        <div id="distribute-menu" class="edit-sub-menu hidden">
+            <button class="sub-btn" data-action="dist-h" title="Distribute Horizontally"><i
+                    data-lucide="stretch-horizontal"></i></button>
+            <button class="sub-btn" data-action="dist-v" title="Distribute Vertically"><i
+                    data-lucide="stretch-vertical"></i></button>
+        </div>
+    </div>
+
+    <!-- Grid Configuration Modal -->
+    <div id="grid-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 260px;">
+            <div class="modal-header">
+                <h3>Grid Configuration</h3>
+            </div>
+            <div class="modal-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div class="control-group">
+                    <label>X Count</label>
+                    <input type="number" id="grid-x-count" class="modern-input" value="3">
+                </div>
+                <div class="control-group">
+                    <label>Y Count</label>
+                    <input type="number" id="grid-y-count" class="modern-input" value="1">
+                </div>
+                <div class="control-group">
+                    <label>X Spacing (m)</label>
+                    <input type="number" id="grid-x-space" class="modern-input" value="20">
+                </div>
+                <div class="control-group">
+                    <label>Y Spacing (m)</label>
+                    <input type="number" id="grid-y-space" class="modern-input" value="20">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-generate-grid" class="btn-secondary" style="width: 100%;">Generate Grid</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Naming -->
+    <div id="naming-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Name Item</h3>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="area-name-input" class="modern-input" placeholder="e.g. Phase 1">
+            </div>
+            <div class="modal-footer">
+                <button id="btn-save-name" class="btn-secondary">Save Name</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MV Block Configuration Modal -->
+    <div id="mv-config-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 800px; width: 90vw;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Electrical Block Configuration</h3>
+                <button class="close-panel"
+                    onclick="document.getElementById('mv-config-modal').classList.add('hidden')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 2rem;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0; color: #1e293b;">Optimal Block Sizing (IEC Level)</h4>
+                        <p style="font-size: 0.75rem; color: #64748b; margin: 0.25rem 0 0 0;">
+                            Configurations calculated based on site temperatures, PF, and component voltage limits.
+                        </p>
+                    </div>
+                    <button id="btn-recalc-configs" class="btn-secondary" style="background: #286944; color: white;">
+                        <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 0.5rem;"></i>
+                        Calculate Options
+                    </button>
+                </div>
+
+                <div id="config-table-container" style="overflow-x: auto; margin-bottom: 1rem;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left;">
+                        <thead>
+                            <tr
+                                style="border-bottom: 2px solid #e2e8f0; color: #64748b; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em;">
+                                <th style="padding: 0.75rem 0.5rem;">Rank</th>
+                                <th style="padding: 0.75rem 0.5rem;">Mods/Str</th>
+                                <th style="padding: 0.75rem 0.5rem;">Strs/Inv</th>
+                                <th style="padding: 0.75rem 0.5rem;">Invs/Block</th>
+                                <th style="padding: 0.75rem 0.5rem;">DC Cap (kWp)</th>
+                                <th style="padding: 0.75rem 0.5rem;">AC Cap (kW)</th>
+                                <th style="padding: 0.75rem 0.5rem;">DC/AC Ratio</th>
+                                <th style="padding: 0.75rem 0.5rem;">No. of MV Stations</th>
+                                <th style="padding: 0.75rem 0.5rem; text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="config-options-body">
+                            <!-- Populated via JavaScript -->
+                            <tr>
+                                <td colspan="9" style="padding: 3rem; text-align: center; color: #94a3b8;">
+                                    Click "Calculate Options" to generate configurations
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="mv-selected-summary" class="hidden"
+                    style="margin-top: 1.5rem; padding: 1rem; background: #f0fdf4; border-radius: 0.5rem; border: 1px solid #bbf7d0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span
+                            style="font-size: 0.65rem; color: #166534; text-transform: uppercase; font-weight: 700;">Selected
+                            Configuration</span>
+                        <div id="selected-config-name" style="font-weight: 700; color: #1e293b;">Standard Design (1.20)
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; display: flex; gap: 1rem;">
+                <button id="btn-apply-selected-config" class="btn-secondary" style="flex: 1;" disabled>
+                    Apply Selected Configuration
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Area Electrical Configuration Modal -->
+    <div id="area-elec-config-modal" class="modal-overlay hidden" style="z-index: 2000;">
+        <div class="modal-content" style="max-width: 800px; width: 95vw; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);">
+            <div class="modal-header" style="padding: 1rem 1.5rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: #1e293b; font-size: 0.95rem; font-weight: 700;">Area Electrical Design Configuration</h3>
+                <button class="close-panel" onclick="document.getElementById('area-elec-config-modal').classList.add('hidden')" style="background: none; border: none; cursor: pointer; color: #64748b; padding: 0.5rem; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
+                    <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+                    <label style="font-size: 0.8rem; font-weight: 600; color: #475569;">Collection Bus Level:</label>
+                    <div style="position: relative; width: 140px;">
+                        <select id="common-bus-v" class="modern-area-select" style="width: 100%; padding-right: 2.5rem; padding-top: 0.4rem; padding-bottom: 0.4rem; appearance: none; cursor: pointer;">
+                            <!-- Options will be dynamically populated from user-defined voltages -->
+                        </select>
+                        <span style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: #64748b; font-weight: 600; pointer-events: none;">kV</span>
+                    </div>
+                </div>
+
+                <div id="area-config-container" style="max-height: 450px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th style="padding: 1rem; text-align: left; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Project Area</th>
+                                <th style="padding: 1rem; text-align: left; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Linked Delivery Station (DS)</th>
+                                <th style="padding: 1rem; text-align: left; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Linked Point of Connection (POC)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="area-config-tbody">
+                            <!-- Populated dynamically via JS -->
+                            <tr>
+                                <td colspan="3" style="padding: 3rem; text-align: center; color: #94a3b8;">
+                                    <i data-lucide="info" style="width: 24px; height: 24px; margin-bottom: 0.5rem; display: block; margin-inline: auto;"></i>
+                                    No areas identified. Please draw project areas first.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1.25rem 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; gap: 1rem;">
+                <button onclick="document.getElementById('area-elec-config-modal').classList.add('hidden')" style="flex: 1; padding: 0.75rem; border-radius: 6px; border: 1px solid #e2e8f0; background: white; color: #475569; font-weight: 600; cursor: pointer;">Cancel</button>
+                <button id="btn-save-area-config" style="flex: 2; padding: 0.75rem; border-radius: 6px; border: none; background: #286944; color: white; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <i data-lucide="check-circle" style="width: 18px; height: 18px;"></i>
+                    Save Area Configurations
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .modern-area-select {
+            width: 100%;
+            padding: 0.6rem;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            font-size: 0.8rem;
+            color: #1e293b;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .modern-area-select:focus {
+            border-color: #286944;
+        }
+    </style>
+
+    <!-- Details Overlay -->
+    <div id="elec-details-modal" class="modal-overlay hidden" style="z-index: 2000;">
+        <div class="modal-content" style="max-width: 800px; width: 90vw;">
+            <div class="modal-header">
+                <h3>Electrical Project Schedule</h3>
+                <button class="close-panel"
+                    onclick="document.getElementById('elec-details-modal').classList.add('hidden')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="elec-details-body" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Verification Overlay -->
+    <div id="elec-verify-modal" class="modal-overlay hidden" style="z-index: 2000;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>IEC Sizing Verification</h3>
+                <button class="close-panel"
+                    onclick="document.getElementById('elec-verify-modal').classList.add('hidden')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="elec-verify-body" style="padding: 1.5rem;"></div>
+        </div>
+    </div>
+
+    <!-- Configuration and Map Logic -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="config.js"></script>
+    <script src="site-engine.js"></script>
+    <script src="layout-engine.js"></script>
+    <script src="electrical-engine.js"></script>
+    <script src="sld-engine.js"></script>
+    <script src="cables-engine.js"></script>
+    <script>
+        const START = { lat: 38.397550221066616, lng: 34.97863102806574 };
+
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById("map"), {
+                center: START,
+                zoom: 17,
+                mapTypeId: 'satellite',
+                mapTypeControl: false,
+                fullscreenControl: false,
+                streetViewControl: false,
+                zoomControl: false,
+                gestureHandling: 'greedy',
+                scrollwheel: true
+            });
+            window.googleMap = map;
+
+            // Initialize Site Engine
+            if (window.SiteEngine) {
+                window.SiteEngine.init(map);
+            }
+
+            // Initialize Search Autocomplete
+            const input = document.getElementById("pac-input");
+            const clearBtn = document.getElementById("clear-search");
+            const autocomplete = new google.maps.places.Autocomplete(input);
+
+            // Bias the Autocomplete results to the map's current bounds
+            autocomplete.bindTo("bounds", map);
+
+            autocomplete.addListener("place_changed", () => {
+                const place = autocomplete.getPlace();
+
+                if (!place.geometry || !place.geometry.location) {
+                    console.error("No details available for input: '" + place.name + "'");
+                    return;
+                }
+
+                // If the place has a geometry, then present it on a map.
+                if (place.geometry.viewport) {
+                    map.fitBounds(place.geometry.viewport);
+                } else {
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(17);
+                }
+            });
+
+            // Panel Toggle Logic
+            const searchTrigger = document.getElementById("search-trigger");
+            const projectTrigger = document.getElementById("project-area");
+            const searchPanel = document.getElementById("search-panel");
+            const projectPanel = document.getElementById("project-panel");
+            const layoutTrigger = document.getElementById("layout-trigger");
+            const layoutPanel = document.getElementById("layout-panel");
+            const menuTrigger = document.getElementById("menu-trigger");
+            const collapsibleContent = document.getElementById("toolbar-collapsible");
+            const closeProjectBtn = document.getElementById("close-project-panel");
+            const closeLayoutBtn = document.getElementById("close-layout-panel");
+
+            window.hideAllPanels = function () {
+                searchPanel.classList.add('hidden');
+                projectPanel.classList.add('hidden');
+                layoutPanel.classList.add('hidden');
+                document.getElementById('electrical-design-panel')?.classList.add('hidden');
+
+                // Clear any stored visibility
+                localStorage.removeItem('active-panel');
+            }
+
+            // Menu Collapse Logic
+            menuTrigger.addEventListener('click', () => {
+                collapsibleContent.classList.toggle('collapsed');
+                if (collapsibleContent.classList.contains('collapsed')) {
+                    hideAllPanels();
+                }
+            });
+
+            searchTrigger.addEventListener('click', () => {
+                const isHidden = searchPanel.classList.contains('hidden');
+                hideAllPanels();
+                if (isHidden) {
+                    searchPanel.classList.remove('hidden');
+                    input.focus();
+                }
+            });
+
+            projectTrigger.addEventListener('click', () => {
+                const isHidden = projectPanel.classList.contains('hidden');
+                hideAllPanels();
+                if (isHidden) {
+                    projectPanel.classList.remove('hidden');
+                    localStorage.setItem('active-panel', 'project-panel');
+                }
+            });
+
+            layoutTrigger.addEventListener('click', () => {
+                const isHidden = layoutPanel.classList.contains('hidden');
+                hideAllPanels();
+                if (isHidden) {
+                    layoutPanel.classList.remove('hidden');
+                    localStorage.setItem('active-panel', 'layout-panel');
+                }
+            });
+
+            closeProjectBtn.addEventListener('click', () => {
+                projectPanel.classList.add('hidden');
+                localStorage.removeItem('active-panel');
+            });
+
+            closeLayoutBtn.addEventListener('click', () => {
+                layoutPanel.classList.add('hidden');
+                localStorage.removeItem('active-panel');
+            });
+
+            // Tab Switching Logic
+            const tabButtons = document.querySelectorAll('.tab-btn');
+
+            function switchTab(btn, tabId, panelId) {
+                const panel = document.getElementById(panelId);
+                if (!panel) return;
+
+                panel.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                panel.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.toggle('active', content.id === `tab-${tabId}`);
+                });
+            }
+
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.dataset.tab;
+                    const panel = btn.closest('.project-panel');
+                    if (panel && panel.id) {
+                        switchTab(btn, tabId, panel.id);
+                    }
+                });
+            });
+
+            // Segmented Control Toggle Logic
+            const segButtons = document.querySelectorAll('.seg-btn');
+            segButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const parent = btn.parentElement;
+                    parent.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // Topography Grading Toggle
+            document.getElementById('topo-apply-grading').addEventListener('change', (e) => {
+                document.getElementById('grading-controls').classList.toggle('hidden', !e.target.checked);
+            });
+
+            // Clear/Close Search Panel
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                searchPanel.classList.add('hidden');
+            });
+
+            // Project Summary Panel Logic
+            window.toggleSummaryPanel = (show) => {
+                const panel = document.getElementById('project-summary-panel');
+                if (!panel) return;
+                if (show) {
+                    updateProjectSummary();
+                    panel.classList.remove('hidden');
+                } else {
+                    panel.classList.add('hidden');
+                }
+            };
+
+            window.updateProjectSummary = function () {
+                const body = document.getElementById('summary-table-body');
+                const footer = document.getElementById('summary-table-footer');
+                if (!body || !footer) return;
+
+                body.innerHTML = '';
+                footer.innerHTML = '';
+                const stats = window._layoutStats || {};
+                let totalDC = 0;
+                let totalAC = 0;
+                let totalSqm = 0;
+                let totalLayoutStations = 0;
+
+                Object.values(stats).forEach(area => {
+                    totalDC += parseFloat(area.dcMWp);
+                    totalAC += parseFloat(area.acMW);
+                    totalSqm += (area.areaSqm || 0);
+                    totalLayoutStations += (area.blockCount || 0);
+
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid #f1f5f9';
+                    row.innerHTML = `
+                        <td style="padding: 0.5rem 0.5rem; font-weight: 600;">${area.name}</td>
+                        <td style="padding: 0.5rem 0.2rem;">${area.dcMWp}</td>
+                        <td style="padding: 0.5rem 0.2rem;">${area.acMW}</td>
+                        <td style="padding: 0.5rem 0.5rem; text-align: right; color: #64748b;">${(area.areaSqm || 0).toLocaleString()}</td>
+                    `;
+                    body.appendChild(row);
+                });
+
+                // Add Total Row to Footer
+                const totalRow = document.createElement('tr');
+                totalRow.style.color = '#286944';
+                totalRow.innerHTML = `
+                    <td style="padding: 0.5rem 0.5rem;">TOTAL</td>
+                    <td style="padding: 0.5rem 0.2rem;">${totalDC.toFixed(2)}</td>
+                    <td style="padding: 0.5rem 0.2rem;">${totalAC.toFixed(2)}</td>
+                    <td style="padding: 0.5rem 0.5rem; text-align: right;">${totalSqm.toLocaleString()}</td>
+                `;
+                footer.appendChild(totalRow);
+
+                // Update Electrical Design System Capacity fields
+                const chkManual = document.getElementById('chk-manual-cap');
+                const sysDc = document.getElementById('sys-dc-cap');
+                const sysAc = document.getElementById('sys-ac-cap');
+
+                if (chkManual && !chkManual.checked) {
+                    if (sysDc) sysDc.value = totalDC.toFixed(2);
+                    if (sysAc) sysAc.value = totalAC.toFixed(2);
+                }
+
+                // Update Drawing Resolution UI based on capacity
+                const resModulesBtn = document.querySelector('#draw-resolution-seg .seg-btn[data-value="modules"]');
+                const resTablesBtn = document.querySelector('#draw-resolution-seg .seg-btn[data-value="tables"]');
+                const resWarning = document.getElementById('resolution-warning');
+
+                const resThreshold = 50;
+                if (totalDC > resThreshold) {
+                    if (resModulesBtn) {
+                        resModulesBtn.classList.add('disabled');
+                        resModulesBtn.style.opacity = '0.5';
+                        resModulesBtn.style.pointerEvents = 'none';
+                        if (resModulesBtn.classList.contains('active')) {
+                            resModulesBtn.classList.remove('active');
+                            resTablesBtn?.classList.add('active');
+                        }
+                    }
+                    if (resWarning) {
+                        resWarning.innerText = "PV Modules disabled for systems > 5MW to maintain performance.";
+                        resWarning.classList.remove('hidden');
+                    }
+                } else {
+                    if (resModulesBtn) {
+                        resModulesBtn.classList.remove('disabled');
+                        resModulesBtn.style.opacity = '1';
+                        resModulesBtn.style.pointerEvents = 'auto';
+                    }
+                    if (resWarning) resWarning.classList.add('hidden');
+                }
+
+                // Push actual layout counts to Electrical Engine
+                if (window.ElectricalEngine) {
+                    window.ElectricalEngine.totalLayoutStations = totalLayoutStations;
+                    window.ElectricalEngine.updatePowerDisplay();
+                }
+
+                lucide.createIcons();
+            }
+
+            document.getElementById('stats-trigger').addEventListener('click', () => {
+                const panel = document.getElementById('project-summary-panel');
+                toggleSummaryPanel(panel.classList.contains('hidden'));
+            });
+
+            // Main Toolbar Marquee Trigger
+            document.getElementById('tool-marquee').addEventListener('click', () => {
+                const btn = document.getElementById('tool-marquee');
+                const isActive = btn.classList.contains('active');
+
+                // Reset other tools UI
+                document.querySelectorAll('.tool-btn, .draw-tool-btn').forEach(b => b.classList.remove('active'));
+
+                if (!isActive) {
+                    btn.classList.add('active');
+                    SiteEngine.setDrawingMode('marquee');
+                } else {
+                    SiteEngine.setDrawingMode(null);
+                }
+            });
+
+            // Main Toolbar Measure Trigger
+            document.getElementById('tool-measure').addEventListener('click', () => {
+                const btn = document.getElementById('tool-measure');
+                const isActive = btn.classList.contains('active');
+
+                // Reset other tools UI
+                document.querySelectorAll('.tool-btn, .draw-tool-btn').forEach(b => b.classList.remove('active'));
+
+                if (!isActive) {
+                    btn.classList.add('active');
+                    SiteEngine.setDrawingMode('measure');
+                } else {
+                    SiteEngine.setDrawingMode(null);
+                }
+            });
+
+            // Drawing Tool Listeners
+            document.querySelectorAll('.draw-tool-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const shape = btn.dataset.shape;
+                    const isActive = btn.classList.contains('active');
+
+                    // Unified UI feedback
+                    document.querySelectorAll('.draw-tool-btn').forEach(b => b.classList.remove('active'));
+                    if (!isActive) btn.classList.add('active');
+
+                    // Set category based on tab
+                    const activeTabId = document.querySelector('.tab-content.active').id;
+                    let category = 'area';
+                    if (activeTabId === 'tab-constraints') category = 'constraint';
+                    if (activeTabId === 'tab-poc') category = 'poc';
+
+                    SiteEngine.setCategory(category);
+                    SiteEngine.setDrawingMode(isActive ? null : shape);
+                });
+            });
+
+            // Action Button Listeners
+            document.querySelector('#tab-area .btn-secondary').addEventListener('click', () => {
+                SiteEngine.createAreaFromCoords();
+            });
+
+            // KML/KMZ Import Listeners
+            document.getElementById('btn-import-kml').addEventListener('click', () => {
+                document.getElementById('kml-file-input').click();
+            });
+            document.getElementById('kml-file-input').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    SiteEngine.importKmlKmz(e.target.files[0]);
+                    e.target.value = ''; // Reset for continuous uploading 
+                }
+            });
+
+            document.querySelector('#tab-constraints .btn-secondary').addEventListener('click', () => {
+                SiteEngine.applySetback();
+            });
+
+
+            // MV Station Toggle Logic
+            const mvToggle = document.getElementById('enable-mv-stations');
+            const substationInput = document.getElementById('substation-size');
+            const minLoadInput = document.getElementById('min-block-loading');
+            if (mvToggle && substationInput && minLoadInput) {
+                mvToggle.addEventListener('change', () => {
+                    const active = mvToggle.checked;
+                    substationInput.disabled = !active;
+                    minLoadInput.disabled = !active;
+                    if (active) substationInput.focus();
+                });
+            }
+
+            // Technical Inventory Storage
+            const technicalInventory = {
+                modules: {},
+                inverters: {}
+            };
+
+            // Mounting Data Configuration
+            const mountingDefaults = {
+                free: { orient: 'Portrait', tilt: 25, az: 180, mDistX: 0.02, mDistY: 0.02, mx: 25, my: 2, tx: 0.5, ty: 3, bx: 20, by: 5, bdx: 5, bdy: 5 },
+                ground_tracker: { orient: 'Portrait', tilt: 0, az: 90, mDistX: 0.02, mDistY: 0.02, mx: 30, my: 1, tx: 0.5, ty: 5, bx: 20, by: 5, bdx: 5, bdy: 5 },
+                ground_fixed: { orient: 'Landscape', tilt: 25, az: 180, mDistX: 0.02, mDistY: 0.02, mx: 25, my: 2, tx: 0.5, ty: 3, bx: 20, by: 5, bdx: 5, bdy: 5 },
+                rooftop_canopy: { orient: 'Portrait', tilt: 10, az: 180, mDistX: 0.02, mDistY: 0.02, mx: 1, my: 1, tx: 0, ty: 0, bx: 20, by: 5, bdx: 5, bdy: 5 },
+                rooftop_flushed: { orient: 'Landscape', tilt: 5, az: 180, mDistX: 0.02, mDistY: 0.02, mx: 1, my: 1, tx: 0, ty: 0, bx: 20, by: 5, bdx: 5, bdy: 5 },
+                rooftop_tri_single: { orient: 'Landscape', tilt: 5, az: 180, mDistX: 0.02, mDistY: 0.02, mx: 1, my: 1, tx: 0, ty: 0, bx: 20, by: 5, bdx: 5, bdy: 5 },
+                rooftop_tri_double: { orient: 'Landscape', tilt: 5, az: 90, mDistX: 0.02, mDistY: 0.02, mx: 1, my: 1, tx: 0, ty: 0, bx: 20, by: 5, bdx: 5, bdy: 5 },
+                car_parking: { orient: 'Landscape', tilt: 5, az: 180, mDistX: 0.02, mDistY: 0.02, mx: 1, my: 1, tx: 0, ty: 0, bx: 20, by: 5, bdx: 5, bdy: 5 }
+            };
+
+            const mountingSelect = document.getElementById('mounting-type-select');
+            if (mountingSelect) {
+                mountingSelect.addEventListener('change', () => {
+                    const config = mountingDefaults[mountingSelect.value];
+                    if (config) {
+                        // Update UI
+                        document.getElementById('mount-tilt').value = config.tilt;
+                        document.getElementById('mount-azimuth').value = config.az;
+                        document.getElementById('mount-mod-dist-x').value = config.mDistX;
+                        document.getElementById('mount-mod-dist-y').value = config.mDistY;
+                        document.getElementById('mount-mod-table-x').value = config.mx;
+                        document.getElementById('mount-mod-table-y').value = config.my;
+                        document.getElementById('mount-table-dist-x').value = config.tx;
+                        document.getElementById('mount-table-dist-y').value = config.ty;
+                        document.getElementById('mount-block-x').value = config.bx;
+                        document.getElementById('mount-block-y').value = config.by;
+                        document.getElementById('mount-block-dist-x').value = config.bdx;
+                        document.getElementById('mount-block-dist-y').value = config.bdy;
+
+                        // Update Orientation Segments
+                        const segs = document.querySelectorAll('#mounting-orientation-seg .seg-btn');
+                        segs.forEach(s => {
+                            s.classList.toggle('active', s.dataset.value === config.orient);
+                        });
+                    }
+                });
+            }
+
+            // Block Config Toggle Logic
+            const blockToggle = document.getElementById('enable-block-config');
+            const blockInputs = [
+                'mount-block-x', 'mount-block-y',
+                'mount-block-dist-x', 'mount-block-dist-y'
+            ];
+            if (blockToggle) {
+                blockToggle.addEventListener('change', () => {
+                    blockInputs.forEach(id => {
+                        const input = document.getElementById(id);
+                        if (input) input.disabled = !blockToggle.checked;
+                    });
+                });
+            }
+
+            // MV Config Modal Logic
+            const mvConfigModal = document.getElementById('mv-config-modal');
+            const openMvConfigBtn = document.getElementById('btn-open-mv-config');
+            const recalcConfigsBtn = document.getElementById('btn-recalc-configs');
+            const applySelectedBtn = document.getElementById('btn-apply-selected-config');
+            let selectedConfigData = null;
+
+            if (openMvConfigBtn) {
+                openMvConfigBtn.addEventListener('click', () => {
+                    mvConfigModal.classList.remove('hidden');
+                    // Auto-trigger calculation on open if empty
+                    if (document.getElementById('config-options-body').innerText.includes('Click')) {
+                        recalcConfigsBtn.click();
+                    }
+                });
+            }
+
+            if (recalcConfigsBtn) {
+                recalcConfigsBtn.addEventListener('click', () => {
+                    const options = ElectricalEngine.generateOptions();
+                    renderConfigOptions(options);
+                });
+            }
+
+            function renderConfigOptions(options) {
+                const body = document.getElementById('config-options-body');
+                body.innerHTML = '';
+
+                options.forEach((opt, idx) => {
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid #f1f5f9';
+                    row.style.transition = 'all 0.2s';
+                    row.innerHTML = `
+                        <td style="padding: 1rem 0.5rem; color: #94a3b8;">${idx + 1}</td>
+                        <td style="padding: 1rem 0.5rem;">${opt.modsPerStr}</td>
+                        <td style="padding: 1rem 0.5rem;">${opt.strsPerInv}</td>
+                        <td style="padding: 1rem 0.5rem;">${opt.invsPerBlock}</td>
+                        <td style="padding: 1rem 0.5rem; font-weight: 600;">${opt.dcKw}</td>
+                        <td style="padding: 1rem 0.5rem; font-weight: 600;">${opt.acKw}</td>
+                        <td style="padding: 1rem 0.5rem; font-weight: 700; color: #286944;">${opt.ratio}</td>
+                        <td style="padding: 1rem 0.5rem;">${opt.numStations}</td>
+                        <td style="padding: 1rem 0.5rem; text-align: right;">
+                            <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+                                <button class="btn-secondary v-btn" style="font-size: 0.6rem; padding: 0.2rem 0.4rem; border-color: #0ea5e9; color: #0ea5e9;">Verify</button>
+                                <button class="btn-secondary d-btn" style="font-size: 0.6rem; padding: 0.2rem 0.4rem; border-color: #64748b;">Details</button>
+                                <button class="btn-secondary select-config-btn" style="font-size: 0.6rem; padding: 0.2rem 0.4rem; border-color: #cbd5e1;">Select</button>
+                            </div>
+                        </td>
+                    `;
+
+                    row.querySelector('.v-btn').onclick = (e) => { e.stopPropagation(); showVerify(opt); };
+                    row.querySelector('.d-btn').onclick = (e) => { e.stopPropagation(); showDetails(opt); };
+                    row.querySelector('.select-config-btn').onclick = (e) => { e.stopPropagation(); selectConfigRow(row, opt); };
+
+                    row.addEventListener('click', () => selectConfigRow(row, opt));
+                    body.appendChild(row);
+                });
+            }
+
+            function showDetails(config) {
+                const details = ElectricalEngine.getConnectionFlow(config);
+                const body = document.getElementById('elec-details-body');
+                body.innerHTML = `
+                    <div style="font-weight: 700; margin-bottom: 0.5rem; color: #1e293b; font-size: 1.1rem;">${details.title}</div>
+                    <div style="color: #64748b; font-size: 0.8rem; margin-bottom: 1.5rem;">${details.summary}</div>
+                    
+                    <div style="margin-bottom: 2rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                        ${details.steps.map(s => `
+                            <div style="padding: 0.75rem; background: #f8fafc; border-radius: 0.4rem; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 700;">${s.part}</div>
+                                <div style="font-size: 0.8rem; font-weight: 600; color: #334155; margin-top: 0.2rem;">${s.text}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="font-weight: 700; color: #1e293b; margin-bottom: 1rem; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;">Equipment Schedule (Project Wide)</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left;">
+                        <thead>
+                            <tr style="background: #f1f5f9; color: #475569;">
+                                <th style="padding: 0.5rem;">MV Block / Inverter ID</th>
+                                <th style="padding: 0.5rem;">Size (MVA / AC kW)</th>
+                                <th style="padding: 0.5rem;">DC Power (kWp)</th>
+                                <th style="padding: 0.5rem;">String Count</th>
+                                <th style="padding: 0.5rem;">DC/AC Ratio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${details.schedule.map(block => `
+                                <tr style="background: #f8fafc; border-top: 2px solid #e2e8f0; font-weight: 700;">
+                                    <td style="padding: 0.6rem;">${block.id}</td>
+                                    <td style="padding: 0.6rem;">${block.sizeMva} MVA</td>
+                                    <td style="padding: 0.6rem;">${block.totalDc} kWp</td>
+                                    <td style="padding: 0.6rem;">${block.invCount * block.inverters[0].strings}</td>
+                                    <td style="padding: 0.6rem;">${config.ratio}</td>
+                                </tr>
+                                ${block.inverters.map(inv => `
+                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                        <td style="padding: 0.4rem 0.4rem 0.4rem 1.5rem; color: #64748b;">↳ ${inv.id}</td>
+                                        <td style="padding: 0.4rem; color: #64748b;">${inv.acKw.toFixed(1)} kW ac</td>
+                                        <td style="padding: 0.4rem; color: #64748b;">${inv.dcKw.toFixed(1)} kWp</td>
+                                        <td style="padding: 0.4rem; color: #64748b;">${inv.strings} Strs</td>
+                                        <td style="padding: 0.4rem; color: #64748b;">-</td>
+                                    </tr>
+                                `).join('')}
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                document.getElementById('elec-details-modal').classList.remove('hidden');
+                lucide.createIcons();
+            }
+
+            function showVerify(config) {
+                const results = ElectricalEngine.getVerificationDetails(config);
+                const body = document.getElementById('elec-verify-body');
+                body.innerHTML = `
+                    <div style="font-weight: 700; margin-bottom: 1rem; color: #1e293b;">${results.title}</div>
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        ${results.checks.map(c => `
+                            <div style="padding: 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: ${c.status === 'PASS' ? '#f0fdf4' : '#fef2f2'}">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <span style="font-weight: 700; color: #1e293b;">${c.label}</span>
+                                    <span style="font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: ${c.status === 'PASS' ? '#22c55e' : '#ef4444'}; color: white;">${c.status}</span>
+                                </div>
+                                <div style="display: flex; gap: 2rem; font-size: 0.85rem;">
+                                    <div><span style="color: #64748b;">Value:</span> <b>${c.value}</b></div>
+                                    <div><span style="color: #64748b;">Limit:</span> <b>${c.limit}</b></div>
+                                </div>
+                                <div style="margin-top: 0.5rem; font-size: 0.7rem; color: #64748b; font-style: italic;">${c.detail}</div>
+                            </div>
+                        `).join('')}
+                        <div style="margin-top: 1rem; font-weight: 700; text-align: center; color: #166534;">${results.summary}</div>
+                    </div>
+                `;
+                document.getElementById('elec-verify-modal').classList.remove('hidden');
+                lucide.createIcons();
+            }
+
+            function selectConfigRow(row, data) {
+                document.querySelectorAll('#config-options-body tr').forEach(r => {
+                    r.style.background = 'transparent';
+                    const sBtn = r.querySelector('.select-config-btn');
+                    if (sBtn) {
+                        sBtn.style.background = 'white';
+                        sBtn.style.color = '#1e293b';
+                        sBtn.textContent = 'Select';
+                    }
+                });
+
+                row.style.background = '#f0fdf4';
+                const mainBtn = row.querySelector('.select-config-btn');
+                if (mainBtn) {
+                    mainBtn.style.background = '#286944';
+                    mainBtn.style.color = 'white';
+                    mainBtn.textContent = 'Selected';
+                }
+
+                selectedConfigData = data;
+                document.getElementById('mv-selected-summary').classList.remove('hidden');
+                document.getElementById('selected-config-name').textContent =
+                    `Conf: ${data.modsPerStr}x${data.strsPerInv}x${data.invsPerBlock} (${data.ratio} DC/AC)`;
+
+                const pf = document.getElementById('sys-pf')?.value || "0.9";
+                document.querySelector('#mv-selected-summary div:last-child div').textContent = `98.2% (PF ${pf})`;
+
+                document.getElementById('btn-apply-selected-config').disabled = false;
+            }
+
+            if (applySelectedBtn) {
+                applySelectedBtn.addEventListener('click', () => {
+                    if (selectedConfigData) {
+                        LayoutEngine.isManualConfig = true; // Tell engine to stop auto-overwriting
+                        LayoutEngine.applyBlockConfiguration(selectedConfigData);
+                        mvConfigModal.classList.add('hidden');
+                    }
+                });
+            }
+
+            // auto-optimize removed in favor of professional IEC sizing modal process
+
+
+            // Configuration Tab Logic
+            const objectiveSegs = document.querySelectorAll('#layout-objective-seg .seg-btn');
+            const targetCapContainer = document.getElementById('target-capacity-container');
+            objectiveSegs.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    targetCapContainer.classList.toggle('hidden', btn.dataset.value !== 'capacity');
+                });
+            });
+
+            const resSegs = document.querySelectorAll('#draw-resolution-seg .seg-btn');
+            const resWarning = document.getElementById('resolution-warning');
+            const targetMWInput = document.getElementById('cfg-target-mw');
+
+            resSegs.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const isCapacityMode = document.querySelector('#layout-objective-seg .seg-btn.active').dataset.value === 'capacity';
+                    const mw = parseFloat(targetMWInput.value);
+
+                    if (btn.dataset.value === 'modules' && isCapacityMode && mw > 10) {
+                        alert("Detailed PV Module drawing is restricted to systems under 10MW for performance reasons.");
+                        resWarning.classList.remove('hidden');
+                        // Revert to tables
+                        resSegs[0].click();
+                        e.stopImmediatePropagation();
+                    } else {
+                        resWarning.classList.add('hidden');
+                    }
+                });
+            });
+
+            // Station Strategy Change (Manual Picker Toggle)
+            document.getElementById('enable-manual-station-loc')?.addEventListener('change', (e) => {
+                const picker = document.getElementById('manual-station-picker');
+                if (e.target.checked) {
+                    picker.classList.remove('hidden');
+                } else {
+                    picker.classList.add('hidden');
+                    if (window._stationMarker) {
+                        window._stationMarker.setMap(null);
+                        window._stationMarker = null;
+                        window._manualStationLoc = null;
+                    }
+                }
+            });
+
+            // Manual Station Picker Tool
+            document.getElementById('btn-pick-station-loc')?.addEventListener('click', () => {
+                const status = document.getElementById('station-loc-status');
+                status.innerText = "Click on map to set hub center...";
+                status.style.color = "#0ea5e9";
+
+                const map = window.googleMap;
+                if (!map) return alert("Map not initialized.");
+
+                const listener = google.maps.event.addListenerOnce(map, 'click', (e) => {
+                    const pos = e.latLng;
+                    window._manualStationLoc = [pos.lng(), pos.lat()];
+                    status.innerText = `Hub set: ${pos.lat().toFixed(5)}, ${pos.lng().toFixed(5)}`;
+                    status.style.color = "#286944";
+
+                    // Add/Update Marker
+                    if (window._stationMarker) window._stationMarker.setMap(null);
+                    window._stationMarker = new google.maps.Marker({
+                        position: pos,
+                        map: map,
+                        title: "Inverter Hub",
+                        icon: {
+                            path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                            scale: 5,
+                            fillColor: "#286944",
+                            fillOpacity: 1,
+                            strokeWeight: 1,
+                        }
+                    });
+                });
+            });
+
+            document.getElementById('btn-select-edge')?.addEventListener('click', () => {
+                alert("Click on any boundary edge in the map to set layout orientation.");
+                SiteEngine.startEdgeSelection();
+            });
+
+            // Unified Selection Change Listeners
+            const pvSelect = document.getElementById('pv-module-select');
+            const invSelect = document.getElementById('inverter-select');
+
+            if (pvSelect) {
+                pvSelect.addEventListener('change', () => {
+                    const data = technicalInventory.modules[pvSelect.value];
+                    if (data) populatePVUI(data);
+                });
+            }
+
+            if (invSelect) {
+                invSelect.addEventListener('change', () => {
+                    const data = technicalInventory.inverters[invSelect.value];
+                    if (data) populateInvUI(data);
+                });
+            }
+
+            // OND File Processing Logic (Inverters)
+            const ondDropZone = document.getElementById('ond-drop-zone');
+            const ondFileInput = document.getElementById('ond-file-input');
+
+            if (ondDropZone && ondFileInput) {
+                ondDropZone.addEventListener('click', () => ondFileInput.click());
+                ['dragover', 'drop'].forEach(name => ondDropZone.addEventListener(name, e => e.preventDefault()));
+                ondDropZone.addEventListener('dragover', () => ondDropZone.classList.add('dragover'));
+                ondDropZone.addEventListener('dragleave', () => ondDropZone.classList.remove('dragover'));
+                ondDropZone.addEventListener('drop', (e) => {
+                    ondDropZone.classList.remove('dragover');
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length > 0) {
+                        files.forEach(file => handleFile(file, 'ond'));
+                        updateDropZoneFeedback(ondDropZone, files.length);
+                    }
+                });
+                ondFileInput.addEventListener('change', (e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length > 0) {
+                        files.forEach(file => handleFile(file, 'ond'));
+                        updateDropZoneFeedback(ondDropZone, files.length);
+                    }
+                });
+            }
+
+            // PAN File Processing Logic (Modules)
+            const panDropZone = document.getElementById('pan-drop-zone');
+            const panFileInput = document.getElementById('pan-file-input');
+
+            if (panDropZone && panFileInput) {
+                panDropZone.addEventListener('click', () => panFileInput.click());
+                ['dragover', 'drop'].forEach(name => panDropZone.addEventListener(name, e => e.preventDefault()));
+                panDropZone.addEventListener('dragover', () => panDropZone.classList.add('dragover'));
+                panDropZone.addEventListener('dragleave', () => panDropZone.classList.remove('dragover'));
+                panDropZone.addEventListener('drop', (e) => {
+                    panDropZone.classList.remove('dragover');
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length > 0) {
+                        files.forEach(file => handleFile(file, 'pan'));
+                        updateDropZoneFeedback(panDropZone, files.length);
+                    }
+                });
+                panFileInput.addEventListener('change', (e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length > 0) {
+                        files.forEach(file => handleFile(file, 'pan'));
+                        updateDropZoneFeedback(panDropZone, files.length);
+                    }
+                });
+            }
+
+            function handleFile(file, type) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = e.target.result;
+                    if (type === 'ond') parseOND(content, file.name);
+                    else parsePAN(content, file.name);
+                };
+                reader.readAsText(file);
+            }
+
+            function parseFileContent(text) {
+                const data = {};
+                text.split('\n').forEach(line => {
+                    const parts = line.split('=');
+                    if (parts.length >= 2) {
+                        data[parts[0].trim().toLowerCase()] = parts.slice(1).join('=').trim();
+                    }
+                });
+                return data;
+            }
+
+            function parseOND(text, fileName) {
+                const data = parseFileContent(text);
+                const model = data['model'] || 'Unknown Inverter';
+                const manufacturer = data['manufacturer'] || '';
+                const fullName = (manufacturer + ' ' + model).trim();
+
+                technicalInventory.inverters[fullName] = data;
+
+                const select = document.getElementById('inverter-select');
+                if (select) {
+                    if (!Array.from(select.options).some(o => o.value === fullName)) {
+                        const option = document.createElement('option');
+                        option.text = fullName;
+                        option.value = fullName;
+                        select.add(option, 0);
+                    }
+                    select.value = fullName;
+                    populateInvUI(data);
+                }
+
+                const dropZone = document.getElementById('ond-drop-zone');
+                if (dropZone) {
+                    const span = dropZone.querySelector('span');
+                    const small = dropZone.querySelector('small');
+                    if (span) span.textContent = 'File Loaded: ' + fileName;
+                    if (small) small.textContent = model;
+                    dropZone.style.borderColor = '#286944';
+                    dropZone.style.background = 'rgba(40, 105, 68, 0.05)';
+                }
+            }
+
+            function populateInvUI(data) {
+                if (data['pnomconv']) document.getElementById('inv-pnom').value = data['pnomconv'];
+                // Try multiple keys for AC Voltage just in case
+                const vout = data['voutconv'] || data['vout'] || data['vacnom'];
+                if (vout) document.getElementById('inv-vout').value = vout;
+
+                if (data['vmppmin']) document.getElementById('inv-vmpp-min').value = data['vmppmin'];
+                if (data['vmppmax']) document.getElementById('inv-vmpp-max').value = data['vmppmax'];
+                if (data['vmppnom']) document.getElementById('inv-vmpp-nom').value = data['vmppnom'];
+                if (data['vabsmax']) document.getElementById('inv-vmax-dc').value = data['vabsmax'];
+                if (data['nbmppt']) document.getElementById('inv-nb-mppt').value = data['nbmppt'];
+                if (data['imaxac']) document.getElementById('inv-imax-ac').value = data['imaxac'];
+
+                // Trigger electrical calc update
+                if (window.ElectricalEngine) ElectricalEngine.updatePowerDisplay();
+            }
+
+            function parsePAN(text, fileName) {
+                const data = parseFileContent(text);
+                const model = data['model'] || 'Unknown Model';
+                const manufacturer = data['manufacturer'] || '';
+                const fullName = (manufacturer + ' ' + model).trim();
+
+                technicalInventory.modules[fullName] = data;
+
+                const select = document.getElementById('pv-module-select');
+                if (select) {
+                    if (!Array.from(select.options).some(o => o.value === fullName)) {
+                        const option = document.createElement('option');
+                        option.text = fullName;
+                        option.value = fullName;
+                        select.add(option, 0);
+                    }
+                    select.value = fullName;
+                    populatePVUI(data);
+                }
+
+                const dropZone = document.getElementById('pan-drop-zone');
+                if (dropZone) {
+                    const span = dropZone.querySelector('span');
+                    const small = dropZone.querySelector('small');
+                    if (span) span.textContent = 'File Loaded: ' + fileName;
+                    if (small) small.textContent = model;
+                    dropZone.style.borderColor = '#286944';
+                    dropZone.style.background = 'rgba(40, 105, 68, 0.05)';
+                }
+            }
+
+            function populatePVUI(data) {
+                if (data['width']) document.getElementById('pv-width').value = Math.round(parseFloat(data['width']) * 1000);
+                if (data['height']) document.getElementById('pv-height').value = Math.round(parseFloat(data['height']) * 1000);
+                if (data['pnom']) document.getElementById('pv-pnom').value = data['pnom'];
+                if (data['voc']) document.getElementById('pv-voc').value = data['voc'];
+                if (data['isc']) document.getElementById('pv-isc').value = data['isc'];
+                if (data['vmp']) document.getElementById('pv-vmpp').value = data['vmp'];
+                if (data['imp']) document.getElementById('pv-impp').value = data['imp'];
+                if (data['mupmpreq']) document.getElementById('pv-pmax-coeff').value = data['mupmpreq'];
+
+                if (data['muvocspec'] && data['voc']) {
+                    const muVocPct = (parseFloat(data['muvocspec']) / 1000 / parseFloat(data['voc'])) * 100;
+                    document.getElementById('pv-voc-coeff').value = muVocPct.toFixed(3);
+                }
+                if (data['muisc'] && data['isc']) {
+                    const muIscPct = (parseFloat(data['muisc']) / 1000 / parseFloat(data['isc'])) * 100;
+                    document.getElementById('pv-isc-coeff').value = muIscPct.toFixed(3);
+                }
+
+                // Trigger electrical calc update
+                if (window.ElectricalEngine) ElectricalEngine.updatePowerDisplay();
+            }
+
+            function updateDropZoneFeedback(zone, count) {
+                if (count > 1) {
+                    zone.querySelector('span').textContent = `${count} Files Loaded`;
+                    zone.querySelector('small').textContent = 'Items added to selection';
+                }
+            }
+        }
+
+        // Dynamically load the Google Maps script using the key from config.js
+        (function loadGoogleMaps() {
+            const script = document.createElement("script");
+            const apiKey = CONFIG.GOOGLE_MAPS_API_KEY;
+
+            if (!apiKey || apiKey === "YOUR_GOOGLE_MAPS_API_KEY_HERE") {
+                console.error("API Key missing in config.js");
+                // Simplified UI feedback for missing key
+                document.body.insertAdjacentHTML('afterbegin', '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;background:rgba(220,38,38,0.9);color:white;padding:2rem;border-radius:1rem;backdrop-filter:blur(10px);text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.5);"><h2>API Key Missing</h2><p>Please update config.js with your Google Maps API key.</p></div>');
+                return;
+            }
+
+            // Include libraries=places,drawing
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,drawing&callback=initMap`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        })();
+
+        // Initialize Lucide Icons
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+    </script>
+    <!-- Layers Panel (Mid-right vertical strip) -->
+    <div id="layers-panel" class="hidden"
+        style="position: fixed; top: 50%; right: 1rem; transform: translateY(-50%); z-index: 2100; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); width: 220px; border-radius: 12px; box-shadow: 0 10px 40px -8px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.08); padding: 0.85rem; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.6rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="layers" style="width: 16px; height: 16px; color: #286944;"></i>
+                <h4 style="margin: 0; font-family: 'Outfit'; font-size: 0.9rem; font-weight: 700; color: #1e293b;">Project Layers</h4>
+            </div>
+            <button onclick="document.getElementById('layers-panel').classList.add('hidden')" style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 2px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+            </button>
+        </div>
+        
+        <div id="layers-list" style="display: flex; flex-direction: column; gap: 0.2rem;">
+            <div class="layer-item active" data-layer="areas">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">Areas (Boundaries)</span>
+            </div>
+            <div class="layer-item active" data-layer="obstacles">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">Obstacles</span>
+            </div>
+            <div class="layer-item active" data-layer="setbacks">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">Setbacks</span>
+            </div>
+            <div class="layer-divider"></div>
+            <div class="layer-item active" data-layer="lv_cables">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">LV Cables (Inverters)</span>
+            </div>
+            <div class="layer-item active" data-layer="internal_mv">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">Internal MV Loops</span>
+            </div>
+            <div class="layer-item active" data-layer="outgoing_mv">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">Outgoing MV Trunks</span>
+            </div>
+            <div class="layer-divider"></div>
+            <div class="layer-item active" data-layer="inverters">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">Inverters</span>
+            </div>
+            <div class="layer-item active" data-layer="mv_stations">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">MV Stations</span>
+            </div>
+            <div class="layer-item active" data-layer="delivery_station">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">Delivery Station</span>
+            </div>
+            <div class="layer-item active" data-layer="poc">
+                <i data-lucide="eye" class="eye-icon"></i>
+                <span class="layer-label">Point of Connection</span>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

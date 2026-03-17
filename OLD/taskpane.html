@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <script>
+    (async () => {
+      // 1) Try absolute path (avoid wrong relative folder)
+      let v = "";
+      try {
+        const r = await fetch("https://orhanelturk.github.io/enerxl/version.json", { cache: "no-store" });
+        v = (await r.json()).version || "";
+      } catch (_) { }
+
+      // 2) Fallback: if version.json not reachable, use a one-time timestamp seed
+      const url = new URL(location.href);
+      const cur = url.searchParams.get("v") || "";
+      if (!v) {
+        v = cur || Math.floor(Date.now() / 1000).toString(36); // only seed when there's no ?v yet
+      }
+
+      // 3) Redirect if needed
+      if (v !== cur) {
+        url.searchParams.set("v", v);
+        location.replace(url.toString());
+      }
+    })();
+  </script>
+
+  <script>
+    (function () {
+      var v = new URLSearchParams(location.search).get("v") || "";
+      var s = document.createElement("script");
+      s.src = "./drawing.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <script>
+    (function () {
+      var v = new URLSearchParams(location.search).get("v") || "";
+      var s = document.createElement("script");
+      s.src = "./zoning.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <!-- NEW: Load PV layout logic from a separate file -->
+  <script>
+    (function () {
+      var v = new URLSearchParams(location.search).get("v") || "";
+      var s = document.createElement("script");
+      s.src = "./pv-layout.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <script>
+    (function () {
+      var v = new URLSearchParams(location.search).get("v") || "";
+      var s = document.createElement("script");
+      s.src = "./blocks.js" + (v ? ("?v=" + encodeURIComponent(v)) : "");
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+
+  <style>
+    html,
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden;
+      background: transparent !important;
+      height: 100%;
+    }
+
+    body>div:first-child {
+      margin-top: 0 !important;
+    }
+
+    #app,
+    #map {
+      position: absolute;
+      inset: 0;
+    }
+  </style>
+
+  <title>EnerXL Map</title>
+  <style>
+    :root {
+      --panel: #fff;
+      --panel-border: #e6e8ee;
+      --shadow: 0 10px 30px rgba(0, 0, 0, .12);
+      --icon: #2f3a55;
+      --accent: #3a7afe;
+      --accent-ghost: rgba(58, 122, 254, .12);
+      --muted: #7f8aa3;
+      --danger: #ef4444;
+      --danger-sel: #ff7b7b;
+      --select: #ffb703;
+      --rowh: 30px;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial
+    }
+
+    #app {
+      position: relative;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden
+    }
+
+    #map {
+      position: absolute;
+      inset: 0
+    }
+
+    /* Utils */
+    .hidden {
+      display: none !important
+    }
+
+    /* Left rail */
+    .control-pane {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      width: 25px;
+      padding: 5px 8px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 30;
+      user-select: none
+    }
+
+    .tool-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      border: 1px solid #e9ecf3;
+      display: grid;
+      place-items: center;
+      background: #fff;
+      cursor: pointer;
+      transition: transform .05s ease, background .15s ease, border-color .15s ease
+    }
+
+    .tool-btn:hover {
+      background: #f0f3fb
+    }
+
+    .tool-btn:active {
+      transform: scale(.98)
+    }
+
+    .tool-btn.is-primary {
+      border-color: transparent;
+      background: var(--accent-ghost)
+    }
+
+    .tool-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--icon)
+    }
+
+    .tool-btn.is-primary svg {
+      stroke: var(--accent)
+    }
+
+    .group-sep {
+      height: 1px;
+      width: 100%;
+      background: var(--panel-border);
+      margin: 6px 0
+    }
+
+    /* Search bubble */
+    .search-wrap {
+      position: absolute;
+      top: 15px;
+      left: 75px;
+      z-index: 26;
+      background: #fff;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 6px 10px;
+      align-items: center;
+      gap: 8px;
+      min-width: 280px;
+      display: none;
+      opacity: 0;
+      transform: scale(.97);
+      transform-origin: left top;
+      transition: opacity .12s ease, transform .12s ease;
+    }
+
+    .search-wrap.open {
+      display: flex;
+      opacity: 1;
+      transform: scale(1)
+    }
+
+    .search-wrap input {
+      width: 100%;
+      outline: none;
+      border: none;
+      font-size: 14px;
+      padding: 6px 2px;
+      background: transparent;
+      color: #1e2433
+    }
+
+    /* Drawer (tools) */
+    .drawer {
+      position: absolute;
+      top: 15px;
+      left: 75px;
+      width: 300px;
+      background: #fff;
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      z-index: 26;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      max-height: calc(100vh - 30px);
+    }
+
+    .drawer.open {
+      display: flex
+    }
+
+    .drawer .hdr {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--panel-border)
+    }
+
+    .drawer .ttl {
+      font-weight: 700;
+      color: #1e2433;
+      font-size: 14px
+    }
+
+    .drawer .x {
+      margin-left: auto;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px
+    }
+
+    .bar {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--panel-border)
+    }
+
+    .seg {
+      display: inline-flex;
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      overflow: hidden
+    }
+
+    .seg button {
+      font-size: 13px;
+      padding: 7px 12px;
+      border: none;
+      background: #fff;
+      color: #223;
+      cursor: pointer
+    }
+
+    .seg button.active {
+      background: var(--accent-ghost);
+      color: var(--accent)
+    }
+
+    .body {
+      padding: 12px 12px;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+      overflow: auto;
+      max-height: calc(100vh - 180px);
+    }
+
+    .mini-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      display: grid;
+      place-items: center;
+      background: #fff;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .mini-btn svg {
+      width: 22px;
+      height: 22px;
+      stroke: #2f3a55
+    }
+
+    .mini-btn.active {
+      background: var(--accent-ghost);
+      border-color: #cfe0ff
+    }
+
+    /* Small popovers */
+    .popover {
+      position: absolute;
+      left: 60px;
+      top: 0;
+      background: #fff;
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 8px;
+      z-index: 27;
+      min-width: 160px
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0
+    }
+
+    .row label {
+      font-size: 12px;
+      color: #334
+    }
+
+    .row input[type="number"] {
+      width: 70px;
+      padding: 4px 6px;
+      border: 1px solid #e5e7f2;
+      border-radius: 6px;
+      font-size: 12px
+    }
+
+    .row input[type="range"] {
+      width: 140px
+    }
+
+    .menu {
+      display: flex;
+      flex-direction: column;
+      gap: 4px
+    }
+
+    .menu button {
+      font-size: 12px;
+      text-align: left;
+      padding: 6px 8px;
+      border: 1px solid #eef2ff;
+      background: #fff;
+      border-radius: 8px;
+      cursor: pointer
+    }
+
+    .menu button:hover {
+      background: #f6f8ff
+    }
+
+    /* Summary -> collapse (open/close) */
+    .summary {
+      --colw: 88px;
+      --hdrh: 32px;
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      z-index: 27;
+      width: 550px;
+      background: #fff;
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .summary .sum-hdr {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--panel-border);
+      font-weight: 700;
+      color: #1e2433;
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none
+    }
+
+    .summary .sum-hdr .chev {
+      margin-left: auto;
+      transition: transform .2s ease
+    }
+
+    .summary.collapsed .sum-hdr .chev {
+      transform: rotate(180deg)
+    }
+
+    .summary.collapsed .sum-head,
+    .summary.collapsed .tbl-wrap,
+    .summary.collapsed .sum-foot {
+      display: none
+    }
+
+    .sum-head,
+    .tbl-wrap,
+    .sum-foot {
+      overflow: auto
+    }
+
+    .sum-head::-webkit-scrollbar,
+    .sum-foot::-webkit-scrollbar {
+      display: none
+    }
+
+    .sum-head,
+    .sum-foot {
+      scrollbar-width: none
+    }
+
+    .summary table {
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      width: calc(var(--colw)*6)
+    }
+
+    .summary thead th {
+      position: sticky;
+      top: 0;
+      background: #fafbff;
+      z-index: 1
+    }
+
+    .summary th,
+    .summary td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #f0f2f7;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .summary tfoot td {
+      font-weight: 700;
+      background: #fafbff
+    }
+
+    .summary col.col {
+      width: var(--colw)
+    }
+
+    .summary td.num,
+    .summary th.num {
+      text-align: right
+    }
+
+    .tbl-wrap {
+      max-height: calc(var(--rowh) * 5);
+      overflow: auto;
+    }
+
+    .summary tbody tr {
+      height: var(--rowh);
+    }
+
+    /* Name label (textbox) */
+    .area-label {
+      background: #fff;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 2px 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e2433;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* Marquee */
+    .marquee {
+      position: absolute;
+      border: 1px dashed #1d4ed8;
+      background: rgba(29, 78, 216, .12);
+      pointer-events: none;
+      z-index: 1000
+    }
+
+    body.fs #map {
+      inset: 0
+    }
+
+    /* ================= PV LAYOUT SHEET ================= */
+    .pv-sheet {
+      position: absolute;
+      top: 15px;
+      left: 75px;
+      width: 300px;
+      min-width: 300px;
+      max-width: 300px;
+      height: 74vh;
+      min-height: 420px;
+      max-height: calc(100vh - 30px);
+      background: #fff;
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      display: none;
+      flex-direction: column;
+      z-index: 28;
+      resize: both;
+      overflow: hidden;
+    }
+
+    .pv-sheet.open {
+      display: flex
+    }
+
+    .pv-sheet .hdr {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--panel-border)
+    }
+
+    .pv-sheet .ttl {
+      font-weight: 700;
+      color: #1e2433;
+      font-size: 14px
+    }
+
+    .pv-sheet .x {
+      margin-left: auto;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px
+    }
+
+    .pv-sheet .content {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 10px 12px
+    }
+
+    .pv-section {
+      margin: 10px 0 16px
+    }
+
+    .pv-section h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #1e2433
+    }
+
+    .pv-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px
+    }
+
+    .pv-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0
+    }
+
+    .pv-field label {
+      font-size: 12px;
+      color: #334;
+      min-width: 110px
+    }
+
+    .pv-field input[type="number"],
+    .pv-field input[type="text"],
+    .pv-field select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #e5e7f2;
+      border-radius: 8px;
+      font-size: 12px
+    }
+
+    .pv-drop {
+      border: 1.5px dashed #cbd5e1;
+      padding: 10px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 12px;
+      color: #475569;
+      background: #f8fafc
+    }
+
+    .pv-preview {
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 8px
+    }
+
+    .pv-preview canvas {
+      width: 100%;
+      height: 200px;
+      display: block;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 1px #f1f5f9
+    }
+
+    .pv-zoom {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px
+    }
+
+    .pv-zoom button {
+      border: 1px solid #cfe0ff;
+      background: #fff;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer
+    }
+
+    .pv-caption {
+      font-size: 12px;
+      color: #64748b
+    }
+
+    .pv-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-top: 1px solid var(--panel-border);
+      background: #fafbff
+    }
+
+    .pv-actions .right {
+      display: flex;
+      gap: 8px
+    }
+
+    .btn {
+      border: 1px solid #cfe0ff;
+      background: #f5f8ff;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+      cursor: pointer
+    }
+
+    .btn.primary {
+      background: #3a7afe;
+      color: #fff;
+      border-color: #2b6bf3
+    }
+
+    .btn.ghost {
+      background: #fff
+    }
+
+    /* Catalog modal */
+    .pv-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .35);
+      display: none;
+      z-index: 40;
+    }
+
+    .pv-modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 720px;
+      max-width: 95vw;
+      max-height: 85vh;
+      background: #fff;
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .pv-modal .hdr {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--panel-border)
+    }
+
+    .pv-modal .ttl {
+      font-weight: 700;
+      color: #1e2433;
+      font-size: 14px
+    }
+
+    .pv-modal .x {
+      margin-left: auto;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px
+    }
+
+    .pv-modal .content {
+      padding: 12px;
+      overflow: auto
+    }
+
+    .pv-catalog {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px
+    }
+
+    .pv-card {
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      align-items: center
+    }
+
+    .pv-card:hover {
+      background: #f8fafc
+    }
+
+    .pv-card .ph {
+      width: 56px;
+      height: 40px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #e5e7eb, #f3f4f6)
+    }
+
+    .pv-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: #eef2ff;
+      color: #1d4ed8;
+      font-size: 10px;
+      font-weight: 600
+    }
+
+    /* ================== ZONING PANEL (updated, fixed width, no horizontal scroll) ================== */
+    .zn-section {
+      margin: 10px 0 16px;
+    }
+
+    .zn-section h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #1e2433;
+    }
+
+    .zn-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+
+    .zn-field label {
+      min-width: 125px;
+      font-size: 12px;
+      color: #334;
+    }
+
+    .zn-field input[type="number"],
+    .zn-field input[type="text"],
+    .zn-field select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #e5e7f2;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .zn-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .zn-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .zn-note {
+      font-size: 12px;
+      color: #667085;
+      line-height: 1.35;
+    }
+
+    .zn-preview {
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 8px;
+      background: #fafbff;
+    }
+
+    .zn-kv {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+
+    .zn-kv label {
+      min-width: 125px;
+      font-size: 12px;
+      color: #334;
+    }
+
+    .zn-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: #eef2ff;
+      color: #1d4ed8;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    #zone-content {
+      overflow-x: hidden !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="map" role="application" aria-label="Map"></div>
+
+    <!-- Left rail -->
+    <div class="control-pane" aria-label="Tools">
+      <button class="tool-btn" data-tool="search" title="Search" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M21 21l-4.3-4.3" />
+        </svg>
+      </button>
+      <button class="tool-btn" data-tool="tools" title="Tools" aria-label="Tools">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <path d="M3 10h18" />
+          <path d="M7 7h.01M12 7h.01M17 7h.01" />
+        </svg>
+      </button>
+      <button class="tool-btn" data-tool="pv" title="PV Layout" aria-label="PV Layout">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="6" width="18" height="10" rx="2" />
+          <path d="M7 16l2 4m6-4l-2 4" />
+          <path d="M7 9h10M7 12h10" />
+        </svg>
+      </button>
+      <button class="tool-btn" data-tool="blocks" title="Blocks" aria-label="Blocks">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="8" height="8" rx="1.5" />
+          <rect x="13" y="3" width="8" height="8" rx="1.5" />
+          <rect x="13" y="13" width="8" height="8" rx="1.5" />
+          <rect x="3" y="13" width="8" height="8" rx="1.5" />
+        </svg>
+      </button>
+
+
+
+
+      <button class="tool-btn" data-tool="zoning" title="Zoning" aria-label="Zoning">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <!-- layers icon -->
+          <path d="M12 2l9 5-9 5-9-5 9-5z" />
+          <path d="M3 12l9 5 9-5" />
+          <path d="M3 17l9 5 9-5" />
+        </svg>
+      </button>
+      <button class="tool-btn" id="btn-export-excel" title="Export to Excel" aria-label="Export to Excel">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 16l5-5-5-5" />
+          <path d="M21 11H9" />
+          <rect x="3" y="4" width="6" height="16" rx="1" />
+        </svg>
+      </button>
+      <button class="tool-btn" id="btn-export-dxf" title="Export DXF" aria-label="Export DXF">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3h18v18H3z" />
+          <path d="M8 7h8M8 12h8M8 17h4" />
+        </svg>
+      </button>
+
+
+      <!-- Hidden (kept) -->
+      <button class="tool-btn is-primary hidden" data-tool="select" title="Select/Edit" aria-label="Select">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4l8 8" />
+          <path d="M4 12V4h8" />
+          <path d="M13 13l7 7" />
+        </svg>
+      </button>
+      <button class="tool-btn hidden" data-tool="draw" title="Draw" aria-label="Draw">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7l6-3 6 3 0 7-6 3-6-3z" />
+        </svg>
+      </button>
+
+      <div class="group-sep hidden"></div>
+      <button class="tool-btn hidden" data-tool="export" title="Export" aria-label="Export">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12" />
+          <path d="M8 9l4 4 4-4" />
+          <path d="M20 21H4" />
+        </svg>
+      </button>
+      <button class="tool-btn hidden" data-tool="settings" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a2 2 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09z" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Search -->
+    <div class="search-wrap" id="search-wrap" aria-expanded="false">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7f8aa3" stroke-width="1.75"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M21 21l-4.3-4.3" />
+      </svg>
+      <input id="search-input" type="text" placeholder="Search location…" aria-label="Search location" />
+    </div>
+
+    <!-- Drawer -->
+    <div id="drawer" class="drawer" role="dialog" aria-modal="false" aria-label="Tools drawer">
+      <div class="hdr">
+        <div class="ttl">Draw PV Area</div>
+        <button class="x" data-close-drawer title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="bar">
+        <div class="seg" id="seg-category">
+          <button data-cat="area" class="active" title="PV Area">PV area</button>
+          <button data-cat="constraint" title="Constraint">Constraint</button>
+          <button data-cat="object" title="Objects">Objects</button>
+        </div>
+        <div></div>
+      </div>
+
+
+
+      <div class="body">
+        <!-- Shapes -->
+        <button class="mini-btn" id="shape-poly" title="Polygon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7l6-3 6 3 0 7-6 3-6-3z" />
+          </svg></button>
+        <button class="mini-btn" id="shape-rect" title="Rectangle"><svg viewBox="0 0 24 24" fill="none"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="6" width="16" height="12" rx="2" />
+          </svg></button>
+        <button class="mini-btn" id="shape-circle" title="Circle"><svg viewBox="0 0 24 24" fill="none"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="7" />
+          </svg></button>
+
+
+
+
+        <!-- Existing edit -->
+        <button class="mini-btn" id="act-select" title="Select/Edit"><svg viewBox="0 0 24 24" fill="none"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l8 8" />
+            <path d="M4 12V4h8" />
+            <path d="M13 13l7 7" />
+          </svg></button>
+        <button class="mini-btn" id="act-move" title="Move (toggle)"><svg viewBox="0 0 24 24" fill="none"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M2 12h20" />
+            <path d="M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4" />
+          </svg></button>
+        <button class="mini-btn" id="act-marquee" title="Marquee (toggle)"><svg viewBox="0 0 24 24" fill="none"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="6" width="16" height="12" rx="1" />
+            <path d="M7 6v-2M11 6v-2M15 6v-2" />
+          </svg></button>
+
+        <!-- Selection tools -->
+        <button class="mini-btn" id="act-multisel" title="Multi-select latch"><svg viewBox="0 0 24 24" fill="none"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 6h8v8H8z" />
+            <path d="M4 10h8v8H4z" />
+            <path d="M12 4h8v8h-8z" />
+          </svg></button>
+        <button class="mini-btn" id="act-copy" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="10" height="10" rx="2" />
+            <rect x="5" y="5" width="10" height="10" rx="2" />
+          </svg></button>
+        <button class="mini-btn" id="act-paste" title="Paste (click to place)"><svg viewBox="0 0 24 24" fill="none"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 4h8l2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6l2-2z" />
+            <path d="M9 9h6M9 13h6" />
+          </svg></button>
+        <button class="mini-btn" id="act-delete" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6l1-2h6l1 2" />
+          </svg></button>
+
+        <!-- Rotate / Align / Distribute / Grid -->
+        <button class="mini-btn" id="act-rotate" title="Rotate">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9" />
+            <path d="M3 3v6h6" />
+          </svg>
+        </button>
+        <div id="pop-rotate" class="popover" style="display:none">
+          <div class="row">
+            <label style="width:40px">Deg</label>
+            <input id="rotate-range" type="range" min="-180" max="180" step="1" value="0">
+            <span id="rotate-deg" style="font-size:12px;color:#334;width:34px;text-align:right">0°</span>
+          </div>
+        </div>
+
+        <button class="mini-btn" id="act-align" title="Align">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18" />
+            <rect x="7" y="8" width="10" height="6" rx="1" />
+            <path d="M3 18h18" />
+          </svg>
+        </button>
+        <div id="pop-align" class="popover" style="display:none">
+          <div class="menu">
+            <button data-align="top">Align Top</button>
+            <button data-align="bottom">Align Bottom</button>
+            <button data-align="left">Align Left</button>
+            <button data-align="right">Align Right</button>
+          </div>
+        </div>
+
+        <button class="mini-btn" id="act-distribute" title="Distribute">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M3 12h18M3 18h18" />
+            <rect x="7" y="8" width="3" height="8" rx="1" />
+            <rect x="14" y="8" width="3" height="8" rx="1" />
+          </svg>
+        </button>
+        <div id="pop-distribute" class="popover" style="display:none">
+          <div class="menu">
+            <button data-distribute="horizontal">Distribute Horizontally</button>
+            <button data-distribute="vertical">Distribute Vertically</button>
+          </div>
+        </div>
+
+        <button class="mini-btn" id="act-grid" title="Draw Grid">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3h18v18H3z" />
+            <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+          </svg>
+        </button>
+        <div id="pop-grid" class="popover" style="display:none">
+          <div class="row"><label>Cols</label><input id="grid-cols" type="number" min="1" value="3"></div>
+          <div class="row"><label>Rows</label><input id="grid-rows" type="number" min="1" value="2"></div>
+          <div class="row"><label>Space X (m)</label><input id="grid-sx" type="number" min="0" value="5"></div>
+          <div class="row"><label>Space Y (m)</label><input id="grid-sy" type="number" min="0" value="5"></div>
+          <div class="row" style="justify-content:flex-end">
+            <button id="grid-apply" class="btn">Apply</button>
+          </div>
+        </div>
+        <!-- PV Area by coordinates -->
+        <details id="area-coords-section" style="grid-column:1/-1;margin-top:6px">
+          <summary class="pv-caption" style="cursor:pointer">PV Area By Coordinates</summary>
+          <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+            <textarea id="area-coords-input" placeholder="Latitude; longitude" style="width:100%;min-height:110px;padding:6px 8px;
+                           border-radius:8px;border:1px solid #e5e7f2;
+                           font-family:monospace;font-size:11px;resize:vertical;"></textarea>
+            <div id="area-coords-error" style="font-size:11px;color:#b91c1c;min-height:14px;"></div>
+            <button id="area-coords-draw" type="button" class="btn" style="align-self:flex-start">
+              Draw PV Area
+            </button>
+          </div>
+        </details>
+        <!-- Objects & Setbacks (inputs retained) -->
+        <div style="grid-column:1/-1;margin-top:6px;font-weight:700;color:#1e2433">Objects & Setbacks</div>
+
+        <button class="mini-btn" id="act-setback" title="Area Setback">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20V8l8-5 8 5v12H4z" />
+            <path d="M8 12h8M8 16h8" />
+          </svg>
+        </button>
+        <div id="pop-setback" class="popover" style="display:none">
+          <div class="row"><label>Setback (m)</label><input id="in-setback-boundary" type="number" min="0" value="1">
+          </div>
+          <div class="row" style="font-size:12px;color:#667085;line-height:1.2">Simple fill ignores setbacks in this
+            version.</div>
+        </div>
+
+        <button class="mini-btn" id="act-roads" title="Roads">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 20L10 4h4l4 16" />
+            <path d="M12 8v2M12 14v2" />
+          </svg>
+        </button>
+        <div id="pop-roads" class="popover" style="display:none;min-width:220px">
+          <div class="row"><label>Width (m)</label><input id="road-width" type="number" min="1" value="4"></div>
+          <div class="row"><label>Setback (m)</label><input id="road-setback" type="number" min="0" value="1"></div>
+          <div class="row" style="gap:6px;flex-wrap:wrap">
+            <button id="road-free" class="btn" disabled>Free drawing</button>
+            <button id="road-perim" class="btn" disabled>Perimeter</button>
+          </div>
+          <div class="row">
+            <label style="min-width:88px">Horizontal #</label>
+            <input id="road-h-n" type="number" min="1" value="2" disabled>
+            <button id="road-h-apply" class="btn" style="margin-left:auto" disabled>Make</button>
+          </div>
+          <div class="row">
+            <label style="min-width:88px">Vertical #</label>
+            <input id="road-v-n" type="number" min="1" value="2" disabled>
+            <button id="road-v-apply" class="btn" style="margin-left:auto" disabled>Make</button>
+          </div>
+          <div class="row" style="font-size:12px;color:#667085;line-height:1.2">Road/object avoidance is not applied in
+            this simple fill.</div>
+        </div>
+
+        <button class="mini-btn" id="act-building" title="Building (rectangle)" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+            <path d="M8 8h.01M12 8h.01M16 8h.01M8 12h8M8 16h8" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary (collapse) -->
+    <div id="summary" class="summary" aria-live="polite" aria-expanded="true">
+      <div class="sum-hdr" id="sum-toggle">Summary
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8aa3" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </div>
+      <div class="sum-head" id="sum-head">
+        <table>
+          <colgroup>
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Area Name</th>
+              <th class="num">DC Capacity</th>
+              <th class="num">AC Capacity</th>
+              <th class="num">Area</th>
+              <th class="num">Tilt</th>
+              <th class="num">Azimuth</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+      <div class="tbl-wrap" id="sum-bodywrap">
+        <table>
+          <colgroup>
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+          </colgroup>
+          <tbody id="sum-body">
+            <tr>
+              <td colspan="6" class="muted" style="padding:12px 10px">No areas yet</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="sum-foot" id="sum-foot">
+        <table>
+          <colgroup>
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+            <col class="col">
+          </colgroup>
+          <tfoot>
+            <tr>
+              <td>Total</td>
+              <td id="tot-dc" class="num">0</td>
+              <td id="tot-ac" class="num">0</td>
+              <td id="tot-m2" class="num">0</td>
+              <td class="num"></td>
+              <td class="num"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    <!-- ================= ZONING SHEET (new) ================= -->
+    <div id="zone-sheet" class="pv-sheet" role="dialog" aria-modal="false" aria-label="Zoning">
+      <div class="hdr">
+        <div class="ttl">Zoning</div>
+        <button class="x" id="zone-close" title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Content is injected by zoning.js into this div -->
+      <div id="zone-content" class="content"></div>
+
+      <div class="pv-actions">
+        <div class="left">
+          <button id="zn-poi-pick" class="btn">Pick POI (grid tie)</button>
+        </div>
+        <div class="right">
+          <button id="zn-clear" class="btn">Clear zoning</button>
+          <button id="zn-run" class="btn primary">Auto Zoning</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= BLOCKS SHEET ================= -->
+    <div id="blocks-sheet" class="pv-sheet" role="dialog" aria-modal="false" aria-label="Blocks">
+      <div class="hdr">
+        <div class="ttl">Blocks</div>
+        <button class="x" id="blocks-close" title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div id="blocks-content" class="content">
+        <div class="pv-section">
+          <h4>Block Configuration</h4>
+          <div class="pv-field">
+            <label>Layout Pattern</label>
+            <select id="blk-pattern">
+              <option value="checkerboard">Checkerboard</option>
+              <option value="staggered">Staggered</option>
+              <option value="dense" selected>Dense Grid</option>
+            </select>
+          </div>
+          <div class="pv-field">
+            <label>Block Alignment</label>
+            <div class="seg" id="blk-align">
+              <button data-val="top" class="active">Top</button>
+              <button data-val="center">Center</button>
+              <button data-val="bottom">Bottom</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pv-section">
+          <h4>Physical Constraints</h4>
+          <div class="pv-field">
+            <label>Min Block Gap (m)</label>
+            <input type="number" id="blk-gap-min" value="4.0" step="0.5">
+          </div>
+          <div class="pv-field">
+            <label>Max Block Area (m²)</label>
+            <input type="number" id="blk-area-max" value="5000" step="100">
+          </div>
+        </div>
+      </div>
+
+      <div class="pv-actions">
+        <div class="left"></div>
+        <div class="right">
+          <button id="blk-apply" class="btn primary">Update Blocks</button>
+        </div>
+      </div>
+    </div>
+    <!-- ================= PV LAYOUT SHEET CONTENT ================= -->
+    <div id="pv-sheet" class="pv-sheet" role="dialog" aria-modal="false" aria-label="PV Layout">
+      <div class="hdr">
+        <div class="ttl">PV Layout</div>
+        <button class="x" id="pv-close" title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="content">
+        <!-- Section 1 -->
+        <div class="pv-section">
+          <h4>1) Select PV Module</h4>
+          <div class="pv-field">
+            <label>Library</label>
+            <select id="pv-lib">
+              <option value="">— Select a module —</option>
+              <option value="GEN600" selected>Generic 600 Wp — 2100×1134 mm</option>
+              <option value="GEN550">Generic 550 Wp — 2094×1134 mm</option>
+              <option value="GEN450">Generic 450 Wp — 1960×992 mm</option>
+            </select>
+          </div>
+
+          <details id="pv-custom" style="margin-top:6px">
+            <summary class="pv-caption" style="cursor:pointer">Define custom module</summary>
+            <div class="pv-grid" style="margin-top:8px">
+              <div class="pv-field"><label>Name</label><input id="md-name" type="text" value="Custom 600 Wp"></div>
+              <div class="pv-field"><label>STC Power (Wp)</label><input id="md-pwr" type="number" min="1" value="600">
+              </div>
+              <div class="pv-field"><label>Length (mm)</label><input id="md-len" type="number" min="1" value="2100">
+              </div>
+              <div class="pv-field"><label>Width (mm)</label><input id="md-wid" type="number" min="1" value="1134">
+              </div>
+              <div class="pv-field"><label>Thickness (mm)</label><input id="md-thk" type="number" min="1" value="35">
+              </div>
+            </div>
+            <div class="pv-field" style="align-items:flex-start;margin-top:6px">
+              <label>PAN file</label>
+              <div class="pv-drop" style="width:100%">
+                Drag & drop *.PAN here or
+                <button type="button" class="btn ghost" id="pv-pan-browse">Browse</button>
+                <input id="pv-pan-input" type="file" accept=".pan,.PAN" style="display:none">
+                <div class="pv-caption" id="pv-pan-name" style="margin-top:6px">No file selected</div>
+              </div>
+            </div>
+          </details>
+
+          <div class="pv-grid" style="margin-top:8px">
+            <div class="pv-field" style="grid-column:1/-1">
+              <label style="min-width:auto;white-space:nowrap;margin-right:6px">
+                <input type="radio" name="pv-target" value="cap"> Desired DC capacity (kWp)
+              </label>
+              <input id="pv-target-kwp" type="number" min="1" value="1000" style="max-width:140px">
+            </div>
+            <div class="pv-field" style="grid-column:1/-1">
+              <label style="min-width:auto;white-space:nowrap">
+                <input type="radio" name="pv-target" value="fill" checked> Fill maximum area
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2 -->
+        <div class="pv-section">
+          <h4>2) Mounting Structure</h4>
+          <div class="pv-field" style="flex-direction:column;align-items:flex-start">
+            <div style="display:flex;align-items:center;gap:8px;width:100%">
+              <label style="min-width:110px">Structure catalog</label>
+              <button type="button" class="btn" id="open-catalog">Open Catalog…</button>
+            </div>
+            <div class="pv-caption" id="struct-picked" style="margin-top:6px;width:100%">Ground — Fixed Tilt</div>
+          </div>
+
+          <div class="pv-grid" style="margin-top:10px">
+            <div class="pv-field"><label>Tilt (°)</label><input id="tilt" type="number" min="0" max="60" value="10">
+            </div>
+            <div class="pv-field"><label>Azimuth (°)</label><input id="azimuth" type="number" min="0" max="360"
+                value="180"></div>
+
+            <div>
+              <div class="pv-field">
+                <label>Module Orientation</label>
+                <div class="seg" id="pv-orient"
+                  style="border-radius:10px;border:1px solid var(--panel-border);overflow:hidden">
+                  <button type="button" data-val="portrait" class="active"
+                    style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Portrait</button>
+                  <button type="button" data-val="landscape"
+                    style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Landscape</button>
+                </div>
+              </div>
+
+              <!-- Group By -->
+              <div class="pv-field">
+                <label>Group By</label>
+                <div id="pv-group" style="display:flex;align-items:center;gap:12px">
+                  <label style="min-width:auto;display:inline-flex;align-items:center;gap:6px">
+                    <input id="gb-tables" type="checkbox" checked> Tables
+                  </label>
+                  <label style="min-width:auto;display:inline-flex;align-items:center;gap:6px">
+                    <input id="gb-blocks" type="checkbox"> Block
+                  </label>
+                </div>
+              </div>
+
+              <div class="pv-field"><label>PV / Table (X)</label><input id="pv-h" type="number" min="1" value="2"></div>
+              <div class="pv-field"><label>PV / Table (Y)</label><input id="pv-v" type="number" min="1" value="3"></div>
+
+              <div class="pv-field"><label>Tables / Block (H)</label><input id="tab-per-blk-h" type="number" min="1"
+                  value="6"></div>
+              <div class="pv-field"><label>Tables / Block (V)</label><input id="tab-per-blk-v" type="number" min="1"
+                  value="4"></div>
+
+              <div class="pv-field"><label>Module gap X (m)</label><input id="gap-mod-x" type="number" min="0"
+                  step="0.05" value="0.02"></div>
+              <div class="pv-field"><label>Module gap Y (m)</label><input id="gap-mod-y" type="number" min="0"
+                  step="0.05" value="0.02"></div>
+              <div class="pv-field"><label>Table gap X (m)</label><input id="gap-tab-x" type="number" min="0" step="0.1"
+                  value="0.5"></div>
+              <div class="pv-field"><label>Table gap Y (m)</label><input id="gap-tab-y" type="number" min="0" step="0.1"
+                  value="1.5"></div>
+              <div class="pv-field"><label>Block gap X (m)</label><input id="gap-blk-x" type="number" min="0" step="0.1"
+                  value="3"></div>
+              <div class="pv-field"><label>Block gap Y (m)</label><input id="gap-blk-y" type="number" min="0" step="0.1"
+                  value="4"></div>
+            </div>
+
+            <details id="pv-arrange" style="grid-column:1/-1;margin-top:6px">
+              <summary class="pv-caption" style="cursor:pointer">Tables arrangement view</summary>
+              <div class="pv-preview" style="margin-top:6px">
+                <canvas id="pv-preview" width="300" height="200" aria-label="Layout preview"></canvas>
+                <div class="pv-zoom">
+                  <button type="button" id="pv-zoom-out">−</button>
+                  <input type="range" id="pv-zoom" min="0.5" max="20" step="0.05" value="1" style="flex:1">
+                  <button type="button" id="pv-zoom-in">+</button>
+                </div>
+                <div class="pv-caption" id="pv-preview-meta" style="margin-top:6px">Table: — | Est. kWp/table: — |
+                  Block: — tables</div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- Section 3 -->
+        <div class="pv-section">
+          <h4>3) Orientation & Fill</h4>
+          <div class="pv-grid">
+            <div class="pv-field">
+              <label>Align to edge</label>
+              <button id="align-edge" class="btn">Pick edge on map</button>
+              <span class="pv-caption" id="edge-help" style="margin-left:6px;display:none">Click an area edge…</span>
+            </div>
+
+            <div class="pv-field"><label>Fill start</label>
+              <select id="fill-start">
+                <option>East</option>
+                <option>West</option>
+                <option>North</option>
+                <option>South</option>
+                <option>Middle</option>
+              </select>
+            </div>
+            <div class="pv-field"><label>Method</label>
+              <div class="seg" id="fill-method"
+                style="border-radius:10px;border:1px solid var(--panel-border);overflow:hidden">
+                <button type="button" data-val="adaptive" class="active"
+                  style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Adaptive</button>
+                <button type="button" data-val="block"
+                  style="border:none;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer">Block</button>
+              </div>
+            </div>
+            <div class="pv-field">
+              <label>Show modules</label>
+              <input id="show-modules" type="checkbox" checked>
+              <span class="pv-caption">Simple fill always draws modules.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pv-actions">
+        <div></div>
+        <div class="right">
+          <button id="pv-lock" class="btn" data-state="locked">Unlock editing</button>
+          <button id="pv-build" class="btn primary">Build initial layout</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Catalog modal -->
+    <div id="pv-cat-backdrop" class="pv-modal-backdrop" aria-hidden="true">
+      <div class="pv-modal" role="dialog" aria-label="Mounting Structure Catalog">
+        <div class="hdr">
+          <div class="ttl">Select Mounting Structure</div>
+          <button class="x" id="pv-cat-close" title="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#7f8aa3" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="content">
+          <div class="pv-catalog" id="pv-catalog">
+            <div class="pv-card" data-struct="ground-fixed">
+              <div class="ph"></div>
+              <div>Ground — Fixed Tilt</div>
+            </div>
+            <div class="pv-card" data-struct="ground-tracker">
+              <div class="ph"></div>
+              <div>Ground — Single Axis</div>
+            </div>
+            <div class="pv-card" data-struct="roof-flush">
+              <div class="ph"></div>
+              <div>Rooftop — Flush</div>
+            </div>
+            <div class="pv-card" data-struct="roof-triangle">
+              <div class="ph"></div>
+              <div>Rooftop — Triangle</div>
+            </div>
+            <div class="pv-card" data-struct="roof-ballasted">
+              <div class="ph"></div>
+              <div>Rooftop — Ballasted</div>
+            </div>
+            <div class="pv-card" data-struct="carport">
+              <div class="ph"></div>
+              <div>Specialty — Carport</div>
+            </div>
+            <div class="pv-card" data-struct="canopy">
+              <div class="ph"></div>
+              <div>Specialty — Solar Canopy</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.initMap = function () {
+      const START = { lat: 38.397550221066616, lng: 34.97863102806574 };
+
+
+      // DXF Export button listener
+      document.getElementById("btn-export-dxf")?.addEventListener("click", () => {
+        if (typeof exportToDXF === "function") {
+          exportToDXF();
+        } else {
+          console.error("exportToDXF() not found");
+          alert("DXF exporter not loaded");
+        }
+      });
+
+
+      const map = new google.maps.Map(document.getElementById('map'), {
+        center: START, zoom: 17, mapTypeId: 'satellite',
+        mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: false, gestureHandling: 'greedy',
+        scrollwheel: true
+      });
+      window._map = map; window._google = google;
+
+      try {
+        const iframe = window.frameElement;
+        if (iframe) {
+          iframe.setAttribute("allow", "geolocation *; microphone *; camera *; fullscreen *; clipboard-read *; clipboard-write *; display-capture *");
+          iframe.style.touchAction = "auto";
+          iframe.style.pointerEvents = "auto";
+        }
+      } catch (e) {
+        console.warn("iframe permission patch skipped:", e);
+      }
+
+      const fsWrap = document.createElement('div'); fsWrap.style.margin = '10px';
+      const fsBtn = document.createElement('button');
+      Object.assign(fsBtn.style, {
+        width: '40px', height: '40px', borderRadius: '9999px', border: '1px solid #e6e8ee',
+        background: '#fff', boxShadow: '0 2px 6px rgba(0,0,0,.2)', display: 'grid', placeItems: 'center',
+        cursor: 'pointer', padding: 0
+      });
+      fsBtn.title = 'Full screen';
+      fsBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2f3a55" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/></svg>`;
+      fsBtn.onclick = async () => {
+        const root = document.documentElement;
+        if (!document.fullscreenElement && root.requestFullscreen) { try { await root.requestFullscreen(); } catch (e) { } }
+        else if (document.fullscreenElement && document.exitFullscreen) { try { await document.exitFullscreen(); } catch (e) { } }
+        google.maps.event.trigger(map, 'resize');
+      };
+      fsWrap.appendChild(fsBtn);
+      map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(fsWrap);
+
+      const input = document.getElementById('search-input');
+      const ac = new google.maps.places.Autocomplete(input, { fields: ['geometry', 'name'] });
+      ac.bindTo('bounds', map);
+      ac.addListener('place_changed', () => { const p = ac.getPlace(); if (!p.geometry?.location) return; map.panTo(p.geometry.location); map.setZoom(17); new google.maps.Marker({ map, position: p.geometry.location }); });
+
+      if (typeof window.mountDrawing === 'function') {
+        window.mountDrawing({ google, map, document });
+      } else {
+        console.error('mountDrawing is not available; make sure drawing.js is loaded');
+      }
+      if (typeof window.mountZoning === 'function') {
+        window.mountZoning({ google, map, document });
+      }
+    };
+  </script>
+
+  <script defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCS8L-j2sIfptPCLDUIMP3314KPrKq4394&libraries=places,drawing,geometry&callback=initMap"></script>
+</body>
+
+</html>

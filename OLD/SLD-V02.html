@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PV Plant SLD Wizard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --bg-card: #ffffff;
+      --bg-soft: #f1f5f9;
+      --accent: #0ea5e9;
+      --accent-soft: rgba(14,165,233,0.12);
+      --border-soft: #d8dee4;
+      --text-main: #1e293b;
+      --text-soft: #64748b;
+      --danger: #e11d48;
+      --radius: 12px;
+      --pad: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background: linear-gradient(180deg, #f9fafb, #eef2f6);
+      color: var(--text-main);
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 8px;
+      font-weight: 600;
+    }
+
+    h1 {
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    /* Main container now stretches almost full screen width */
+.app-shell {
+  width: 100%;
+  max-width: 100%;              /* no 1200px cap – use full window */
+  margin: 0;                     /* no big left/right margins */
+  background: var(--bg-card);
+  border-radius: 0;              /* flat edges; optional */
+  padding: 16px 18px 18px;
+  box-shadow:
+    0 12px 24px rgba(0,0,0,0.05),
+    0 0 0 1px rgba(0,0,0,0.05);
+}
+
+/* If you still want slightly softer edges on laptops, you can use:
+   border-radius: 12px;
+   and keep margin: 0 auto;
+   but then you’ll get a small gap again. */
+
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+
+    .app-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .app-title-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .app-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-soft);
+    }
+
+    .app-header-right {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      text-align: right;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Main two-column layout:
+   - Left: very slim config panel
+   - Right: big SLD working area */
+/* Slim left inputs, very wide right SLD area */
+/* === Main app container: use full screen width, no big side waste === */
+.app-shell {
+  width: 100%;
+  max-width: 100%;              /* no 1200px cap */
+  margin: 0;                    /* no big auto margins */
+  background: var(--bg-card);
+  border-radius: 18px;
+  padding: 16px 18px 18px;
+  box-shadow:
+    0 12px 24px rgba(0,0,0,0.05),
+    0 0 0 1px rgba(0,0,0,0.05);
+  box-sizing: border-box;
+}
+
+/* === Slim left inputs, wide right SLD area === */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;  /* left fixed-ish, right takes rest */
+  gap: 14px;
+}
+
+@media (max-width: 880px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left side scrolls independently if it gets tall */
+.left-scroll {
+  height: calc(100vh - 180px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: var(--pad);
+      border: 1px solid var(--border-soft);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1px;
+    }
+
+    .card-header h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-soft);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      color: var(--text-soft);
+    }
+
+    .inputs-list {
+  margin-top: 4px;
+}
+
+/* One row: [Label + unit]   [Input] */
+.field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px; /* tighter spacing */
+}
+
+/* Label + unit on the left, kept together */
+.field label {
+  flex: 0 0 52%;                /* width of text side */
+  display: flex;
+  align-items: center;
+  gap: 4px;                      /* gap between text and unit */
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+/* Unit text (MWp, kV, etc.) sits directly next to label text */
+.field label span.hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+/* Compact inputs on the right */
+input[type="number"],
+input[type="text"] {
+  flex: 1;
+  max-width: 130px;              /* prevents huge inputs, you can tweak */
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-soft);
+  background: #ffffff;
+  color: var(--text-main);
+  font-size: 0.78rem;
+  outline: none;
+  transition: border 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+input::placeholder {
+  color: #cbd5e1;
+}
+
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(14,165,233,0.25);
+  background: #ffffff;
+}
+
+/* Checkbox row behaves like a normal "label + input" row */
+.field .inline-checkbox {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  margin: 2px 0 4px;
+}
+
+/* Text stays in the label column (same as other labels) */
+.field .inline-checkbox label {
+  flex: 0 0 52%;      /* same width as .field label */
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Checkbox box sits where the inputs start (no auto push to the far right) */
+.field .inline-checkbox input[type="checkbox"] {
+  flex-shrink: 0;
+  margin: 0;          /* remove any leftover margins */
+}
+
+
+
+
+
+    .summary-block {
+      background: var(--bg-soft);
+      border-radius: 10px;
+      border: 1px solid var(--border-soft);
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      margin-bottom: 8px;
+    }
+
+    .summary-block strong {
+      color: var(--text-main);
+    }
+
+    .summary-mini {
+      font-size: 0.78rem;
+      color: var(--text-main);
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      padding: 6px 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      line-height: 1.35;
+    }
+
+    .summary-mini strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .left-scroll {
+      height: calc(110vh - 180px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 6px;
+    }
+
+    
+/* === SLD container: stays inside its window, never expands outside === */
+.sld-full {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* Fixed-height SLD window that clips the drawing inside it */
+.sld-wrapper-wide {
+  width: 100%;
+  max-width: 100%;
+  height: 600px;                 
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 8px;
+  box-sizing: border-box;
+  overflow: hidden;              
+}
+
+
+
+
+    /* SVG SLD canvas always stays inside its wrapper */
+#sldCanvas {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+#sldCanvas:active {
+  cursor: grabbing;
+}
+
+    svg text {
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .error {
+      color: var(--danger);
+      font-size: 0.78rem;
+      margin-top: 4px;
+    }
+
+    body, html {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .top-btn {
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-soft);
+      background: var(--accent-soft);
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    button.secondary.top-btn {
+      background: #ffffff;
+      border-color: var(--border-soft);
+      color: var(--text-soft);
+    }
+
+    .collapsible-container {
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .collapsible-header {
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 6px 8px;
+      font-size: 0.85rem;
+      user-select: none;
+      background: #e8f3ff;
+      border-radius: 8px;
+    }
+
+    .collapsible-body {
+      padding: 6px 10px;
+      background: #f9fbff;
+      font-size: 0.78rem;
+    }
+
+    .lv-panel-header {
+      cursor: pointer;
+      background: #eef6ff;
+      padding: 4px 6px;
+      border-radius: 6px;
+      margin: 3px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .inv-line {
+      background: #f8fbff;
+      padding: 4px 6px;
+      margin: 4px 0;
+      border-left: 2px solid #69a9ff;
+      border-radius: 4px;
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="app-header">
+    <div class="app-header-left">
+      <div class="app-title-row">
+        <h1>PV Plant SLD Wizard</h1>
+      </div>
+    </div>
+
+    <div class="app-header-right">
+  <button id="btnCalculate" type="button" class="top-btn">Calculate</button>
+  <button id="btnReset" type="button" class="secondary top-btn">Reset</button>
+  <button id="btnSummary" type="button" class="secondary top-btn">System summary</button>
+</div>
+
+  </div>
+
+  <div class="layout">
+    <!-- LEFT: INPUTS -->
+    <div class="card left-scroll">
+      <div class="card-header">
+        <h2>INPUTS</h2>
+        
+      </div>
+
+      <div class="inputs-list">
+        <!-- Plant capacity -->
+        <div class="field">
+          <label for="dcSize">
+            <span>Plant DC size</span>
+            <span class="hint">MWp</span>
+          </label>
+          <input type="number" id="dcSize" value="100" step="0.1" min="0">
+        </div>
+
+        <div class="field">
+          <label for="dcAcRatio">
+            <span>DC/AC ratio</span>
+            <span class="hint">e.g. 1.2</span>
+          </label>
+          <input type="number" id="dcAcRatio" value="1.2" step="0.01" min="0.8">
+        </div>
+
+
+        
+
+        <!-- DC array details -->
+        <div class="field">
+          <label for="moduleWp">
+            <span>Module wattage</span>
+            <span class="hint">W</span>
+          </label>
+          <input type="number" id="moduleWp" value="620" min="200" step="10">
+        </div>
+
+        <div class="field">
+          <label for="invRating">
+            <span>Inverter AC rating</span>
+            <span class="hint">kW</span>
+          </label>
+          <input type="number" id="invRating" value="300" step="1" min="1">
+        </div>
+
+        <div class="field">
+          <label for="modulesPerString">
+            <span>Modules per string</span>
+            <span class="hint">pcs</span>
+          </label>
+          <input type="number" id="modulesPerString" value="30" min="10" max="40" step="1">
+        </div>
+
+        
+
+        
+
+        <div class="field">
+          <label for="loopMaxMw">
+            <span>Max MW per MV loop</span>
+            <span class="hint">user-defined</span>
+          </label>
+          <input type="number" id="loopMaxMw" value="25" step="0.1" min="0">
+        </div>
+
+        <!-- Inverters -->
+        
+
+        <div class="field">
+          <label for="lvVoltage">
+            <span>Inverter AC / LV voltage</span>
+            <span class="hint">kV</span>
+          </label>
+          <input type="number" id="lvVoltage" value="0.8" step="0.01" min="0">
+        </div>
+
+<div class="field">
+          <label for="mvVoltage">
+            <span>MV collection voltage</span>
+            <span class="hint">kV</span>
+          </label>
+          <input type="number" id="mvVoltage" value="33" step="0.1" min="0">
+        </div>
+
+        <!-- Voltages -->
+        <div class="field">
+          <label for="gridVoltage">
+            <span>POI / Grid voltage</span>
+            <span class="hint">kV (connection)</span>
+          </label>
+          <input type="number" id="gridVoltage" value="132" step="1" min="0">
+        </div>
+
+        
+
+        
+
+        
+
+       
+
+        <!-- LV/MV transformers -->
+        <div class="field">
+          <label for="mvTxfMva">
+            <span>LV/MV transformer rating</span>
+            <span class="hint">MVA</span>
+          </label>
+          <input type="number" id="mvTxfMva" value="9.0" step="0.1" min="0">
+        </div>
+
+        
+
+        <!-- Grid transformers -->
+        <div class="field">
+          <label for="gridTxfMva">
+            <span>Grid transformer rating</span>
+            <span class="hint">MVA</span>
+          </label>
+          <input type="number" id="gridTxfMva" value="125" step="1" min="0">
+        </div>
+
+        <div class="field">
+          <label for="gridTxfCount">
+            <span>Number of grid transformers</span>
+            
+          </label>
+          <input type="number" id="gridTxfCount" placeholder="auto sized" step="1" min="1">
+        </div>
+
+        
+
+        
+
+       
+
+
+         <!-- LV Panels -->
+        <div class="field">
+          <label for="lvPanelRating">
+            <span>LV panel rating</span>
+            <span class="hint">kW capacity</span>
+          </label>
+          <input type="number" id="lvPanelRating" value="4000" step="10" min="0">
+        </div>
+        <div class="field">
+          <label for="mvBusCurrent">
+            <span>MV busbar rated current</span>
+            <span class="hint">A (continuous)</span>
+          </label>
+          <input type="number" id="mvBusCurrent" value="2000" step="1" min="0">
+        </div>
+
+        <div class="field">
+          <div class="inline-checkbox">
+            <label for="mvBusCoupler">MV bus coupler present</label>
+            <input type="checkbox" id="mvBusCoupler">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="inline-checkbox">
+            <label for="gridN1">Require N-1 at grid transformer</label>
+            <input type="checkbox" id="gridN1">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="inline-checkbox">
+            <label for="hvBusCoupler">HV bus coupler present</label>
+            <input type="checkbox" id="hvBusCoupler">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="acExport">
+            <span>Target AC export</span>
+            <span class="hint">MW</span>
+          </label>
+          <input type="number" id="acExport" placeholder="auto from DC/(DC-AC)" step="0.1" min="0">
+        </div>
+
+        <div class="field">
+          <label for="stringsPerInverter">
+            <span>Strings per inverter</span>
+            
+          </label>
+          <input type="number" id="stringsPerInverter" placeholder="auto" min="1" step="1">
+        </div>
+
+<div class="field">
+          <label for="invPerMvTxf">
+            <span>Inverters per MV transformer</span>
+            
+          </label>
+          <input type="number" id="invPerMvTxf" placeholder="auto from MVA &amp; loading" step="1" min="1">
+        </div>
+
+<div class="field">
+          <label for="mvTxfLoading">
+            <span>Max loading LV/MV txf</span>
+            <span class="hint">% cont.</span>
+          </label>
+          <input type="number" id="mvTxfLoading" value="85" step="1" min="50" max="110">
+        </div>
+<div class="field">
+          <label for="gridTxfLoading">
+            <span>Max loading grid txf</span>
+            <span class="hint">% cont.</span>
+          </label>
+          <input type="number" id="gridTxfLoading" value="90" step="1" min="50" max="110">
+        </div>
+<div class="field">
+          <label for="gridOutFeeders">
+            <span>POI outgoing feeders</span>
+            <span class="hint">pcs</span>
+          </label>
+          <input type="number" id="gridOutFeeders" value="1" step="1" min="0">
+        </div>
+
+ <!-- Switchgear & busbars -->
+        <div class="field">
+          <label for="mvBusType">
+            <span>MV bus type</span>
+            <span class="hint">single/double/ring/b&h</span>
+          </label>
+          <input type="text" id="mvBusType" value="single" placeholder="single / double / ring / b&h">
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <!-- Hidden HV bus type (kept for compatibility, always "single") -->
+        <input type="hidden" id="hvBusType" value="single">
+      </div>
+
+      <div id="errorBox" class="error" style="display:none;"></div>
+      <div id="warningBox" class="error" style="display:none; font-style:italic;"></div>
+    </div>
+
+    <!-- RIGHT: OUTPUTS -->
+    <div class="card">
+      <div class="card-header">
+        <h2>RESULTS &amp; SLD STRUCTURE</h2>
+        
+      </div>
+      <div id="resultsContainer">
+        <div class="summary-block">
+          <strong>Waiting for inputs...</strong><br>
+          Enter data on the left and click <em>Calculate SLD Concept</em>.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SQRT3 = Math.sqrt(3);
+  const SVG_TEXT_SIZE = 5;
+  const SVG_LINE_HEIGHT = 5;
+
+  function formatNumber(v, d) {
+    if (isNaN(v) || v === null) return "-";
+    return Number(v).toFixed(d);
+  }
+
+  function showError(msg) {
+    const box = document.getElementById("errorBox");
+    box.textContent = msg;
+    box.style.display = msg ? "block" : "none";
+  }
+
+  function showDesignWarning(msg) {
+    const box = document.getElementById("warningBox");
+    if (!box) return;
+    box.textContent = msg || "";
+    box.style.display = msg ? "block" : "none";
+  }
+
+  function roundUpToSeries(value, series) {
+    if (!isFinite(value) || value <= 0) return series[0];
+    for (let i = 0; i < series.length; i++) {
+      if (value <= series[i]) return series[i];
+    }
+    return series[series.length - 1];
+  }
+
+  function resetForm() {
+    document.getElementById("dcSize").value = "100";
+    document.getElementById("acExport").value = "";
+    document.getElementById("dcAcRatio").value = "1.2";
+    document.getElementById("gridVoltage").value = "132";
+    document.getElementById("mvVoltage").value = "33";
+    document.getElementById("lvVoltage").value = "0.8";
+    document.getElementById("invRating").value = "300";
+    document.getElementById("invPerMvTxf").value = "";
+    document.getElementById("mvTxfMva").value = "9.0";
+    document.getElementById("mvTxfLoading").value = "85";
+    document.getElementById("gridTxfMva").value = "125";
+    document.getElementById("gridTxfLoading").value = "90";
+    document.getElementById("gridTxfCount").value = "";
+    document.getElementById("gridN1").checked = false;
+    document.getElementById("mvBusType").value = "single";
+    document.getElementById("mvBusCurrent").value = "2000";
+    document.getElementById("mvBusCoupler").checked = false;
+    document.getElementById("hvBusCoupler").checked = false;
+    document.getElementById("loopMaxMw").value = "25";
+    document.getElementById("lvPanelRating").value = "4000";
+
+    showError("");
+    showDesignWarning("");
+    const results = document.getElementById("resultsContainer");
+    results.innerHTML =
+      '<div class="summary-mini"><strong>Waiting for inputs...</strong><br>' +
+      'Enter data on the left and click <em>Calculate SLD Concept</em>.</div>';
+  }
+
+  function createSvgElement(type, attrs) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", type);
+    Object.keys(attrs || {}).forEach(k => el.setAttribute(k, attrs[k]));
+    return el;
+  }
+
+  const sldPanZoomState = {
+    svg: null,
+    root: null,
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    isPanning: false,
+    startX: 0,
+    startY: 0
+  };
+
+  function applyPanZoomTransform() {
+    const st = sldPanZoomState;
+    if (!st.root) return;
+    st.root.setAttribute(
+      "transform",
+      "translate(" + st.offsetX + "," + st.offsetY + ") scale(" + st.scale + ")"
+    );
+  }
+
+  function setupPanZoom(svg, root) {
+    const st = sldPanZoomState;
+    st.svg = svg;
+    st.root = root;
+    st.scale = 1;
+    st.offsetX = 0;
+    st.offsetY = 0;
+    applyPanZoomTransform();
+
+    if (svg.dataset.panzoomAttached === "true") return;
+    svg.dataset.panzoomAttached = "true";
+
+    svg.addEventListener("wheel", function(e) {
+      e.preventDefault();
+
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const cursor = pt.matrixTransform(svg.getScreenCTM().inverse());
+
+      const factor = e.deltaY < 0 ? 1.25 : 0.8;
+      const newScale = Math.min(20, Math.max(0.1, st.scale * factor));
+
+      if (newScale === st.scale) return;
+
+      st.offsetX = cursor.x - (cursor.x - st.offsetX) * (newScale / st.scale);
+      st.offsetY = cursor.y - (cursor.y - st.offsetY) * (newScale / st.scale);
+      st.scale = newScale;
+      applyPanZoomTransform();
+    }, { passive: false });
+
+    svg.addEventListener("mousedown", function(e) {
+      if (e.button !== 0) return;
+      st.isPanning = true;
+      st.startX = e.clientX;
+      st.startY = e.clientY;
+    });
+
+    svg.addEventListener("mousemove", function(e) {
+      if (!st.isPanning) return;
+
+      const speed = st.scale < 1 ? 1 : st.scale;
+      const dx = (e.clientX - st.startX) * speed;
+      const dy = (e.clientY - st.startY) * speed;
+
+      st.startX = e.clientX;
+      st.startY = e.clientY;
+
+      st.offsetX += dx;
+      st.offsetY += dy;
+
+      applyPanZoomTransform();
+    });
+
+    svg.addEventListener("mouseup", function() {
+      st.isPanning = false;
+    });
+    svg.addEventListener("mouseleave", function() {
+      st.isPanning = false;
+    });
+  }
+
+  function drawSLD(params) {
+    const {
+      hasSeparateGridTxf,
+      gridVoltage,
+      mvVoltage,
+      hvBusType,
+      mvBusType,
+      gridTxfMva,
+      mvTxfMva,
+      numGridTransformers,
+      mvLoops,
+      gtLoopMap,
+      hvBusCoupler,
+      mvBusCoupler,
+      mvSections,
+      mvBusCurrent,
+      lvBlocks
+    } = params;
+
+    const outFeeders = parseInt(document.getElementById("gridOutFeeders").value);
+
+    const svg = document.getElementById("sldCanvas");
+    if (!svg) return;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const width = Math.max(2000, mvLoops.length * 250);
+    const height = 420;
+
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+    const baseStroke = "#0f172a";
+    const baseFill = "#ffffff";
+    const fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    const centerX = width / 2;
+
+    const root = createSvgElement("g", { id: "sldRoot" });
+    svg.appendChild(root);
+
+    function addText(x, y, text, anchor = "start") {
+      const t = createSvgElement("text", {
+        x, y,
+        "font-size": SVG_TEXT_SIZE,
+        "font-family": fontFamily,
+        "fill": baseStroke,
+        "text-anchor": anchor,
+        "dominant-baseline": "middle"
+      });
+      t.textContent = text;
+      root.appendChild(t);
+    }
+
+    function addMultilineText(lines, x, y, anchor = "start") {
+      const t = createSvgElement("text", {
+        x, y,
+        "font-size": SVG_TEXT_SIZE,
+        "font-family": fontFamily,
+        "fill": baseStroke,
+        "text-anchor": anchor
+      });
+      lines.forEach((line, idx) => {
+        const span = createSvgElement("tspan", {
+          x,
+          dy: idx === 0 ? 0 : SVG_LINE_HEIGHT
+        });
+        span.textContent = line;
+        t.appendChild(span);
+      });
+      root.appendChild(t);
+    }
+
+    function drawBusbar(x1, x2, y, label) {
+      root.appendChild(createSvgElement("line", {
+        x1, y1: y, x2, y2: y,
+        stroke: baseStroke,
+        "stroke-width": 4,
+        "stroke-linecap": "round"
+      }));
+      addText(x1, y - 14, label, "start");
+    }
+
+    function drawBreaker(x, y) {
+      const s = 3;
+      root.appendChild(createSvgElement("rect", {
+        x: x - s / 2, y: y - s / 2,
+        width: s, height: s,
+        fill: baseFill,
+        stroke: baseStroke,
+        "stroke-width": 0.8
+      }));
+    }
+
+    function drawGridTransformer(x, y, index, hvKv, mvKv, ratingMva) {
+      const r = 6;
+      root.appendChild(createSvgElement("circle", {
+        cx: x, cy: y - 5, r,
+        stroke: baseStroke, "stroke-width": 1.2, fill: "none"
+      }));
+      root.appendChild(createSvgElement("circle", {
+        cx: x, cy: y + 5, r,
+        stroke: baseStroke, "stroke-width": 1.2, fill: "none"
+      }));
+
+      const labelLines = [
+        "GT-" + index,
+        `${formatNumber(hvKv, 0)}/${formatNumber(mvKv, 0)}kV`,
+        `${formatNumber(ratingMva, 0)} MVA`
+      ];
+      addMultilineText(labelLines, x + 12, y - SVG_LINE_HEIGHT, "start");
+    }
+
+    function addMultilineTextCustomFont(lines, x, y, anchor, size, lineHeight) {
+      const t = createSvgElement("text", {
+        x, y,
+        "font-size": size,
+        "font-family": "system-ui",
+        "fill": "#0f172a",
+        "text-anchor": anchor
+      });
+
+      lines.forEach((line, idx) => {
+        const span = createSvgElement("tspan", {
+          x,
+          dy: idx === 0 ? 0 : lineHeight
+        });
+        span.textContent = line;
+        t.appendChild(span);
+      });
+
+      root.appendChild(t);
+    }
+
+    function drawMvTransformer(x, y, id, mvKv, lvKv, mva, mw) {
+      const r = 5;
+      root.appendChild(createSvgElement("circle", {
+        cx: x - 4, cy: y, r,
+        stroke: baseStroke, "stroke-width": 1, fill: "none"
+      }));
+      root.appendChild(createSvgElement("circle", {
+        cx: x + 4, cy: y, r,
+        stroke: baseStroke, "stroke-width": 1, fill: "none"
+      }));
+
+      const lines = [
+        "TX-" + id,
+        `${formatNumber(mvKv, 0)}/${formatNumber(lvKv, 1)}kV`,
+        `${formatNumber(mva, 1)} MVA`,
+        `${formatNumber(mw, 1)} (MW)`
+      ];
+
+      const smallSize = 4;
+      const smallLine = 4;
+      addMultilineTextCustomFont(lines, x, y - 20, "middle", smallSize, smallLine);
+    }
+
+    function drawVerticalLoop(loop, colX, mvBusY, mvVoltage, lvVoltage, mvTxfMva) {
+      const cbY = mvBusY + 20;
+      const trunkTopY = cbY + 14;
+
+      root.appendChild(createSvgElement("line", {
+        x1: colX, y1: mvBusY,
+        x2: colX, y2: cbY - 6,
+        stroke: baseStroke, "stroke-width": 1
+      }));
+      drawBreaker(colX, cbY);
+
+      root.appendChild(createSvgElement("line", {
+        x1: colX, y1: cbY + 6,
+        x2: colX, y2: trunkTopY,
+        stroke: baseStroke, "stroke-width": 1
+      }));
+
+      const txCount = loop.transformers.length;
+      if (txCount === 0) return;
+
+      const perTxStep = 36;
+      const trunkBottomY = trunkTopY + 16 + (txCount - 1) * perTxStep;
+
+      root.appendChild(createSvgElement("line", {
+        x1: colX, y1: trunkTopY,
+        x2: colX, y2: trunkBottomY,
+        stroke: baseStroke, "stroke-width": 1.1
+      }));
+
+      const branchLen = 12;
+
+      loop.transformers.forEach((tx, idx) => {
+        const ty = trunkTopY + 16 + idx * perTxStep;
+        const cbX = colX + branchLen / 2;
+        const txX = colX + branchLen;
+
+        root.appendChild(createSvgElement("line", {
+          x1: colX, y1: ty,
+          x2: cbX, y2: ty,
+          stroke: baseStroke, "stroke-width": 1
+        }));
+        drawBreaker(cbX, ty);
+        root.appendChild(createSvgElement("line", {
+          x1: cbX, y1: ty,
+          x2: txX, y2: ty,
+          stroke: baseStroke, "stroke-width": 1
+        }));
+
+        drawMvTransformer(txX + 6, ty, tx.id, mvVoltage, lvVoltage, mvTxfMva, tx.mw);
+      });
+
+      const labelY = trunkBottomY + 20;
+      addText(colX, labelY, `Loop ${loop.id} (${formatNumber(loop.totalMw, 1)} MW)`, "middle");
+    }
+
+    // MV-only plant
+    if (!hasSeparateGridTxf || !numGridTransformers) {
+      const mvBusY = 80;
+      const mvBusX1 = centerX - 260;
+      const mvBusX2 = centerX + 260;
+
+      drawBusbar(mvBusX1, mvBusX2, mvBusY,
+        `MV POI BUS (${formatNumber(mvVoltage, 0)} kV, ${mvBusType})`);
+
+      const loops = mvLoops || [];
+      const loopCount = loops.length;
+
+      if (loopCount > 0) {
+        const baseStep = 80;
+        const span = baseStep * Math.max(loopCount - 1, 0);
+        const startX = loopCount === 1 ? centerX : centerX - span / 2;
+        const gap = loopCount > 1 ? span / (loopCount - 1) : 0;
+
+        loops.forEach((loop, i) => {
+          const colX = loopCount === 1 ? centerX : startX + i * gap;
+          drawVerticalLoop(loop, colX, mvBusY, mvVoltage, 0.4, mvTxfMva);
+        });
+      }
+
+      setupPanZoom(svg, root);
+      return;
+    }
+
+    // HV + MV plant
+    const mvBusRatedMVA = (SQRT3 * mvVoltage * mvBusCurrent) / 1000;
+    const hvRatedMVA = gridTxfMva * numGridTransformers;
+    let hvActualMw = 0;
+    mvLoops.forEach(loop => hvActualMw += loop.totalMw);
+
+    const gtCount = Math.max(numGridTransformers, 1);
+    const gtY = 90;
+    const mvBusY = 170;
+
+    const sections = Math.max(1, mvSections || 1);
+    const gtToSection = new Array(gtCount).fill(0);
+    for (let i = 0; i < gtCount; i++) {
+      gtToSection[i] = i % sections;
+    }
+
+    const loopsPerSection = new Array(sections).fill(0);
+    const actualMvLoad = new Array(sections).fill(0);
+
+    for (let i = 0; i < gtCount; i++) {
+      const loops = gtLoopMap[i] || [];
+      loopsPerSection[gtToSection[i]] += loops.length;
+      actualMvLoad[gtToSection[i]] += loops.reduce((sum, loop) => sum + loop.totalMw, 0);
+    }
+
+    let maxLoopsInSection = Math.max(...loopsPerSection);
+    if (!isFinite(maxLoopsInSection) || maxLoopsInSection < 1) maxLoopsInSection = 1;
+
+    const loopSpacing = 90;
+    const sectionMargin = 160;
+    const sectionWidth = maxLoopsInSection > 1
+      ? (maxLoopsInSection - 1) * loopSpacing + sectionMargin
+      : 420;
+
+    const couplerGap = 30;
+    const totalSpan = sections * sectionWidth + (sections - 1) * couplerGap;
+    const startX = centerX - totalSpan / 2;
+
+    // HV bus
+    const hvBusY = 40;
+    const hvBusX1 = startX;
+    const hvBusX2 = startX + totalSpan;
+
+    const hvLabel =
+      `HV BUS (${formatNumber(gridVoltage,0)} kV)
+Rated: ${formatNumber(hvRatedMVA,1)} MVA
+Actual: ${formatNumber(hvActualMw,1)} MW`;
+
+    drawBusbar(hvBusX1, hvBusX2, hvBusY, hvLabel);
+
+    // Outgoing feeders
+    if (outFeeders && outFeeders > 0) {
+      const feederSpacing = 80;
+      const busCenterX = (hvBusX1 + hvBusX2) / 2;
+      const totalWidth = (outFeeders - 1) * feederSpacing;
+      const startFx = busCenterX - totalWidth / 2;
+
+      for (let f = 0; f < outFeeders; f++) {
+        const fx = startFx + f * feederSpacing;
+
+        root.appendChild(createSvgElement("line", {
+          x1: fx, y1: hvBusY,
+          x2: fx, y2: hvBusY - 20,
+          stroke: baseStroke, "stroke-width": 1
+        }));
+
+        drawBreaker(fx, hvBusY - 25);
+
+        root.appendChild(createSvgElement("line", {
+          x1: fx, y1: hvBusY - 30,
+          x2: fx, y2: hvBusY - 60,
+          stroke: baseStroke, "stroke-width": 1
+        }));
+
+        addText(fx, hvBusY - 70, `Grid Out-${f+1}`, "middle");
+      }
+    }
+
+    // HV bus coupler
+    if (hvBusCoupler) {
+      const bcX = (hvBusX1 + hvBusX2) / 2;
+
+      root.appendChild(createSvgElement("line", {
+        x1: bcX - 12, y1: hvBusY,
+        x2: bcX - 4,  y2: hvBusY,
+        stroke: baseStroke, "stroke-width": 2
+      }));
+
+      const s = 10;
+      root.appendChild(createSvgElement("rect", {
+        x: bcX - s/2,
+        y: hvBusY - s/2,
+        width: s,
+        height: s,
+        fill: baseFill,
+        stroke: baseStroke,
+        "stroke-width": 1.2
+      }));
+
+      root.appendChild(createSvgElement("line", {
+        x1: bcX + 4, y1: hvBusY,
+        x2: bcX + 12, y2: hvBusY,
+        stroke: baseStroke, "stroke-width": 2
+      }));
+    }
+
+    const sectionBusInfo = [];
+    for (let s = 0; s < sections; s++) {
+      const x1 = startX + s * (sectionWidth + couplerGap);
+      const x2 = x1 + sectionWidth;
+      const cx = (x1 + x2) / 2;
+
+      const mvLabel =
+        `MV BUS ${String.fromCharCode(65 + s)} (${formatNumber(mvVoltage,0)} kV)
+Rated: ${formatNumber(mvBusRatedMVA,1)} MVA
+Actual: ${formatNumber(actualMvLoad[s],1)} MW`;
+
+      drawBusbar(x1, x2, mvBusY, mvLabel);
+      sectionBusInfo.push({ x1, x2, cx });
+
+      if (mvBusCoupler && s < sections - 1) {
+        const nextX1 = startX + (s + 1) * (sectionWidth + couplerGap);
+        const bcX = (x2 + nextX1) / 2;
+        root.appendChild(createSvgElement("line", {
+          x1: x2, y1: mvBusY,
+          x2: bcX - 3, y2: mvBusY,
+          stroke: baseStroke, "stroke-width": 1
+        }));
+        drawBreaker(bcX, mvBusY);
+        root.appendChild(createSvgElement("line", {
+          x1: bcX + 3, y1: mvBusY,
+          x2: nextX1, y2: mvBusY,
+          stroke: baseStroke, "stroke-width": 1
+        }));
+      }
+    }
+
+    // GTs
+    for (let i = 0; i < gtCount; i++) {
+      const sectionIndex = gtToSection[i];
+      const busInfo = sectionBusInfo[sectionIndex];
+      const gtX = busInfo.cx;
+      const hvCbY = (hvBusY + gtY) / 2;
+
+      root.appendChild(createSvgElement("line", {
+        x1: gtX, y1: hvBusY,
+        x2: gtX, y2: hvCbY - 6,
+        stroke: baseStroke, "stroke-width": 1
+      }));
+      drawBreaker(gtX, hvCbY);
+      root.appendChild(createSvgElement("line", {
+        x1: gtX, y1: hvCbY + 6,
+        x2: gtX, y2: gtY - 12,
+        stroke: baseStroke, "stroke-width": 1
+      }));
+
+      drawGridTransformer(gtX, gtY, i + 1, gridVoltage, mvVoltage, gridTxfMva);
+
+      root.appendChild(createSvgElement("line", {
+        x1: gtX, y1: gtY + 12,
+        x2: gtX, y2: gtY + 28,
+        stroke: baseStroke, "stroke-width": 1
+      }));
+
+      drawBreaker(gtX, gtY + 32);
+
+      root.appendChild(createSvgElement("line", {
+        x1: gtX, y1: gtY + 36,
+        x2: gtX, y2: mvBusY,
+        stroke: baseStroke, "stroke-width": 1
+      }));
+    }
+
+    // Loops per GT
+    const leftMargin = 40;
+    const map = gtLoopMap || [];
+
+    for (let i = 0; i < gtCount; i++) {
+      const colLoops = map[i] || [];
+      if (colLoops.length === 0) continue;
+
+      const sectionIndex = gtToSection[i];
+      const busInfo = sectionBusInfo[sectionIndex];
+
+      const startXLoop = busInfo.x1 + leftMargin;
+
+      colLoops.forEach((loop, idx) => {
+        const colX = startXLoop + idx * 90;
+        drawVerticalLoop(loop, colX, mvBusY, mvVoltage, 0.4, mvTxfMva);
+      });
+    }
+
+    setupPanZoom(svg, root);
+  }
+
+  function calculateSLD() {
+    showError("");
+    showDesignWarning("");
+
+    function autoComputeDcStringing(invAcKw, dcAcRatio, moduleWp, modulesPerStringUser, stringsPerInvUser) {
+      const targetRatio = dcAcRatio;
+      const targetDcW = invAcKw * 1000 * dcAcRatio;
+
+      if (modulesPerStringUser > 0 && stringsPerInvUser > 0) {
+        return {
+          modulesPerString: modulesPerStringUser,
+          stringsPerInv: stringsPerInvUser
+        };
+      }
+
+      if (modulesPerStringUser > 0 && (!stringsPerInvUser || stringsPerInvUser <= 0)) {
+        const ms = modulesPerStringUser;
+        const stringW = ms * moduleWp;
+        const ideal = targetDcW / stringW;
+
+        const c1 = Math.floor(ideal);
+        const c2 = Math.ceil(ideal);
+
+        function ratio(c) { return (c * stringW) / (invAcKw * 1000); }
+
+        const best = Math.abs(ratio(c1) - targetRatio) < Math.abs(ratio(c2) - targetRatio) ? c1 : c2;
+
+        return {
+          modulesPerString: ms,
+          stringsPerInv: best
+        };
+      }
+
+      if (stringsPerInvUser > 0 && (!modulesPerStringUser || modulesPerStringUser <= 0)) {
+        const spi = stringsPerInvUser;
+        const idealModules = targetDcW / (spi * moduleWp);
+
+        let m1 = Math.max(12, Math.min(36, Math.floor(idealModules)));
+        let m2 = Math.max(12, Math.min(36, Math.ceil(idealModules)));
+
+        function ratio(ms) { return (spi * ms * moduleWp) / (invAcKw * 1000); }
+
+        const bestMs = Math.abs(ratio(m1) - targetRatio) < Math.abs(ratio(m2) - targetRatio) ? m1 : m2;
+
+        return {
+          modulesPerString: bestMs,
+          stringsPerInv: spi
+        };
+      }
+
+      const typical = [22, 24, 26, 28, 30];
+      let best = null;
+      let bestErr = 999;
+
+      for (let ms of typical) {
+        const stringW = ms * moduleWp;
+        const ideal = targetDcW / stringW;
+
+        const c1 = Math.floor(ideal);
+        const c2 = Math.ceil(ideal);
+
+        function ratio(c) { return (c * stringW) / (invAcKw * 1000); }
+
+        const r1 = ratio(c1);
+        const r2 = ratio(c2);
+
+        const cand1Err = Math.abs(r1 - targetRatio);
+        const cand2Err = Math.abs(r2 - targetRatio);
+
+        if (cand1Err < bestErr) { bestErr = cand1Err; best = {ms, spi: c1}; }
+        if (cand2Err < bestErr) { bestErr = cand2Err; best = {ms, spi: c2}; }
+      }
+
+      return {
+        modulesPerString: best.ms,
+        stringsPerInv: best.spi
+      };
+    }
+
+    const dcSize = parseFloat(document.getElementById("dcSize").value);
+    const acExportUser = parseFloat(document.getElementById("acExport").value);
+    const dcAcRatio = parseFloat(document.getElementById("dcAcRatio").value);
+    const gridVoltage = parseFloat(document.getElementById("gridVoltage").value);
+    const mvVoltage = parseFloat(document.getElementById("mvVoltage").value);
+    const lvVoltageInput = parseFloat(document.getElementById("lvVoltage").value);
+    const lvVoltage = (!isNaN(lvVoltageInput) && lvVoltageInput > 0) ? lvVoltageInput : 0.4;
+
+    const loopMaxMwInput = parseFloat(document.getElementById("loopMaxMw").value);
+    let loopMaxMw = (!isNaN(loopMaxMwInput) && loopMaxMwInput > 0) ? loopMaxMwInput : 25;
+
+    const invRatingKw = parseFloat(document.getElementById("invRating").value);
+    const invPerMvTxfUser = parseFloat(document.getElementById("invPerMvTxf").value);
+    const mvTxfMva = parseFloat(document.getElementById("mvTxfMva").value);
+    const mvTxfLoading = parseFloat(document.getElementById("mvTxfLoading").value);
+    const gridTxfMva = parseFloat(document.getElementById("gridTxfMva").value);
+    const gridTxfLoading = parseFloat(document.getElementById("gridTxfLoading").value);
+    const gridTxfCountUser = parseFloat(document.getElementById("gridTxfCount").value);
+    const requireN1 = document.getElementById("gridN1").checked;
+
+    const mvBusType = document.getElementById("mvBusType").value;
+    const hvBusType = document.getElementById("hvBusType").value;
+    const hvBusCoupler = document.getElementById("hvBusCoupler").checked;
+    const mvBusCoupler = document.getElementById("mvBusCoupler").checked;
+    const mvBusCurrent = parseFloat(document.getElementById("mvBusCurrent").value);
+
+    if (isNaN(dcSize) || dcSize <= 0) return showError("Please enter a valid Plant DC size (MWp).");
+    if (isNaN(dcAcRatio) || dcAcRatio <= 0) return showError("Please enter a valid DC/AC ratio.");
+    if (isNaN(invRatingKw) || invRatingKw <= 0) return showError("Please enter a valid Inverter AC rating (kW).");
+    if (isNaN(mvTxfMva) || mvTxfMva <= 0) return showError("Please enter a valid LV/MV transformer rating (MVA).");
+    if (isNaN(gridVoltage) || gridVoltage <= 0) return showError("Please enter a valid Grid/POI voltage (kV).");
+    if (isNaN(mvVoltage) || mvVoltage <= 0) return showError("Please enter a valid MV collection level (kV).");
+
+    let acExportMw = acExportUser;
+    if (isNaN(acExportMw) || acExportMw <= 0) acExportMw = dcSize / dcAcRatio;
+
+    const acExportKw = acExportMw * 1000;
+    let numInverters = Math.ceil(acExportKw / invRatingKw);
+    if (!isFinite(numInverters) || numInverters < 1) numInverters = 1;
+
+    const inverterAcMw = invRatingKw / 1000;
+    const totalInverterAcMw = numInverters * inverterAcMw;
+
+    let mvTxfInvertersPerUnit;
+    if (!isNaN(invPerMvTxfUser) && invPerMvTxfUser > 0) {
+      mvTxfInvertersPerUnit = Math.max(1, Math.floor(invPerMvTxfUser));
+    } else {
+      const mvTxfEffectiveMVA = mvTxfMva * (mvTxfLoading / 100);
+      mvTxfInvertersPerUnit = Math.max(1, Math.floor(mvTxfEffectiveMVA / inverterAcMw));
+    }
+    const numMvTransformers = Math.ceil(numInverters / mvTxfInvertersPerUnit);
+
+    const hasSeparateGridTxf = gridVoltage > mvVoltage && !isNaN(gridTxfMva) && gridTxfMva > 0;
+
+    let numGridTransformers = 0;
+    let gridTxfEffectiveMW = 0;
+
+    if (hasSeparateGridTxf) {
+      const gridTxfEffectiveMVA = gridTxfMva * (gridTxfLoading / 100);
+      gridTxfEffectiveMW = gridTxfEffectiveMVA;
+
+      if (!isNaN(gridTxfCountUser) && gridTxfCountUser > 0) {
+        numGridTransformers = Math.floor(gridTxfCountUser);
+      } else {
+        numGridTransformers = Math.ceil(acExportMw / gridTxfEffectiveMW);
+      }
+      if (numGridTransformers < 1) numGridTransformers = 1;
+
+      if (requireN1) {
+        while ((numGridTransformers - 1) * gridTxfEffectiveMW < acExportMw) {
+          numGridTransformers++;
+          if (numGridTransformers > 20) break;
+        }
+      }
+    }
+
+    const invertersPerMvTxf = [];
+
+    // DC / LV blocks
+    const moduleWp = parseFloat(document.getElementById("moduleWp").value);
+    const modulesPerStringUser = parseInt(document.getElementById("modulesPerString").value);
+    const stringsPerInverterUser = parseInt(document.getElementById("stringsPerInverter")?.value);
+
+    let lvBlocks = [];
+
+    for (let i = 0; i < numMvTransformers; i++) {
+      const invAcKw = invRatingKw;
+      const auto = autoComputeDcStringing(
+        invAcKw,
+        dcAcRatio,
+        moduleWp,
+        modulesPerStringUser,
+        stringsPerInverterUser
+      );
+
+      const ms = auto.modulesPerString;
+      const spi = auto.stringsPerInv;
+
+      lvBlocks.push({
+        id: i + 1,
+        modulesPerString: ms,
+        stringsPerInverter: spi,
+        moduleWp,
+        invCount: 0,
+        stringsTotal: 0,
+        modulesTotal: 0,
+        dcMwBlock: 0
+      });
+    }
+
+    const basePerTx = Math.floor(numInverters / numMvTransformers);
+    let remainderInv = numInverters % numMvTransformers;
+
+    for (let i = 0; i < numMvTransformers; i++) {
+      invertersPerMvTxf.push(basePerTx + (i < remainderInv ? 1 : 0));
+    }
+
+    for (let i = 0; i < numMvTransformers; i++) {
+      const invCount = invertersPerMvTxf[i];
+      const ms = lvBlocks[i].modulesPerString;
+      const spi = lvBlocks[i].stringsPerInverter;
+      const mwBlock = (invCount * spi * ms * moduleWp) / 1e6;
+
+      lvBlocks[i].invCount = invCount;
+      lvBlocks[i].stringsTotal = invCount * spi;
+      lvBlocks[i].modulesTotal = invCount * spi * ms;
+      lvBlocks[i].dcMwBlock = mwBlock;
+    }
+
+    const lvPanelRatingKw = parseFloat(document.getElementById("lvPanelRating").value);
+
+    for (let i = 0; i < numMvTransformers; i++) {
+      const invCount = lvBlocks[i].invCount;
+      const invKw = invRatingKw;
+      const totalKw = invCount * invKw;
+
+      const panelCapacityKw = lvPanelRatingKw;
+      const numPanels = Math.ceil(totalKw / panelCapacityKw);
+
+      const panels = [];
+      let remainingKw = totalKw;
+
+      for (let p = 0; p < numPanels; p++) {
+        const panelKw = Math.min(panelCapacityKw, remainingKw);
+        const invInPanel = Math.floor(panelKw / invKw);
+        remainingKw -= panelKw;
+
+        panels.push({
+          id: p + 1,
+          inverterCount: invInPanel,
+          inverterKw: invKw,
+          panelKw: panelKw
+        });
+      }
+
+      lvBlocks[i].lvPanels = panels;
+      lvBlocks[i].numLvPanels = numPanels;
+    }
+
+    function getInvertersForPanel(invCount, modulesPerString, stringsPerInverter, moduleWp) {
+      const invArray = [];
+      for (let i = 1; i <= invCount; i++) {
+        const dcW = modulesPerString * stringsPerInverter * moduleWp;
+        invArray.push({
+          id: i,
+          modulesPerString,
+          stringsPerInverter,
+          moduleWp,
+          dcKw: dcW / 1000
+        });
+      }
+      return invArray;
+    }
+
+    const mvLoops = [];
+    let currentLoop = { id: 1, transformers: [], totalMw: 0 };
+
+    for (let i = 0; i < numMvTransformers; i++) {
+      const txMw = invertersPerMvTxf[i] * inverterAcMw;
+      if (currentLoop.totalMw > 0 && currentLoop.totalMw + txMw > loopMaxMw) {
+        mvLoops.push(currentLoop);
+        currentLoop = { id: mvLoops.length + 1, transformers: [], totalMw: 0 };
+      }
+      currentLoop.transformers.push({ id: i + 1, mw: txMw });
+      currentLoop.totalMw += txMw;
+    }
+    if (currentLoop.transformers.length > 0) mvLoops.push(currentLoop);
+
+    let gtLoopMap = [];
+    if (hasSeparateGridTxf && numGridTransformers > 0) {
+      gtLoopMap = new Array(numGridTransformers).fill(null).map(() => []);
+      let gi = 0;
+      mvLoops.forEach(loop => {
+        gtLoopMap[gi].push(loop);
+        gi = (gi + 1) % numGridTransformers;
+      });
+    }
+
+    const totalMvMva = numMvTransformers * mvTxfMva;
+    const mvBusIscKA = mvBusCurrent;
+    const mvBusFaultMva = (SQRT3 * mvVoltage * mvBusIscKA) || 0;
+    const mvMaxConnectedMva = 0.6 * mvBusFaultMva;
+    let mvSections = Math.max(1, Math.ceil(totalMvMva / mvMaxConnectedMva));
+
+    if (hasSeparateGridTxf && numGridTransformers > mvSections) {
+      mvSections = numGridTransformers;
+    }
+
+    const results = document.getElementById("resultsContainer");
+    let html = "";
+
+    html += `
+      <div class="summary-mini">
+        <strong>${formatNumber(dcSize,2)} MWp</strong> |
+        <strong>${formatNumber(acExportMw,2)} MW AC</strong> |
+        Grid <strong>${formatNumber(gridVoltage,0)} kV</strong> → MV <strong>${formatNumber(mvVoltage,0)} kV</strong> |
+        Inverters: <strong>${numInverters}</strong> × ${formatNumber(inverterAcMw,3)} MW |
+        MV TX: <strong>${numMvTransformers}</strong> × ${formatNumber(mvTxfMva,1)} MVA |
+        ${hasSeparateGridTxf ? `GT: <strong>${numGridTransformers}</strong> × ${formatNumber(gridTxfMva,1)} MVA |` : "" }
+        Loops: <strong>${mvLoops.length}</strong> |
+        MV Sections: <strong>${mvSections}</strong>
+        Modules/String: <strong>${lvBlocks[0].modulesPerString}</strong> |
+        Strings/Inverter: <strong>${lvBlocks[0].stringsPerInverter}</strong><br>
+        Example Block: <strong>${formatNumber(lvBlocks[0].dcMwBlock,2)} MWp</strong> |
+        ${lvBlocks[0].modulesTotal} modules |
+        ${lvBlocks[0].stringsTotal} strings
+      </div>
+    `;
+
+   
+
+    html += `
+      <div class="summary-mini collapsible-container">
+        <div class="collapsible-header" onclick="
+          const b = this.nextElementSibling;
+          b.style.display = (b.style.display === 'none') ? 'block' : 'none';
+          this.querySelector('.arrow').textContent = (b.style.display === 'none') ? '▶' : '▼';
+        ">
+          <span><strong>LV Panel Distribution</strong></span>
+          <span class="arrow">▶</span>
+        </div>
+
+        <div class="collapsible-body" style="display:none; max-height:250px; overflow-y:auto;">
+          ${lvBlocks.map(block => `
+            <div class="lv-panel-block">
+              <strong>MV TX-${block.id}</strong> → ${block.numLvPanels} LV Panels<br>
+
+              ${block.lvPanels.map((p,idx) => `
+                <div class="lv-panel-line">
+                  <div class="lv-panel-header" onclick="
+                    const b = this.nextElementSibling;
+                    b.style.display = (b.style.display === 'none') ? 'block' : 'none';
+                    this.querySelector('.arrow').textContent = (b.style.display === 'none') ? '▶' : '▼';
+                  ">
+                    <span>Panel ${p.id}: ${p.inverterCount} × ${p.inverterKw} kW = ${p.panelKw} kW</span>
+                    <span class='arrow'>▶</span>
+                  </div>
+
+                  <div class="lv-panel-details" style="display:none; padding-left:14px; margin-bottom:6px;">
+                    ${getInvertersForPanel(
+                        p.inverterCount,
+                        block.modulesPerString,
+                        block.stringsPerInverter,
+                        block.moduleWp
+                    ).map(inv => `
+                      <div class="inv-line">
+                        Inverter ${inv.id}:
+                        ${inv.modulesPerString} modules × ${inv.stringsPerInverter} strings
+                        (${inv.dcKw.toFixed(2)} kW DC)
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="sld-full">
+        <div class="sld-wrapper-wide">
+          <svg id="sldCanvas"></svg>
+        </div>
+      </div>
+    `;
+
+    results.innerHTML = html;
+
+    drawSLD({
+      hasSeparateGridTxf,
+      gridVoltage,
+      mvVoltage,
+      hvBusType,
+      mvBusType,
+      gridTxfMva,
+      mvTxfMva,
+      numGridTransformers,
+      mvLoops,
+      gtLoopMap,
+      hvBusCoupler,
+      mvBusCoupler,
+      mvSections,
+      mvBusCurrent,
+      lvBlocks
+    });
+  }
+
+  document.getElementById("btnCalculate").addEventListener("click", calculateSLD);
+  document.getElementById("btnReset").addEventListener("click", resetForm);
+
+  // Initialize default view
+  resetForm();
+</script>
+</body>
+</html>
