@@ -38,8 +38,16 @@ const StateEngine = {
                     zoom: window.googleMap ? window.googleMap.getZoom() : 16,
                 },
                 inputs: {},
-                overlays: []
+                overlays: [],
+                generatedAreaUids: []
             };
+
+            // 0. Record which areas already had generated layouts
+            if (window.LayoutEngine && window.LayoutEngine.layoutStore) {
+                window.LayoutEngine.layoutStore.forEach((data, area) => {
+                    if (area.__uid) state.generatedAreaUids.push(area.__uid);
+                });
+            }
 
             // 1. Save all relevant inputs (Exclude search bar)
             const inputsToSave = document.querySelectorAll('input, select');
@@ -201,6 +209,25 @@ const StateEngine = {
                         }
                     }
                 });
+            }
+
+            // 4. Auto-Regenerate Layouts
+            if (state.generatedAreaUids && state.generatedAreaUids.length > 0) {
+                // Short delay to let the map render overlays before Turf.js calculations
+                setTimeout(() => {
+                    if (window.SiteEngine && window.LayoutEngine) {
+                        state.generatedAreaUids.forEach(uid => {
+                            const area = window.SiteEngine.overlays.find(o => o.__uid === uid);
+                            if (area) {
+                                window.SiteEngine.clearSelection();
+                                window.SiteEngine.selectOverlay(area, false);
+                                window.LayoutEngine.generate();
+                            }
+                        });
+                        // Clear final selection so user starts cleanly
+                        window.SiteEngine.clearSelection();
+                    }
+                }, 800);
             }
 
             return true;
