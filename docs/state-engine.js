@@ -33,6 +33,7 @@ const StateEngine = {
 
         try {
             const state = {
+                version: "1.0.0", // Tracking for future software updates
                 map: {
                     center: window.googleMap ? window.googleMap.getCenter().toJSON() : null,
                     zoom: window.googleMap ? window.googleMap.getZoom() : 16,
@@ -138,7 +139,10 @@ const StateEngine = {
 
         try {
             const state = JSON.parse(stateStr);
-            console.log("Loading saved project state...");
+            console.log(`Loading saved project state (Version: ${state.version || 'Legacy'})...`);
+
+            // Future-proofing: Here we can add migration scripts if version > '1.0.0'
+            // e.g. if (state.version === '1.0.0' && currentAppVersion === '2.0.0') { migrateConfig(state); }
 
             // 1. Restore Map View
             if (window.googleMap && state.map) {
