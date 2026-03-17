@@ -553,6 +553,23 @@ const CablesEngine = {
             }
         });
 
+        this.stats = {
+            totalMvLength: totalMvLength,
+            totalLvLength: 0
+        };
+
+        // Calculate precise LV length by summing map polylines
+        let sumLv = 0;
+        this.mapPolylines.forEach(l => {
+            if (l.get('strokeColor') === '#3b82f6') { // LV Blue
+                const path = l.getPath();
+                for(let i=0; i<path.getLength()-1; i++) {
+                    sumLv += google.maps.geometry.spherical.computeDistanceBetween(path.getAt(i), path.getAt(i+1));
+                }
+            }
+        });
+        this.stats.totalLvLength = sumLv;
+
         // --- Draw Editable HV Cables (Orange) from DS to POC ---
         if (window.SiteEngine) {
             const SE = window.SiteEngine;
@@ -623,6 +640,20 @@ const CablesEngine = {
                 }
             });
         }
+
+        // Add HV cable lengths to stats
+        let sumHv = 0;
+        if (window.SiteEngine) {
+            window.SiteEngine.overlays.forEach(o => {
+                if (o.category === 'hv-cable' && o.getPath) {
+                    const path = o.getPath();
+                    for(let i=0; i<path.getLength()-1; i++) {
+                        sumHv += google.maps.geometry.spherical.computeDistanceBetween(path.getAt(i), path.getAt(i+1));
+                    }
+                }
+            });
+        }
+        if (this.stats) this.stats.totalHvLength = sumHv;
 
         if (window.SldEngine && !document.getElementById('sld-window').classList.contains('hidden')) window.SldEngine.renderSld();
         if (!silent) alert(`Routing generated successfully!\nTotal estimated MV route length: ${(totalMvLength / 1000).toFixed(2)} km`);

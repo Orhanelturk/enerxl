@@ -18,6 +18,21 @@
     display: none !important;
 }
 
+.ui-scaling-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 133.33%;
+    height: 133.33%;
+    zoom: 0.75;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.ui-scaling-wrapper > * {
+    pointer-events: auto;
+}
+
 body,
 html {
     height: 100%;

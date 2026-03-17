@@ -832,6 +832,7 @@ const LayoutEngine = {
         window._layoutStats[areaName] = {
             dcMWp: totalMW.toFixed(2),
             acMW: acMW,
+            moduleCount: totalModules,
             blockCount: Object.keys(blockSummary).length || (cfg.divideMV ? 1 : 0),
             invCount: electricalPlan.equipment.length,
             name: areaName,

@@ -334,6 +334,18 @@ window.ElectricalEngine = {
                 if (sumHvIncomers) sumHvIncomers.innerText = totalMainTr;
                 if (sumHvOutgoing) sumHvOutgoing.innerText = hvPocOut;
             }
+
+            // Global Export Stats for Excel (BOQ)
+            window._electricalStats = {
+                totalPanels: totalPanels,
+                totalStations: totalStations,
+                totalMainTr: totalMainTr,
+                totalHvIncomers: totalMainTr,
+                totalHvOutgoing: (pocLevel === 'HV' && useHv) ? (parseInt(document.getElementById('hv-poc-outgoing')?.value) || 1) : 0,
+                totalMvOutgoing: (pocLevel === 'MV') ? (parseInt(document.getElementById('mv-poc-outgoing')?.value) || 1) : 0,
+                totalLvOutgoing: (pocLevel === 'LV') ? (parseInt(document.getElementById('lv-poc-outgoing')?.value) || 1) : 0,
+                voltageLevels: { lv: lvV, mv: mvV, hv: (pocLevel === 'HV') ? parseFloat(document.getElementById('hv-v')?.value) : 0 }
+            };
         } catch (e) {
             console.error("Error in updatePowerDisplay:", e);
         } finally {

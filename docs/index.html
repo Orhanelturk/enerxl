@@ -12,6 +12,7 @@
         rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <script src="layers-engine.js"></script>
 </head>
 
@@ -19,40 +20,42 @@
     <div id="map"></div>
 
     <!-- Map Overlays -->
-    <!-- Project Summary Panel -->
-    <div id="project-summary-panel" class="hidden"
-        style="position: absolute; top: 1rem; right: 1rem; z-index: 2000; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0.6rem; border-radius: 6px; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); width: 280px; pointer-events: auto; transition: all 0.2s ease;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
-            <div style="display: flex; align-items: center; gap: 0.35rem; color: #0f172a;">
-                <i data-lucide="bar-chart-3" style="width: 13px; height: 13px; color: #286944;"></i>
-                <h4 style="margin: 0; font-family: 'Outfit'; font-size: 0.8rem; font-weight: 700;">Project Summary</h4>
+    <div class="ui-scaling-wrapper">
+        <!-- Project Summary Panel -->
+        <div id="project-summary-panel" class="hidden"
+            style="position: absolute; top: 1rem; right: 1rem; z-index: 2000; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0.6rem; border-radius: 6px; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); width: 280px; pointer-events: auto; transition: all 0.2s ease;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+                <div style="display: flex; align-items: center; gap: 0.35rem; color: #0f172a;">
+                    <i data-lucide="bar-chart-3" style="width: 13px; height: 13px; color: #286944;"></i>
+                    <h4 style="margin: 0; font-family: 'Outfit'; font-size: 0.8rem; font-weight: 700;">Project Summary</h4>
+                </div>
+                <button onclick="toggleSummaryPanel(false)"
+                    style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 2px; display: flex;">
+                    <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                </button>
             </div>
-            <button onclick="toggleSummaryPanel(false)"
-                style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 2px; display: flex;">
-                <i data-lucide="x" style="width: 14px; height: 14px;"></i>
-            </button>
+            <div
+                style="max-height: 220px; overflow-y: auto; margin-bottom: 0.4rem; border: 1px solid #f1f5f9; border-radius: 3px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.62rem;">
+                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                        <tr style="text-align: left; color: #64748b; border-bottom: 1px solid #f1f5f9;">
+                            <th style="padding: 0.35rem 0.5rem;">Area</th>
+                            <th style="padding: 0.35rem 0.2rem;">DC</th>
+                            <th style="padding: 0.35rem 0.2rem;">AC</th>
+                            <th style="padding: 0.35rem 0.5rem; text-align: right;">sqm</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summary-table-body" style="color: #334155;">
+                        <!-- Dynamically populated -->
+                    </tbody>
+                    <tfoot id="summary-table-footer"
+                        style="position: sticky; bottom: 0; background: #f8fafc; z-index: 10; font-weight: 800; border-top: 2px solid #e2e8f0;">
+                        <!-- Dynamically populated -->
+                    </tfoot>
+                </table>
+            </div>
         </div>
-        <div
-            style="max-height: 220px; overflow-y: auto; margin-bottom: 0.4rem; border: 1px solid #f1f5f9; border-radius: 3px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.62rem;">
-                <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
-                    <tr style="text-align: left; color: #64748b; border-bottom: 1px solid #f1f5f9;">
-                        <th style="padding: 0.35rem 0.5rem;">Area</th>
-                        <th style="padding: 0.35rem 0.2rem;">DC</th>
-                        <th style="padding: 0.35rem 0.2rem;">AC</th>
-                        <th style="padding: 0.35rem 0.5rem; text-align: right;">sqm</th>
-                    </tr>
-                </thead>
-                <tbody id="summary-table-body" style="color: #334155;">
-                    <!-- Dynamically populated -->
-                </tbody>
-                <tfoot id="summary-table-footer"
-                    style="position: sticky; bottom: 0; background: #f8fafc; z-index: 10; font-weight: 800; border-top: 2px solid #e2e8f0;">
-                    <!-- Dynamically populated -->
-                </tfoot>
-            </table>
-        </div>
-    </div>
+    
 
     <!-- Landscape Toolbar -->
     <div class="toolbar">
@@ -79,7 +82,7 @@
             <button class="tool-btn" id="stats-trigger" title="Summary"><i data-lucide="bar-chart-3"></i></button>
             <button class="tool-btn" title="Map Mode"><i data-lucide="map"></i></button>
             <div class="separator"></div>
-            <button class="tool-btn" title="Share"><i data-lucide="share"></i></button>
+            <button class="tool-btn" id="btn-share-excel" title="Share"><i data-lucide="share"></i></button>
             <div class="separator"></div>
             <button class="tool-btn" title="Profile"><i data-lucide="user"></i></button>
         </div>
@@ -1702,6 +1705,7 @@
     <script src="electrical-engine.js"></script>
     <script src="sld-engine.js"></script>
     <script src="cables-engine.js"></script>
+    <script src="excel-engine.js"></script>
     <script>
         const START = { lat: 38.397550221066616, lng: 34.97863102806574 };
 
@@ -1710,18 +1714,33 @@
                 center: START,
                 zoom: 17,
                 mapTypeId: 'satellite',
-                mapTypeControl: false,
-                fullscreenControl: false,
-                streetViewControl: false,
-                zoomControl: false,
+                disableDefaultUI: true, // Clean interface
                 gestureHandling: 'greedy',
-                scrollwheel: true
+                scrollwheel: true,
+                keyboardShortcuts: false
             });
             window.googleMap = map;
 
             // Initialize Site Engine
             if (window.SiteEngine) {
                 window.SiteEngine.init(map);
+            }
+
+            // Fullscreen Button Logic
+            const fsBtn = document.getElementById('btn-fullscreen');
+            if (fsBtn) {
+                fsBtn.addEventListener('click', () => {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+                        });
+                        fsBtn.querySelector('i').setAttribute('data-lucide', 'minimize');
+                    } else {
+                        document.exitFullscreen();
+                        fsBtn.querySelector('i').setAttribute('data-lucide', 'maximize');
+                    }
+                    if (window.lucide) window.lucide.createIcons();
+                });
             }
 
             // Initialize Search Autocomplete
@@ -2665,7 +2684,13 @@
                 <span class="layer-label">Point of Connection</span>
             </div>
         </div>
-    </div>
+    </div> <!-- end .ui-scaling-wrapper -->
+
+    <button id="btn-fullscreen" title="Toggle Fullscreen"
+        style="position: fixed; bottom: 1rem; right: 1rem; z-index: 10000; background: rgba(255,255,255,0.9); border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <i data-lucide="maximize" style="width: 18px; height: 18px; color: #1e293b;"></i>
+    </button>
+
 </body>
 
 </html>
