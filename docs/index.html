@@ -18,12 +18,10 @@
 <body>
     <div id="map"></div>
 
-    <!-- UI Scaling Wrapper -->
-    <div class="ui-scaling-wrapper">
-        <!-- Map Overlays -->
-        <!-- Project Summary Panel -->
+    <!-- Map Overlays -->
+    <!-- Project Summary Panel -->
     <div id="project-summary-panel" class="hidden"
-        style="position: absolute; top: 0rem; right: 0.5rem; z-index: 2000; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0.6rem; border-radius: 6px; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); width: 280px; pointer-events: auto; transition: all 0.2s ease;">
+        style="position: absolute; top: 1rem; right: 1rem; z-index: 2000; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0.6rem; border-radius: 6px; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); width: 280px; pointer-events: auto; transition: all 0.2s ease;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
             <div style="display: flex; align-items: center; gap: 0.35rem; color: #0f172a;">
                 <i data-lucide="bar-chart-3" style="width: 13px; height: 13px; color: #286944;"></i>
@@ -1682,6 +1680,7 @@
         </div>
     </div>
 
+    <!-- Verification Overlay -->
     <div id="elec-verify-modal" class="modal-overlay hidden" style="z-index: 2000;">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
@@ -1694,25 +1693,6 @@
             <div class="modal-body" id="elec-verify-body" style="padding: 1.5rem;"></div>
         </div>
     </div>
-
-    <!-- Fullscreen Button (Stay out of scaling to remain in corner correctly) -->
-    <button id="btn-fullscreen" title="Toggle Fullscreen" style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1000; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #475569; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: all 0.2s;" onmouseover="this.style.color='#0f172a'; this.style.transform='translateY(-2px)';" onmouseout="this.style.color='#475569'; this.style.transform='translateY(0)';">
-        <i data-lucide="maximize" style="width: 20px; height: 20px;"></i>
-    </button>
-    
-    <script>
-        document.getElementById('btn-fullscreen').addEventListener('click', function() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log('Error attempting to enable fullscreen:', err.message);
-                });
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
-            }
-        });
-    </script>
 
     <!-- Configuration and Map Logic -->
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
@@ -1730,7 +1710,10 @@
                 center: START,
                 zoom: 17,
                 mapTypeId: 'satellite',
-                disableDefaultUI: true,
+                mapTypeControl: false,
+                fullscreenControl: false,
+                streetViewControl: false,
+                zoomControl: false,
                 gestureHandling: 'greedy',
                 scrollwheel: true
             });
@@ -2682,7 +2665,7 @@
                 <span class="layer-label">Point of Connection</span>
             </div>
         </div>
-    </div> <!-- End UI Scaling Wrapper -->
+    </div>
 </body>
 
 </html>
