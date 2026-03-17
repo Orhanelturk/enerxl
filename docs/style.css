@@ -29,7 +29,7 @@ html {
 
 .ui-scaling-wrapper {
     position: absolute;
-    top: 0;
+    top: -1rem; /* Offset the 1rem spacing from parents if any, or pull UI up */
     left: 0;
     width: 133.33%; /* 100 / 0.75 */
     height: 133.33%;
@@ -163,10 +163,8 @@ p {
 
 /* Independent Search Panel */
 .search-panel {
-    position: absolute;
-    top: 3.75rem;
-    /* Exactly below the 1rem toolbar + height */
-    left: 1rem;
+    top: 2.75rem; /* 2.25rem (toolbar) + 0.5rem gap */
+    left: 0.5rem;
     z-index: 101;
     display: flex;
     align-items: center;
@@ -227,8 +225,8 @@ p {
 /* Toolbar Styling */
 .toolbar {
     position: absolute;
-    top: 1rem;
-    left: 1rem;
+    top: 0rem; /* Pull toolbar to the very top */
+    left: 0.5rem;
     z-index: 100;
     display: flex;
     align-items: center;
@@ -327,8 +325,8 @@ p {
 /* Site Configuration Panel - Consolidated & Consistent */
 .project-panel {
     position: absolute;
-    top: 3.75rem;
-    left: 1rem;
+    top: 2.75rem;
+    left: 0.5rem;
     width: 320px;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
