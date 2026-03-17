@@ -1886,7 +1886,11 @@
                 const panel = document.getElementById('project-summary-panel');
                 if (!panel) return;
                 if (show) {
-                    updateProjectSummary();
+                    try {
+                        updateProjectSummary();
+                    } catch (e) {
+                        console.error("Error updating summary:", e);
+                    }
                     panel.classList.remove('hidden');
                 } else {
                     panel.classList.add('hidden');

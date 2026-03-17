@@ -341,7 +341,7 @@ window.ElectricalEngine = {
                 totalStations: totalStations,
                 totalMainTr: totalMainTr,
                 totalHvIncomers: totalMainTr,
-                totalHvOutgoing: (pocLevel === 'HV' && useHv) ? (parseInt(document.getElementById('hv-poc-outgoing')?.value) || 1) : 0,
+                totalHvOutgoing: (pocLevel === 'HV' && useHvSwg) ? (parseInt(document.getElementById('hv-poc-outgoing')?.value) || 1) : 0,
                 totalMvOutgoing: (pocLevel === 'MV') ? (parseInt(document.getElementById('mv-poc-outgoing')?.value) || 1) : 0,
                 totalLvOutgoing: (pocLevel === 'LV') ? (parseInt(document.getElementById('lv-poc-outgoing')?.value) || 1) : 0,
                 voltageLevels: { lv: lvV, mv: mvV, hv: (pocLevel === 'HV') ? parseFloat(document.getElementById('hv-v')?.value) : 0 }
