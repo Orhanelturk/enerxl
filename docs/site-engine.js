@@ -789,8 +789,12 @@ const SiteEngine = {
         return null;
     },
 
-    deleteSelected() {
+    async deleteSelected() {
         if (this.selectedOverlays.length > 0) {
+            if (window.AppConfirm) {
+                const proceed = await window.AppConfirm(`Are you sure you want to delete ${this.selectedOverlays.length} selected item(s)?`, 'Delete', 'danger');
+                if (!proceed) return;
+            }
             this.selectedOverlays.forEach(o => {
                 // If it's an area, clear the layout first
                 if (o.category === 'area' || (o.getPath && !o.subType)) {

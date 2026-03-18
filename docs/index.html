@@ -2019,7 +2019,11 @@
             // Master Reset Logic
             const resetBtn = document.getElementById('btn-master-reset');
             if (resetBtn) {
-                resetBtn.addEventListener('click', () => {
+                resetBtn.addEventListener('click', async () => {
+                    if (window.AppConfirm) {
+                        const confirmReset = await window.AppConfirm('Are you sure you want to completely clear the project map and delete all generated designs? This cannot be undone.', 'Clear All', 'danger');
+                        if (!confirmReset) return;
+                    }
                     try {
                         // 1. Clear Map Overlays
                         if (window.SiteEngine && window.SiteEngine.overlays) {
@@ -2763,6 +2767,99 @@
         <span>Project Saved</span>
     </div>
 
+    <!-- Custom Alerts & Confirm Modals -->
+    <div id="app-modal-overlay" class="app-modal-overlay">
+        <div class="app-modal">
+            <div id="app-modal-icon" class="app-modal-icon info">
+                <i data-lucide="info" id="app-modal-lucide"></i>
+            </div>
+            <div id="app-modal-msg" class="app-modal-msg"></div>
+            <div class="app-modal-actions">
+                <button id="app-modal-cancel" class="app-modal-btn cancel hidden">Cancel</button>
+                <button id="app-modal-confirm" class="app-modal-btn confirm">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        window.AppAlert = function(msg, type = 'info') {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('app-modal-overlay');
+                const msgEl = document.getElementById('app-modal-msg');
+                const iconEl = document.getElementById('app-modal-icon');
+                const iconLucide = document.getElementById('app-modal-lucide');
+                const cancelBtn = document.getElementById('app-modal-cancel');
+                const confirmBtn = document.getElementById('app-modal-confirm');
+                
+                msgEl.innerText = msg;
+                cancelBtn.classList.add('hidden');
+                confirmBtn.innerText = "OK";
+                confirmBtn.className = "app-modal-btn confirm";
+                
+                if (type === 'warning' || type === 'danger') {
+                    iconEl.className = 'app-modal-icon warning';
+                    iconLucide.setAttribute('data-lucide', 'alert-triangle');
+                } else {
+                    iconEl.className = 'app-modal-icon info';
+                    iconLucide.setAttribute('data-lucide', 'info');
+                }
+                
+                if (window.lucide) window.lucide.createIcons();
+                
+                overlay.classList.add('show');
+                
+                confirmBtn.onclick = () => {
+                    overlay.classList.remove('show');
+                    resolve(true);
+                };
+            });
+        };
+
+        window.AppConfirm = function(msg, confirmText = "Confirm", type = "warning") {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('app-modal-overlay');
+                const msgEl = document.getElementById('app-modal-msg');
+                const iconEl = document.getElementById('app-modal-icon');
+                const iconLucide = document.getElementById('app-modal-lucide');
+                const cancelBtn = document.getElementById('app-modal-cancel');
+                const confirmBtn = document.getElementById('app-modal-confirm');
+                
+                msgEl.innerText = msg;
+                cancelBtn.classList.remove('hidden');
+                cancelBtn.innerText = "Cancel";
+                confirmBtn.innerText = confirmText;
+                
+                if (type === 'danger') {
+                    confirmBtn.className = "app-modal-btn danger";
+                    iconEl.className = 'app-modal-icon warning';
+                    iconLucide.setAttribute('data-lucide', 'alert-circle');
+                } else {
+                    confirmBtn.className = "app-modal-btn confirm";
+                    iconEl.className = 'app-modal-icon info';
+                    iconLucide.setAttribute('data-lucide', 'help-circle');
+                }
+                
+                if (window.lucide) window.lucide.createIcons();
+                
+                overlay.classList.add('show');
+                
+                confirmBtn.onclick = () => {
+                    overlay.classList.remove('show');
+                    resolve(true);
+                };
+                
+                cancelBtn.onclick = () => {
+                    overlay.classList.remove('show');
+                    resolve(false);
+                };
+            });
+        };
+        
+        // Let's hook up a global window.alert just to be safe (though we will replace as many directly as we can)
+        window.alert = function(msg) {
+            window.AppAlert(msg);
+        };
+    </script>
 </body>
 
 </html>
