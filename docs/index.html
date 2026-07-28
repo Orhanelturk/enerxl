@@ -1510,6 +1510,14 @@
             <input type="range" id="rotation-slider" min="-180" max="180" value="0" step="1">
         </div>
 
+        <!-- Floating Opacity Slider (Above Toolbar) -->
+        <div id="opacity-popup" class="rotation-slider-panel hidden">
+            <div class="slider-header" style="justify-content: center;">
+                <span id="opacity-value">50%</span>
+            </div>
+            <input type="range" id="opacity-slider" min="0" max="100" value="50" step="5">
+        </div>
+
         <!-- Floating Edit Toolbar -->
         <div id="floating-edit-bar" class="floating-toolbar hidden">
             <div class="edit-bar-content">
@@ -1522,6 +1530,9 @@
                 </button>
                 <button id="btn-rotate-toggle" class="edit-bar-btn" title="Rotate Selection">
                     <i data-lucide="rotate-cw"></i>
+                </button>
+                <button id="btn-opacity-toggle" class="edit-bar-btn" title="Adjust Opacity">
+                    <i data-lucide="blend"></i>
                 </button>
                 <div class="edit-bar-divider"></div>
                 <button id="btn-copy" class="edit-bar-btn" title="Copy Selection">
