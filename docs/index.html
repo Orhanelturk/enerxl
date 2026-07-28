@@ -1651,6 +1651,22 @@
                 // Initialize Site Engine
                 if (window.SiteEngine) {
                     window.SiteEngine.init(map);
+                    
+                    // Auto-draw initial PV Area
+                    const initialCoords = [
+                        { lat: -20.056157, lng: 23.618556 },
+                        { lat: -20.085079, lng: 23.618601 },
+                        { lat: -20.085295, lng: 23.588700 },
+                        { lat: -20.056368, lng: 23.588655 }
+                    ];
+                    const poly = new google.maps.Polygon({ paths: initialCoords, ...window.SiteEngine.styles.area, map: map });
+                    poly.category = 'area';
+                    poly.type = google.maps.drawing.OverlayType.POLYGON;
+                    window.SiteEngine.processNewOverlay(poly);
+                    
+                    const bounds = new google.maps.LatLngBounds();
+                    initialCoords.forEach(c => bounds.extend(c));
+                    map.fitBounds(bounds);
                 }
 
                 // Fullscreen Button Logic
