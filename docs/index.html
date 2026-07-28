@@ -1662,7 +1662,9 @@
                     const poly = new google.maps.Polygon({ paths: initialCoords, ...window.SiteEngine.styles.area, map: map });
                     poly.category = 'area';
                     poly.type = google.maps.drawing.OverlayType.POLYGON;
+                    poly.areaName = "Area 1";
                     window.SiteEngine.processNewOverlay(poly);
+                    window.SiteEngine.updateAreaLabel(poly);
                     
                     const bounds = new google.maps.LatLngBounds();
                     initialCoords.forEach(c => bounds.extend(c));

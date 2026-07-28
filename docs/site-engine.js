@@ -276,7 +276,7 @@ const SiteEngine = {
         this.overlays.push(overlay);
         this.attachOverlayListeners(overlay);
 
-        if ((overlay.category === 'area' || overlay.subType) && overlay.subType !== 'topo_exclusion' && overlay.subType !== 'obstacle_point') {
+        if (!overlay.areaName && (overlay.category === 'area' || overlay.subType) && overlay.subType !== 'topo_exclusion' && overlay.subType !== 'obstacle_point') {
             this.showNamingModal(overlay);
         }
         if (!this.isMarqueeActive) this.selectOverlay(overlay, this.isShiftDown);
