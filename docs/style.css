@@ -556,6 +556,7 @@ p {
     box-shadow: 0 0 0 2px rgba(40, 105, 68, 0.1);
 }
 
+.btn-primary,
 .btn-secondary {
     background: #286944;
     color: white;
@@ -568,6 +569,7 @@ p {
     transition: all 0.2s;
 }
 
+.btn-primary:hover,
 .btn-secondary:hover {
     background: #215637;
     transform: translateY(-1px);
@@ -1239,22 +1241,15 @@ p {
 /* Custom Modals (Alert & Confirm) */
 .app-modal-overlay {
     position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    inset: 0; /* Ensures it covers the entire visible area perfectly */
+    display: none;
     z-index: 100000;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
+    pointer-events: auto;
 }
 
 .app-modal-overlay.show {
-    opacity: 1;
-    pointer-events: auto;
+    display: grid; 
+    place-items: center; /* Robust centering across all browser engines */
 }
 
 .app-modal {

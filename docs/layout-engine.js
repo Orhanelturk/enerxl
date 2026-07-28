@@ -21,6 +21,14 @@ const LayoutEngine = {
      */
     generate() {
         try {
+            // Check for Electrical Sizing Validity
+            if (window.ElectricalEngine && !window.ElectricalEngine.isSizingCorrect) {
+                const msg = "Cannot generate layout: Electrical sizing conflict detected. Please check Inverter String Sizing in the Electrical Design panel.";
+                if (window.AppAlert) window.AppAlert(msg);
+                else alert(msg);
+                return;
+            }
+
             // 0. Automatic Inverter Configuration Sync
             this.refreshInternalBlockState();
 
@@ -35,16 +43,26 @@ const LayoutEngine = {
             const SE = window.SiteEngine || {};
             const allAreas = SE.overlays ? SE.overlays.filter(o => o.category === 'area' || (o.getPath && !o.subType && !o.category)) : [];
             const isFirstArea = (allAreas.indexOf(state.primaryArea) === 0 || allAreas.length <= 1);
-            
+
             // Expected Name e.g. "Area 2" -> "DS 2"
             const areaNameStr = state.primaryArea.areaName || `Area ${allAreas.indexOf(state.primaryArea) + 1}`;
             const expectedDsName = areaNameStr.replace(/Area/i, 'DS').trim();
-            
+
+            // Check ElectricalEngine's mapping registry FIRST
+            let forceMappedDsId = null;
+            if (window.ElectricalEngine && window.ElectricalEngine.areaMappings && window.ElectricalEngine.areaMappings[areaNameStr]) {
+                const mapDS = window.ElectricalEngine.areaMappings[areaNameStr].ds;
+                if (mapDS && mapDS !== 'auto') forceMappedDsId = mapDS;
+            }
+            if (forceMappedDsId) {
+                state.primaryArea.linkedDsId = forceMappedDsId;
+            }
+
             // Has user manually linked a DS, or does one with the expected name exist?
-            const hasLinkedDS = state.primaryArea.linkedDsId 
+            const hasLinkedDS = state.primaryArea.linkedDsId
                 ? state.pocs.some(o => o.__uid === state.primaryArea.linkedDsId)
                 : state.pocs.some(o => o.subType === 'station' && o.areaName === expectedDsName);
-                
+
             let hasGlobalPOC = state.pocs.some(o => o.subType === 'poc');
 
             if (!hasLinkedDS || (isFirstArea && !hasGlobalPOC)) {
@@ -109,12 +127,22 @@ const LayoutEngine = {
 
             // 6. Drawing to Map
             this._renderToMap(layoutPlan, area, state);
-            
+
             // Store grids and tables for stable routing later
             const ld = this.layoutStore.get(area);
             if (ld) {
                 ld.routingGrid = this.routingGrid;
                 ld.tables = layoutPlan.tables;
+                ld.setbackLinePoly = this.setbackLinePoly; // Save area-specific setback boundary polygon for safe isolated cable routing
+                
+                // Capture electrical snapshot for independent SLD rendering per area
+                ld.sldConfig = {
+                    blocksPerLoop: parseInt(document.getElementById('mv-sum-stations-bay')?.innerText) || 1,
+                    is3WindingSystem: parseInt(document.getElementById('mvhv-winding-type')?.value) === 3,
+                    stationsPerBus: parseInt(document.getElementById('mv-sum-stations-bus')?.innerText) || 1000,
+                    transformerRating: parseFloat((document.getElementById('substation-size')?.value || "3.15").split(';')[0]) || 3.15,
+                    mvhvMva: parseFloat(document.getElementById('mvhv-mva')?.value) || 100
+                };
             }
 
             // 6b. Rebuild Global Collection for CablesEngine
@@ -140,14 +168,14 @@ const LayoutEngine = {
         });
     },
 
-    /**
-     * Clears only the layouts associated with a specific area
-     */
     _clearOldLayout(area) {
         const data = this.layoutStore.get(area);
         if (data) {
             if (data.overlays) data.overlays.forEach(overlay => overlay.setMap(null));
             this.layoutStore.delete(area);
+            
+            // Rebuild the global lists so subsequent block naming logic doesn't see zombie blocks
+            this.rebuildGlobalLists();
         }
     },
 
@@ -225,8 +253,8 @@ const LayoutEngine = {
                     w: parseFloat(document.getElementById('station-dim-w').value) || 10,
                     l: parseFloat(document.getElementById('station-dim-l').value) || 5
                 },
-                modPerStr: this.currentBlockConfig?.modsPerStr || 25,
-                strPerInv: this.currentBlockConfig?.strsPerInv || 12,
+                modPerStr: parseInt(document.getElementById('inv-mods-str')?.value) || 25,
+                strPerInv: Math.max(1, Math.round(((parseFloat(document.getElementById('inv-pnom').value) || 125) * (parseFloat(document.getElementById('inv-acdc-ratio')?.value) || 1.2) * 1000) / ((parseFloat(document.getElementById('pv-pnom').value) || 550) * (parseInt(document.getElementById('inv-mods-str')?.value) || 25)))),
                 invPerBlock: this.currentBlockConfig?.invsPerBlock || 8,
                 mvCapacities: (document.getElementById('substation-size').value || "9").split(';').map(v => parseFloat(v.trim())).filter(v => !isNaN(v)),
                 minLoading: (parseFloat(document.getElementById('min-block-loading')?.value) || 0) / 100,
@@ -245,32 +273,16 @@ const LayoutEngine = {
         const substationVal = document.getElementById('substation-size').value || "9";
         const stationMva = parseFloat(substationVal.split(';')[0]) || 9;
 
-        // Fingerprint to detect if hardware specs changed
-        const fingerprint = JSON.stringify({
-            invP: parseFloat(document.getElementById('inv-pnom')?.value) || 125,
-            invV: parseFloat(document.getElementById('inv-vout')?.value) || 400,
-            pvP: parseFloat(document.getElementById('pv-pnom')?.value) || 550,
-            mva: stationMva
-        });
-
-        // If specs changed, force a reset of manual flag and auto-pick best fit
-        const isHardwareChange = !this._lastFingerprint || this._lastFingerprint !== fingerprint;
-
-        // Auto-recalc if hardware changed OR if no config exists and NOT manual
-        if (isHardwareChange || (!this.currentBlockConfig && !this.isManualConfig)) {
-            console.log("Hardware specs changed or missing config, auto-refreshing block design...");
-            const options = ElectricalEngine.generateOptions();
-            if (options && options.length > 0) {
-                const standard = options[0];
-                standard._sourceMva = stationMva;
-                this.applyBlockConfiguration(standard);
-                this._lastFingerprint = fingerprint;
-                this.isManualConfig = false; // Hardware change resets manual choice
-                return;
-            }
+        // Re-calculate the architecture based on manual Mod/Str input 
+        // effectively restoring the "auto-calculation" while honoring the move to manual Mod/Str
+        const options = window.ElectricalEngine.generateOptions();
+        if (options && options.length > 0) {
+            this.currentBlockConfig = options[0];
+            this.currentBlockConfig._sourceMva = stationMva;
         }
 
         const config = this.currentBlockConfig || { modsPerStr: 25, strsPerInv: 12, invsPerBlock: 8 };
+
         const rowLength = config.modsPerStr;
         const modsPerTable = rowLength * (parseInt(document.getElementById('mount-mod-table-y')?.value) || 2);
 
@@ -667,7 +679,7 @@ const LayoutEngine = {
                 }
             }
         }
-        
+
         return this._sortAndFinalize(allTables, geometry, state);
     },
 
@@ -761,7 +773,8 @@ const LayoutEngine = {
                 const coordKey = `${bX}_${bY}`;
 
                 if (!blockCoordsToId.has(coordKey)) {
-                    blockCoordsToId.set(coordKey, `Block ${nextBlockNum++}`);
+                    // Temporarily just assign the raw coordinate key for aggregation
+                    blockCoordsToId.set(coordKey, coordKey);
                 }
 
                 table.blockId = blockCoordsToId.get(coordKey);
@@ -778,7 +791,7 @@ const LayoutEngine = {
 
                 blockIds.forEach((blockId, idx) => {
                     const capacityList = elec.mvCapacities || [9];
-                    // Match block index to capacity list
+                    // Match block index to capacity list safely
                     const mva = capacityList[idx % capacityList.length] || capacityList[capacityList.length - 1] || 1;
                     const loading = blockSummary[blockId].mw / mva;
 
@@ -792,6 +805,42 @@ const LayoutEngine = {
                     excludedBlocks.forEach(b => delete blockSummary[b]);
                 }
             }
+            
+            // Renumber all surviving blocks purely sequentially!
+            // Start naming smartly checking existing global blocks to prevent name overlaps across areas
+            const SE = window.SiteEngine || {};
+            // Attempt to fetch current highest block ID from Map if this is a secondary Area
+            let maxExistingId = 0;
+            if (this.blocks && this.blocks.length > 0) {
+                this.blocks.forEach(b => {
+                    const blockIdParam = b.item?.blockId || b.blockId || b.item?.id || b.id || '';
+                    const match = String(blockIdParam).match(/Block (\d+)/i);
+                    if (match && parseInt(match[1]) > maxExistingId) {
+                        maxExistingId = parseInt(match[1]);
+                    }
+                });
+            }
+            let nextValidBlockNum = maxExistingId + 1;
+            
+            const survivorMapping = new Map();
+            Object.keys(blockSummary).forEach(oldKey => {
+                survivorMapping.set(oldKey, `Block ${nextValidBlockNum++}`);
+            });
+            
+            // Update tables and summary keys to the new strictly sequential IDs
+            tables.forEach(table => {
+                table.blockId = survivorMapping.get(table.blockId);
+            });
+            
+            const newBlockSummary = {};
+            Object.keys(blockSummary).forEach(oldKey => {
+                const newId = survivorMapping.get(oldKey);
+                newBlockSummary[newId] = blockSummary[oldKey];
+            });
+            
+            // Overwrite original reference so downstream placement functions work with the new sequential IDs
+            Object.keys(blockSummary).forEach(k => delete blockSummary[k]);
+            Object.keys(newBlockSummary).forEach(k => blockSummary[k] = newBlockSummary[k]);
 
             // Update final capacities for tooltips
             tables.forEach(table => {
@@ -974,7 +1023,8 @@ const LayoutEngine = {
                     center: currentStationLoc,
                     w: elec.stationDim.w, l: elec.stationDim.l,
                     blockId: blockId,
-                    rating: (elec.mvCapacities[0] || 3.15) + " MVA"
+                    rating: (elec.mvCapacities[0] || 3.15) + " MVA",
+                    dcMw: blockSummary[blockId].mw.toFixed(2)
                 };
                 equipment.push(station);
 
@@ -990,16 +1040,26 @@ const LayoutEngine = {
             }
 
             // --- 3. Place Inverters ---
-            let count = elec.invPerBlock || 1;
-            if (!state.config.divideMV) {
-                const acdc = parseFloat(document.getElementById('inv-acdc-ratio')?.value) || 1.2;
-                const invP = parseFloat(document.getElementById('inv-pnom').value) || 125;
-                count = Math.ceil((blockSummary[blockId].mw * 1000) / invP / acdc);
-            }
+            const acdc = parseFloat(document.getElementById('inv-acdc-ratio')?.value) || 1.2;
+            const invP = parseFloat(document.getElementById('inv-pnom').value) || 125;
+            
+            const pvP = parseFloat(document.getElementById('pv-pnom').value) || 550;
+            const modPerStr = parseInt(document.getElementById('inv-mods-str')?.value) || 26;
+            const strPerInvCap = Math.max(1, Math.round((invP * acdc * 1000) / (pvP * modPerStr)));
+
+            // 1. Constrain by Power Capacity
+            const countByMw = Math.ceil((blockSummary[blockId].mw * 1000) / invP / acdc);
+            
+            // 2. Constrain by Physical String Inputs (Don't overload inverters with extra strings)
+            const totalModules = Math.round((blockSummary[blockId].mw * 1000000) / pvP);
+            const totalStrings = Math.round(totalModules / modPerStr);
+            const countByStrings = Math.ceil(totalStrings / strPerInvCap);
+
+            let count = Math.max(countByMw, countByStrings);
+            if (count < 1 && blockSummary[blockId].mw > 0) count = 1;
 
             // Metadata for tooltips
             const invKwAc = parseFloat(document.getElementById('inv-pnom').value) || 125;
-            const pvP = parseFloat(document.getElementById('pv-pnom').value) || 550;
             const invKwDc = (elec.modPerStr * elec.strPerInv * pvP) / 1000;
 
             if (elec.distribution === 'station') {
@@ -1189,6 +1249,9 @@ const LayoutEngine = {
                     map: SE.map,
                     zIndex: 499
                 });
+                tableBase.isTable = true;
+                tableBase.tableData = table;
+                
                 tableBase.addListener('mouseover', (e) => {
                     if (table.blockId) {
                         tooltip.innerHTML = `<b style="color: #0f172a;">${table.blockId}</b> | <span style="color: #64748b;">Table</span>`;
@@ -1217,7 +1280,7 @@ const LayoutEngine = {
                         const modulePolygon = new google.maps.Polygon({
                             paths: modCoords,
                             strokeColor: '#38bdf8', strokeOpacity: 0.3, strokeWeight: 0.5,
-                            fillColor: color, fillOpacity: 0.9, 
+                            fillColor: color, fillOpacity: 0.9,
                             map: SE.map,
                             zIndex: 501
                         });
@@ -1225,7 +1288,7 @@ const LayoutEngine = {
                         modulePolygon.addListener('mouseover', (e) => {
                             modulePolygon.setOptions({ strokeColor: '#fff', strokeOpacity: 1, strokeWeight: 2 });
                             if (table.blockId) {
-                                tooltip.innerHTML = `<b>${table.blockId}</b> | Row ${iy+1}, Mod ${ix+1}`;
+                                tooltip.innerHTML = `<b>${table.blockId}</b> | Row ${iy + 1}, Mod ${ix + 1}`;
                                 tooltip.style.display = 'block';
                             }
                         });
@@ -1249,6 +1312,8 @@ const LayoutEngine = {
                     map: SE.map,
                     zIndex: 500
                 });
+                polygon.isTable = true;
+                polygon.tableData = table;
 
                 // Table Hover Listeners (Modern Lightweight Tooltip)
                 polygon.addListener('mouseover', (e) => {
@@ -1340,26 +1405,19 @@ const LayoutEngine = {
      */
     applyBlockConfiguration(data) {
         console.log("Applying Block Design:", data);
-        // We still store these values in a way that _gatherSystemState can find them
-        // If the old elements don't exist, we might need to store them in a persistent state object
-        window._appliedRotation = data; // Cache for next layout run
+        window._appliedRotation = data;
 
-        // Update the DC/AC ratio in main UI
         const dcAcInput = document.getElementById('inv-acdc-ratio');
         if (dcAcInput) dcAcInput.value = data.ratio;
 
-        // Force variables that layout logic uses
-        // Since we removed the inputs, we'll store them in a global config object or similar
         this.currentBlockConfig = data;
 
-        // Update physical layout suggestions
         const modsPerTable = data.modsPerStr * (parseInt(document.getElementById('mount-mod-table-y')?.value) || 2);
         const totalStationMods = data.modsPerStr * data.strsPerInv * data.invsPerBlock;
         const tablesPerStation = Math.ceil(totalStationMods / modsPerTable);
 
-        // Calculate physical table width to enforce 200m DC cable limit per block row
-        const modW = (parseFloat(document.getElementById('pv-width')?.value) || 1134) / 1000; // meters
-        const modH = (parseFloat(document.getElementById('pv-height')?.value) || 2278) / 1000; // meters
+        const modW = (parseFloat(document.getElementById('pv-width')?.value) || 1134) / 1000;
+        const modH = (parseFloat(document.getElementById('pv-height')?.value) || 2278) / 1000;
         const modDistX = parseFloat(document.getElementById('mount-mod-dist-x')?.value) || 0;
         const isPortrait = document.querySelector('#mounting-orientation-seg .seg-btn.active')?.dataset.value === 'Portrait';
 
@@ -1368,7 +1426,6 @@ const LayoutEngine = {
             (modH * data.modsPerStr + (data.modsPerStr - 1) * modDistX);
 
         const tableDistX = parseFloat(document.getElementById('mount-table-dist-x')?.value) || 0.5;
-
         const maxBx = Math.max(1, Math.floor((200 + tableDistX) / (tableW + tableDistX)));
 
         let bX = Math.ceil(Math.sqrt(tablesPerStation));
@@ -1377,6 +1434,7 @@ const LayoutEngine = {
         const bY = Math.ceil(tablesPerStation / bX);
         window._lastTablesPerBlock = { x: bX, y: bY };
     },
+
 
     /**
      * Helper to add a DS or POC if user forgot
@@ -1403,7 +1461,7 @@ const LayoutEngine = {
                 state.primaryArea.linkedDsId = newDs.__uid; // Auto-link
             }
         }
-        
+
         // Only spawn POC for the very first project area
         if (!hasPOC && isFirstArea) {
             this._spawnEquipmentMarkup(pocPos, 'poc', 'POC 1', '#286944', true);
@@ -1463,7 +1521,7 @@ const LayoutEngine = {
         } else {
             SE.processNewOverlay(poly);
         }
-        
+
         return poly;
     }
 };

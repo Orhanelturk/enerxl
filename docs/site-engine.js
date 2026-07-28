@@ -276,7 +276,7 @@ const SiteEngine = {
         this.overlays.push(overlay);
         this.attachOverlayListeners(overlay);
 
-        if ((overlay.category === 'area' || overlay.subType) && overlay.subType !== 'topo_exclusion') {
+        if ((overlay.category === 'area' || overlay.subType) && overlay.subType !== 'topo_exclusion' && overlay.subType !== 'obstacle_point') {
             this.showNamingModal(overlay);
         }
         if (!this.isMarqueeActive) this.selectOverlay(overlay, this.isShiftDown);
@@ -481,7 +481,7 @@ const SiteEngine = {
 
     updateAreaLabel(overlay) {
         if (!overlay.labelMarker) {
-            let color = '#856404'; if (overlay.subType === 'poc') color = '#286944'; if (overlay.subType === 'station') color = '#ef4444';
+            let color = '#856404'; if (overlay.subType === 'poc') color = '#286944'; if (overlay.subType === 'station') color = '#ef4444'; if (overlay.subType === 'obstacle_point') color = '#ef4444';
             overlay.labelMarker = new google.maps.Marker({
                 map: this.map,
                 label: { text: overlay.areaName || "", color: color, fontWeight: '700', fontSize: '11px', className: 'map-label-bg' },
@@ -609,6 +609,19 @@ const SiteEngine = {
             }
         });
         this.selectedOverlays = [];
+        
+        // Global Map Click Reset: Force hide all vertex editing handles for EVERY object on the map
+        if (this.overlays) {
+            this.overlays.forEach(overlay => {
+                if (overlay.setEditable) overlay.setEditable(false);
+            });
+        }
+        if (window.CablesEngine && window.CablesEngine.mapPolylines) {
+            window.CablesEngine.mapPolylines.forEach(p => {
+                if (p.setEditable) p.setEditable(false);
+            });
+        }
+        
         document.getElementById('floating-edit-bar').classList.add('hidden');
         document.getElementById('rotation-popup').classList.add('hidden');
 
@@ -1142,8 +1155,176 @@ const SiteEngine = {
     },
 
     /**
-     * Extracts and validates mounting configuration for site layout generation
+     * Imports all features from a KML/KMZ file as Obstacle overlays.
+     * - Polygon placemarks  → red polygon area constraints
+     * - Point placemarks    → red dot marker objects
+     * Placemark <name> tags are used for auto-labelling each feature.
      */
+    importKmlKmzAsObstacle(file) {
+        if (!file) return;
+        const ext = file.name.split('.').pop().toLowerCase();
+        const self = this;
+
+        const processKmlAsObstacles = (text) => {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+
+            let polyCount = 0;
+            let pointCount = 0;
+            const combinedBounds = new google.maps.LatLngBounds();
+
+            // Helper: parse a coordinate string into {lat, lng} objects
+            const parseCoordString = (str) => str.trim().split(/\s+/).map(p => {
+                const parts = p.split(',').map(Number);
+                return parts.length >= 2 ? { lat: parts[1], lng: parts[0] } : null;
+            }).filter(c => c && !isNaN(c.lat) && !isNaN(c.lng));
+
+            // Walk every Placemark to pick up name + geometry
+            const placemarks = xmlDoc.getElementsByTagName("Placemark");
+
+            if (placemarks.length > 0) {
+                for (let i = 0; i < placemarks.length; i++) {
+                    const pm = placemarks[i];
+                    // Read optional name
+                    const nameEl = pm.getElementsByTagName("name")[0];
+                    const label = nameEl ? nameEl.textContent.trim() : null;
+
+                    // --- Polygon obstacle ---
+                    const polyEl = pm.getElementsByTagName("Polygon")[0];
+                    if (polyEl) {
+                        const coordsNode = polyEl.getElementsByTagName("coordinates")[0];
+                        if (coordsNode) {
+                            const coords = parseCoordString(coordsNode.textContent);
+                            if (coords.length >= 3) {
+                                const poly = new google.maps.Polygon({
+                                    paths: coords, ...self.styles.constraint, map: self.map
+                                });
+                                poly.category = 'constraint';
+                                poly.type = google.maps.drawing.OverlayType.POLYGON;
+                                if (label) poly.areaName = label;
+                                self.processNewOverlay(poly);
+                                coords.forEach(c => combinedBounds.extend(c));
+                                polyCount++;
+                            }
+                        }
+                        continue; // Move on to next placemark
+                    }
+
+                    // --- Point obstacle (rendered as dot marker) ---
+                    const pointEl = pm.getElementsByTagName("Point")[0];
+                    if (pointEl) {
+                        const coordsNode = pointEl.getElementsByTagName("coordinates")[0];
+                        if (coordsNode) {
+                            const parts = coordsNode.textContent.trim().split(',').map(Number);
+                            if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                                const position = { lat: parts[1], lng: parts[0] };
+                                const marker = new google.maps.Marker({
+                                    position,
+                                    map: self.map,
+                                    title: label || 'Obstacle Object',
+                                    icon: {
+                                        path: google.maps.SymbolPath.CIRCLE,
+                                        scale: 7,
+                                        fillColor: '#ef4444',
+                                        fillOpacity: 1,
+                                        strokeColor: '#ffffff',
+                                        strokeWeight: 2
+                                    }
+                                });
+                                marker.category = 'constraint';
+                                marker.subType = 'obstacle_point';
+                                marker.type = google.maps.drawing.OverlayType.MARKER;
+                                if (label) marker.areaName = label;
+                                self.processNewOverlay(marker);
+                                combinedBounds.extend(position);
+                                pointCount++;
+                            }
+                        }
+                    }
+                }
+
+                // Fallback: if Placemarks had no geometry, try raw tags
+                if (polyCount === 0 && pointCount === 0) {
+                    const coordsTags = xmlDoc.getElementsByTagName("coordinates");
+                    for (let i = 0; i < coordsTags.length; i++) {
+                        const coords = parseCoordString(coordsTags[i].textContent);
+                        if (coords.length >= 3) {
+                            const poly = new google.maps.Polygon({
+                                paths: coords, ...self.styles.constraint, map: self.map
+                            });
+                            poly.category = 'constraint';
+                            poly.type = google.maps.drawing.OverlayType.POLYGON;
+                            self.processNewOverlay(poly);
+                            coords.forEach(c => combinedBounds.extend(c));
+                            polyCount++;
+                        }
+                    }
+                }
+            } else {
+                // No Placemarks at all — scan raw Polygon tags as before
+                const polyTags = xmlDoc.getElementsByTagName("Polygon");
+                for (let i = 0; i < polyTags.length; i++) {
+                    const coordsNode = polyTags[i].getElementsByTagName("coordinates")[0];
+                    if (!coordsNode) continue;
+                    const coords = parseCoordString(coordsNode.textContent);
+                    if (coords.length >= 3) {
+                        const poly = new google.maps.Polygon({
+                            paths: coords, ...self.styles.constraint, map: self.map
+                        });
+                        poly.category = 'constraint';
+                        poly.type = google.maps.drawing.OverlayType.POLYGON;
+                        self.processNewOverlay(poly);
+                        coords.forEach(c => combinedBounds.extend(c));
+                        polyCount++;
+                    }
+                }
+            }
+
+            const total = polyCount + pointCount;
+            if (total === 0) {
+                alert("No valid obstacle geometry found in the file.");
+            } else {
+                const parts = [];
+                if (polyCount > 0) parts.push(`${polyCount} polygon area${polyCount > 1 ? 's' : ''}`);
+                if (pointCount > 0) parts.push(`${pointCount} point object${pointCount > 1 ? 's' : ''}`);
+                alert(`Imported: ${parts.join(' + ')}.`);
+                self.map.fitBounds(combinedBounds);
+            }
+        };
+
+        if (ext === 'kmz') {
+            if (typeof JSZip === 'undefined') {
+                alert("KMZ processing engine is currently loading. Please try again in a few seconds.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                JSZip.loadAsync(e.target.result).then(function (zip) {
+                    const kmlFile = Object.keys(zip.files).find(name => name.toLowerCase().endsWith('.kml'));
+                    if (kmlFile) {
+                        zip.files[kmlFile].async("string").then(function (kmlText) {
+                            processKmlAsObstacles(kmlText);
+                        });
+                    } else {
+                        alert("Error: No inner KML document found inside the KMZ archive.");
+                    }
+                }).catch(function (err) {
+                    alert("Error extracting KMZ file: " + err.message);
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        } else if (ext === 'kml') {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                processKmlAsObstacles(e.target.result);
+            };
+            reader.readAsText(file);
+        } else {
+            alert("Unsupported format. Please select a .kml or .kmz file.");
+        }
+    },
+
+
     applyMountingConfig() {
         const config = {
             type: document.getElementById('mounting-type-select').value,

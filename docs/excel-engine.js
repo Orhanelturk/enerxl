@@ -72,7 +72,6 @@ const ExcelEngine = {
             totalInvs += (s.invCount || 0);
         });
 
-        // Sum up from all areas if multiple
         const boq = [];
         if (totalMods > 0) boq.push({ desc: "PV Modules (Poly/Mono)", qty: totalMods, unit: "pcs" });
         if (totalInvs > 0) boq.push({ desc: "Solar Inverters (String/Central)", qty: totalInvs, unit: "pcs" });
@@ -85,9 +84,17 @@ const ExcelEngine = {
         if (eStats.totalHvOutgoing > 0) boq.push({ desc: "HV Switchgear Outgoing Bays", qty: eStats.totalHvOutgoing, unit: "pcs" });
         if (eStats.totalMvOutgoing > 0) boq.push({ desc: "MV Point of Connection Bay", qty: eStats.totalMvOutgoing, unit: "pcs" });
 
-        if (cStats.totalLvLength > 0) boq.push({ desc: "LV AC Cabling (AL/XLPE)", qty: Math.round(cStats.totalLvLength), unit: "m" });
-        if (cStats.totalMvLength > 0) boq.push({ desc: "MV Collector Cabling (AL/XLPE)", qty: Math.round(cStats.totalMvLength), unit: "m" });
-        if (cStats.totalHvLength > 0) boq.push({ desc: "HV Transmission Line/Cable", qty: Math.round(cStats.totalHvLength), unit: "m" });
+        // Detailed Cable Breakdown from CablesEngine
+        if (cStats.breakdown && cStats.breakdown.length > 0) {
+            cStats.breakdown.forEach(item => {
+                boq.push({ desc: `Cable: ${item.desc}`, qty: Math.round(item.qty), unit: "m" });
+            });
+        } else {
+            // Fallback to legacy generic entries if breakdown is missing
+            if (cStats.totalLvLength > 0) boq.push({ desc: "LV AC Cabling (AL/XLPE)", qty: Math.round(cStats.totalLvLength), unit: "m" });
+            if (cStats.totalMvLength > 0) boq.push({ desc: "MV Collector Cabling (AL/XLPE)", qty: Math.round(cStats.totalMvLength), unit: "m" });
+            if (cStats.totalHvLength > 0) boq.push({ desc: "HV Transmission Line/Cable", qty: Math.round(cStats.totalHvLength), unit: "m" });
+        }
 
         return boq;
     },

@@ -162,6 +162,14 @@ const StateEngine = {
                         }
                     }
                 }
+
+                // Restore Electrical State
+                if (window.ElectricalEngine) {
+                    window.ElectricalEngine.updatePowerDisplay();
+                    if (window.ElectricalEngine.updateStringSizing) {
+                        window.ElectricalEngine.updateStringSizing();
+                    }
+                }
             }
 
             // 3. Restore Overlays

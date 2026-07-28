@@ -10,6 +10,7 @@
 
 window.ElectricalEngine = {
     isUpdating: false,
+    isSizingCorrect: true,
 
     updatePowerDisplay() {
         if (this.isUpdating) return;
@@ -69,8 +70,44 @@ window.ElectricalEngine = {
 
             // 2. LV Main Calculations
             const lvV = vOut;
-            const lvInvA = parseFloat(document.getElementById('lv-inv-cb')?.value) || 0;
-            const lvMainA = parseFloat(document.getElementById('lv-main-cb')?.value) || 0;
+            const lvInvA = parseFloat(document.getElementById('lv-inv-cb')?.value) || 250;
+            
+            // --- REFINED SMART LV SIZING LOGIC ---
+            const trTargetMva = parseFloat((document.getElementById('substation-size')?.value || "3.15").split(';')[0]) || 3.15;
+            const trTargetAcKw = trTargetMva * 1000 * pf;
+            const windingTypeVal = parseInt(document.getElementById('tr-winding-type')?.value) || 2;
+            const invPActualVal = parseFloat(document.getElementById('inv-pnom')?.value) || 1;
+            const invIMaxACVal = parseFloat(document.getElementById('inv-imax-ac')?.value) || 0;
+
+            // Target distribution: 1 panel for 2-winding, 2 panels for 3-winding
+            const panelsPerTrDefault = (windingTypeVal === 3) ? 2 : 1;
+            const totalInvsPerTrNominal = Math.floor(trTargetAcKw / invPActualVal) || 1;
+            const targetInvsPerPanel = Math.ceil(totalInvsPerTrNominal / panelsPerTrDefault);
+
+            // Sizing Target must consider BOTH current load AND the breaker space/bus capacity
+            const reqCurrentA = targetInvsPerPanel * invIMaxACVal * 1.25;
+            const reqBreakerCapacityA = targetInvsPerPanel * lvInvA; 
+            const reqMainCB = Math.max(reqCurrentA, reqBreakerCapacityA);
+
+            const standardBusSizes = [630, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6300];
+            const bestFitMain = standardBusSizes.find(s => s >= reqMainCB) || 6300;
+
+            const mainCBInput = document.getElementById('lv-main-cb');
+            const mainCBSelector = document.querySelector('[data-target="lv-main-cb"]');
+            
+            if (mainCBInput) {
+                if (!mainCBInput.hasAttribute('data-initialized')) {
+                    mainCBInput.addEventListener('input', () => mainCBInput.setAttribute('data-manual', 'true'));
+                    mainCBInput.setAttribute('data-initialized', 'true');
+                }
+                // Auto-update if not manual
+                if (!mainCBInput.hasAttribute('data-manual')) {
+                    mainCBInput.value = bestFitMain;
+                    if (mainCBSelector) mainCBSelector.value = bestFitMain;
+                }
+            }
+
+            const lvMainA = parseFloat(mainCBInput?.value) || bestFitMain;
 
             // Calculate individual CB hints
             const divisor = 1000;
@@ -82,13 +119,13 @@ window.ElectricalEngine = {
             if (invHint) invHint.innerText = `(~${Math.round(invCwKw)} kW)`;
             if (mainHint) mainHint.innerText = `(~${Math.round(mainCwKw)} kW)`;
 
-            // LV Summary Data
+            // LV Summary Data (Project-wide)
             const totalSysAcKw = (parseFloat(document.getElementById('sys-ac-cap')?.value) || 0) * 1000;
-            const invPActual = parseFloat(document.getElementById('inv-pnom')?.value) || 1;
-            const totalInverters = Math.ceil(totalSysAcKw / invPActual);
-
-            const invPerPanel = lvInvA > 0 ? Math.floor(lvMainA / lvInvA) : 0;
-            const totalPanels = invPerPanel > 0 ? Math.ceil(totalInverters / invPerPanel) : 0;
+            const totalInvertersProject = Math.ceil(totalSysAcKw / invPActualVal);
+            
+            // Effective capacity per panel based on current CB selection
+            const invPerPanelActual = lvInvA > 0 ? Math.floor(lvMainA / lvInvA) : 0;
+            const totalPanelsProject = invPerPanelActual > 0 ? Math.ceil(totalInvertersProject / invPerPanelActual) : 0;
 
             const sumAc = document.getElementById('lv-sum-ac');
             const sumInvs = document.getElementById('lv-sum-total-inv');
@@ -96,55 +133,37 @@ window.ElectricalEngine = {
             const sumPanels = document.getElementById('lv-sum-total-panels');
 
             if (sumAc) sumAc.innerText = `${Math.round(mainCwKw)} kW`;
-            if (sumInvs) sumInvs.innerText = totalInverters;
-            if (sumInvQty) sumInvQty.innerText = invPerPanel;
-            if (sumPanels) sumPanels.innerText = totalPanels;
+            if (sumInvs) sumInvs.innerText = totalInvertersProject;
+            if (sumInvQty) sumInvQty.innerText = invPerPanelActual;
+            if (sumPanels) sumPanels.innerText = totalPanelsProject;
 
-            // LV POC Updates
-            const lvPocBox = document.getElementById('lv-poc-out-box');
-            if (lvPocBox) {
-                const isLvPoc = pocLevel === 'LV';
-                lvPocBox.style.display = isLvPoc ? 'block' : 'none';
-                document.querySelectorAll('#elec-tab-lv .poc-summary-row').forEach(r => r.style.display = isLvPoc ? 'flex' : 'none');
+            // Transformer Summary Updates
+            const trPerProject = totalInvsPerTrNominal > 0 ? Math.ceil(totalInvertersProject / totalInvsPerTrNominal) : 1;
+            const panelsPerStationActual = Math.ceil(totalPanelsProject / trPerProject);
 
-                if (isLvPoc) {
-                    const lvSumInc = document.getElementById('lv-sum-incomers');
-                    const lvSumOut = document.getElementById('lv-sum-outgoing');
-                    if (lvSumInc) lvSumInc.innerText = totalInverters;
-                    if (lvSumOut) lvSumOut.innerText = document.getElementById('lv-poc-outgoing')?.value || 1;
-                }
-            }
-
-            // Transformer Summary Data
-            const trMva = parseFloat((document.getElementById('substation-size')?.value || "3.15").split(';')[0]) || 3.15;
-            const trAcKw = trMva * 1000 * pf;
-            const windingType = parseInt(document.getElementById('tr-winding-type')?.value) || 2;
-
-            const panelPerTr = mainCwKw > 0 ? Math.floor(trAcKw / mainCwKw) : 0;
-            const panelPerWinding = (windingType === 3) ? Math.floor(panelPerTr / 2) : panelPerTr;
-            const symmetryCap = (windingType === 3) ? (panelPerWinding * 2) : panelPerTr;
-
-            // Priority: Actual Layout Stations (if exists) -> Theoretical Estimate
-            let totalStations = symmetryCap > 0 ? Math.ceil(totalPanels / symmetryCap) : 0;
+            let totalStationsDefault = panelsPerStationActual > 0 ? Math.ceil(totalPanelsProject / panelsPerStationActual) : 1;
             const chkManualCap = document.getElementById('chk-manual-cap');
             if (this.totalLayoutStations > 0 && (!chkManualCap || !chkManualCap.checked)) {
-                totalStations = this.totalLayoutStations;
+                totalStationsDefault = this.totalLayoutStations;
             }
 
-            // Distribute total panels across the final number of stations
-            const effectivePanelsPerTr = totalStations > 0 ? Math.ceil(totalPanels / totalStations) : 0;
-            const effectivePanelsPerWinding = (windingType === 3) ? Math.ceil(effectivePanelsPerTr / 2) : effectivePanelsPerTr;
-            const effectiveTrTotal = (windingType === 3) ? (effectivePanelsPerWinding * 2) : effectivePanelsPerWinding;
+            const effectivePanelsPerTr = totalStationsDefault > 0 ? Math.ceil(totalPanelsProject / totalStationsDefault) : 0;
+            const effectivePanelsPerWinding = (windingTypeVal === 3) ? Math.ceil(effectivePanelsPerTr / 2) : effectivePanelsPerTr;
+            const effectiveTrTotalFinal = (windingTypeVal === 3) ? (effectivePanelsPerWinding * 2) : effectivePanelsPerWinding;
 
             const sumTrTotalPanels = document.getElementById('tr-sum-total-panels');
             const sumTrWinding = document.getElementById('tr-sum-panel-winding');
             const sumTrPanel = document.getElementById('tr-sum-panel-tr');
             const sumTrTotal = document.getElementById('tr-sum-total-stations');
 
-            if (sumTrTotalPanels) sumTrTotalPanels.innerText = totalPanels;
+            if (sumTrTotalPanels) sumTrTotalPanels.innerText = totalPanelsProject;
             if (sumTrWinding) sumTrWinding.innerText = effectivePanelsPerWinding;
-            if (sumTrPanel) sumTrPanel.innerText = effectiveTrTotal;
-            if (sumTrTotal) sumTrTotal.innerText = totalStations;
+            if (sumTrPanel) sumTrPanel.innerText = effectiveTrTotalFinal;
+            if (sumTrTotal) sumTrTotal.innerText = totalStationsDefault;
+
+            const totalStations = totalStationsDefault;
+            const trMva = trTargetMva;
+
 
             // 3. MV Calculations
             const mvV = parseFloat(document.getElementById('mv-v')?.value) || 33;
@@ -256,39 +275,43 @@ window.ElectricalEngine = {
             // This ensures a 125 MVA TR is seen as capable of handling one 2500A bus section.
             const sizingBusMw = (mvV * mvBusA * sqrt3 * pf) / 1000;
 
-            // Auto-selection logic: Find optimal size to serve the buses
+            // Auto-selection logic: Find optimal size to serve the explicit layout
             // Standard substation sizes
             const standardSubstationSizes = [40, 63, 80, 100, 120, 125, 160, 200, 250, 315];
 
-            // Target per Transformer capacity based on bus load
-            let targetSizePerTr = sizingBusMw;
+            // Use the ACTUAL calculated bus load from the station map to determine capacity limits
+            const sysAcMw = parseFloat(document.getElementById('sys-ac-cap')?.value) || 0;
+            const actualStationMw = totalStations > 0 ? (sysAcMw / totalStations) : 0;
+            const actualBusMw = Math.max(0.1, effectiveStationsPerBus * actualStationMw);
+
+            let targetSizePerTr = actualBusMw;
             if (mvhvWindingType === 3 && totalBuses >= 2) {
-                targetSizePerTr = sizingBusMw * 2; // For 3-winding, we try to fit 2 buses
+                targetSizePerTr = actualBusMw * 2; // For 3-winding, we try to fit 2 buses
             }
 
-            const mvhvBestFit = standardSubstationSizes.find(s => s >= targetSizePerTr) || 315;
+            const mvhvBestFit = standardSubstationSizes.find(s => (s * pf) >= targetSizePerTr) || 315;
 
             const mvhvMvaInput = document.getElementById('mvhv-mva');
             const mvhvMvaSelector = document.querySelector('[data-target="mvhv-mva"]');
 
-            // Removed forceful override so user CAN change the HV transformer from default
-            // if (mvhvMvaInput && !mvhvMvaInput.dataset.manual) mvhvMvaInput.value = mvhvBestFit;
-
             const mvhvMva = parseFloat(mvhvMvaInput?.value) || mvhvBestFit;
 
-            // How many buses per transformer can we actually fit?
-            // For 3-winding, each secondary winding takes mvhvMva / 2
+            // How many buses per transformer can we actually fit safely without overloading?
+            // For 3-winding, each secondary winding handles exactly (mvhvMva / 2) MVA total
             let busesPerTr = 0;
             let busesPerWinding = 0;
+            let trCapMw = mvhvMva * pf;
 
             if (mvhvWindingType === 3) {
-                busesPerWinding = sizingBusMw > 0 ? Math.floor((mvhvMva / 2) / sizingBusMw) : 0;
-                // At least one bus if rating is very close (handles the 125 and 123 case)
-                if (busesPerWinding === 0 && (mvhvMva / 2) >= (sizingBusMw * 0.95)) busesPerWinding = 1;
+                let windingCap = trCapMw / 2;
+                busesPerWinding = actualBusMw > 0 ? Math.floor(windingCap / actualBusMw) : 0;
+                // If the transformer chosen by user is extremely tight/small, it MUST still take at least 1 Bus even if overloaded!
+                if (busesPerWinding === 0) busesPerWinding = 1;
                 busesPerTr = busesPerWinding * 2;
             } else {
-                busesPerWinding = sizingBusMw > 0 ? Math.floor(mvhvMva / sizingBusMw) : 0;
-                if (busesPerWinding === 0 && mvhvMva >= (sizingBusMw * 0.95)) busesPerWinding = 1;
+                busesPerWinding = actualBusMw > 0 ? Math.floor(trCapMw / actualBusMw) : 0;
+                // If it mathematically falls short, bind fallback to 1 bus strictly
+                if (busesPerWinding === 0) busesPerWinding = 1;
                 busesPerTr = busesPerWinding;
             }
 
@@ -337,7 +360,7 @@ window.ElectricalEngine = {
 
             // Global Export Stats for Excel (BOQ)
             window._electricalStats = {
-                totalPanels: totalPanels,
+                totalPanels: totalPanelsProject,
                 totalStations: totalStations,
                 totalMainTr: totalMainTr,
                 totalHvIncomers: totalMainTr,
@@ -354,194 +377,41 @@ window.ElectricalEngine = {
     },
 
     /**
-     * Generates optimal configurations based on physical equipment constraints
+     * Automated calculation of station block sizing based on target DC/AC ratio
+     * and site equipment specs.
      */
     generateOptions() {
-        // PV specs
         const pv = {
-            p: parseFloat(document.getElementById('pv-pnom').value) || 550,
-            voc: parseFloat(document.getElementById('pv-voc').value) || 50,
-            vmpp: parseFloat(document.getElementById('pv-vmpp').value) || 42,
-            vocCoeff: parseFloat(document.getElementById('pv-voc-coeff').value) || -0.26,
-            pmaxCoeff: parseFloat(document.getElementById('pv-pmax-coeff').value) || -0.34
+            p: parseFloat(document.getElementById('pv-pnom')?.value) || 550,
+            pmaxCoeff: parseFloat(document.getElementById('pv-pmax-coeff')?.value) || -0.34
         };
-
-        // Inverter specs
         const inv = {
-            p: parseFloat(document.getElementById('inv-pnom').value) || 125,
-            vmax: parseFloat(document.getElementById('inv-vmax-dc').value) || 1100,
-            vmppMin: parseFloat(document.getElementById('inv-vmpp-min').value) || 200,
-            nbMppt: parseInt(document.getElementById('inv-nb-mppt').value) || 12
+            p: parseFloat(document.getElementById('inv-pnom')?.value) || 125,
+            nbMppt: parseInt(document.getElementById('inv-nb-mppt')?.value) || 12
         };
-
-        // Site conditions
         const site = {
-            tMin: parseFloat(document.getElementById('site-temp-min').value) || -5,
-            tMax: parseFloat(document.getElementById('site-temp-max').value) || 50,
             pf: parseFloat(document.getElementById('sys-pf')?.value) || 0.9,
-            targetMW: parseFloat(document.getElementById('cfg-target-mw').value) || 10
+            targetMW: parseFloat(document.getElementById('cfg-target-mw')?.value) || 10
         };
+        const stationMva = parseFloat((document.getElementById('substation-size')?.value || "9").split(';')[0]) || 9;
 
-        const stationMva = parseFloat((document.getElementById('substation-size').value || "9").split(';')[0]) || 9;
+        const nStr = parseInt(document.getElementById('inv-mods-str')?.value) || 25;
+        const targetRatio = parseFloat(document.getElementById('inv-acdc-ratio')?.value) || 1.25;
 
-        // 1. String Sizing Logic
-        const res = this.verifyStringSizing(pv, inv, site);
-        const nStr = res.recommended;
-
-        // 2. Combinatorial Search for best "Electrical Blocks"
-        // We look for configurations that utilize the transformer well while maintaining healthy DC/AC ratios
+        // Target DC/AC ratio for healthy power density
         const pAcBlockKw = stationMva * 1000 * site.pf;
-        const baseInvPerBlock = Math.round(pAcBlockKw / inv.p);
+        const invsPerBlock = Math.max(1, Math.floor(pAcBlockKw / inv.p));
+        
+        const targetDcKwPerInv = inv.p * targetRatio;
+        const kwPerStr = (pv.p * nStr) / 1000;
+        const strsPerInv = Math.round(targetDcKwPerInv / kwPerStr);
 
-        const options = [];
-        // Test variations: inv count near base, string count near target ratios
-        const invVariations = [baseInvPerBlock, baseInvPerBlock - 1, baseInvPerBlock + 1];
-        const strVariations = [Math.floor(inv.nbMppt * 1.1), inv.nbMppt, Math.ceil(inv.nbMppt * 1.5)];
-
-        const seen = new Set();
-
-        [1.10, 1.20, 1.30, 1.40].forEach(ratio => {
-            const targetDcKwPerInv = inv.p * ratio;
-            const kwPerStr = (pv.p * nStr) / 1000;
-            const strings = Math.round(targetDcKwPerInv / kwPerStr);
-
-            invVariations.forEach(invCount => {
-                if (invCount <= 0) return;
-
-                const dcKw = (nStr * strings * invCount * pv.p) / 1000;
-                const acKw = invCount * inv.p;
-                const actualRatio = dcKw / acKw;
-                const numStations = Math.ceil((site.targetMW * 1000) / acKw);
-
-                const totalDcKw = Math.round(dcKw * numStations);
-                const totalAcKw = Math.round(acKw * numStations);
-
-                const key = `${nStr}_${strings}_${invCount}`;
-                if (!seen.has(key)) {
-                    options.push({
-                        modsPerStr: nStr,
-                        strsPerInv: strings,
-                        strsPerMppt: (strings / inv.nbMppt).toFixed(1),
-                        invsPerBlock: invCount,
-                        ratio: actualRatio.toFixed(3),
-                        dcKw: totalDcKw, // Show Total Project DC
-                        acKw: totalAcKw, // Show Total Project AC
-                        numStations: numStations
-                    });
-                    seen.add(key);
-                }
-            });
-        });
-
-        // Rank by goodness of ratio (closest to average utility norms 1.2-1.3)
-        return options.sort((a, b) => Math.abs(a.ratio - 1.25) - Math.abs(b.ratio - 1.25)).slice(0, 5);
-    },
-
-    verifyStringSizing(pv, inv, site) {
-        // Temperature corrections
-        const vocMaxT = pv.voc * (1 + (pv.vocCoeff / 100) * (site.tMin - 25));
-        const tCellMax = site.tMax + 25; // Standard operational delta
-        const vmppMinT = pv.vmpp * (1 + (pv.pmaxCoeff / 100) * (tCellMax - 25));
-
-        const nMax = Math.floor(inv.vmax / vocMaxT);
-        const nMin = Math.ceil(inv.vmppMin / vmppMinT);
-
-        // Try to match Module Along (Row Length) for clean physical layout
-        const preferredLen = parseInt(document.getElementById('mount-mod-table-x')?.value) || 25;
-        let recommended = preferredLen;
-
-        // If preferred length is out of electrical bounds, clamp it
-        if (recommended > nMax) recommended = nMax;
-        if (recommended < nMin) recommended = nMin;
-
-        return { nMin, nMax, recommended, vocMaxT, vmppMinT };
-    },
-
-    getVerificationDetails(config) {
-        // PV specs
-        const pv = {
-            p: parseFloat(document.getElementById('pv-pnom').value) || 550,
-            voc: parseFloat(document.getElementById('pv-voc').value) || 50,
-            vmpp: parseFloat(document.getElementById('pv-vmpp').value) || 42,
-            vocCoeff: parseFloat(document.getElementById('pv-voc-coeff').value) || -0.26,
-            pmaxCoeff: parseFloat(document.getElementById('pv-pmax-coeff').value) || -0.34
-        };
-        const inv = {
-            p: parseFloat(document.getElementById('inv-pnom').value) || 125,
-            vmax: parseFloat(document.getElementById('inv-vmax-dc').value) || 1100,
-            vmppMin: parseFloat(document.getElementById('inv-vmpp-min').value) || 200
-        };
-        const site = {
-            tMin: parseFloat(document.getElementById('site-temp-min').value) || -5,
-            tMax: parseFloat(document.getElementById('site-temp-max').value) || 50
-        };
-
-        const sz = this.verifyStringSizing(pv, inv, site);
-        const stringVoc = config.modsPerStr * sz.vocMaxT;
-        const stringVmpp = config.modsPerStr * sz.vmppMinT;
-
-        return {
-            title: "IEC 62548 Compliance Verification",
-            checks: [
-                {
-                    label: "Voltage Check (@ Tmin)",
-                    value: `${stringVoc.toFixed(1)}V`,
-                    limit: `${inv.vmax}V`,
-                    status: stringVoc <= inv.vmax ? "PASS" : "FAIL",
-                    detail: `Max string Voc (${config.modsPerStr} mods * ${sz.vocMaxT.toFixed(2)}V) must be <= Inverter Vmax.`
-                },
-                {
-                    label: "MPPT Range (@ Tmax)",
-                    value: `${stringVmpp.toFixed(1)}V`,
-                    limit: `>${inv.vmppMin}V`,
-                    status: stringVmpp >= inv.vmppMin ? "PASS" : "FAIL",
-                    detail: `Min string Vmpp at ${site.tMax}°C must stay within Inverter tracking range.`
-                }
-            ],
-            summary: `Configuration verified for ${site.tMin}°C to ${site.tMax}°C operation.`
-        };
-    },
-
-    getConnectionFlow(config) {
-        const schedule = this.getFullSchedule(config);
-        return {
-            title: "Project Electrical Schedule & Connections",
-            summary: `Total Site: ${schedule.length} MV Blocks | ${config.numStations} Stations estimated for Target MW.`,
-            schedule: schedule,
-            steps: [
-                { part: "Module Level", text: `${config.modsPerStr} PV Modules per String (${((config.modsPerStr * parseFloat(document.getElementById('pv-pnom').value)) / 1000).toFixed(2)} kWp/str).` },
-                { part: "Inverter Level", text: `Each Inverter: ${config.strsPerInv} Strings | ${config.dcKw} kWp DC | ${config.acKw} kW AC.` },
-                { part: "Block Level", text: `${config.invsPerBlock} Inverters per MV Block.` }
-            ]
-        };
-    },
-
-    getFullSchedule(config) {
-        const blocks = [];
-        const numBlocks = config.numStations;
-        const pvP = parseFloat(document.getElementById('pv-pnom').value) || 550;
-        const invP = parseFloat(document.getElementById('inv-pnom').value) || 125;
-        const stationMva = parseFloat((document.getElementById('substation-size').value || "9").split(';')[0]) || 9;
-
-        for (let b = 1; b <= numBlocks; b++) {
-            const inverters = [];
-            for (let i = 1; i <= config.invsPerBlock; i++) {
-                inverters.push({
-                    id: `INV-${b}.${i}`,
-                    strings: config.strsPerInv,
-                    dcKw: (config.modsPerStr * config.strsPerInv * pvP) / 1000,
-                    acKw: invP
-                });
-            }
-            blocks.push({
-                id: `MV Block ${b}`,
-                sizeMva: stationMva,
-                invCount: config.invsPerBlock,
-                totalDc: (config.modsPerStr * config.strsPerInv * config.invsPerBlock * pvP / 1000).toFixed(1),
-                inverters: inverters
-            });
-        }
-        return blocks;
+        return [{
+            modsPerStr: nStr,
+            strsPerInv: Math.max(1, strsPerInv),
+            invsPerBlock: Math.max(1, invsPerBlock),
+            ratio: ((nStr * strsPerInv * pv.p / 1000) / inv.p).toFixed(3)
+        }];
     },
 
     initDesignUI() {
@@ -574,9 +444,10 @@ window.ElectricalEngine = {
         const calcInputs = [
             'lv-inv-cb', 'lv-main-cb',
             'mv-v', 'mv-bus', 'mv-bay-cb', 'mv-conn-type', 'mv-blocks-per-loop', 'mv-tr-bay-cb',
-            'hv-v', 'hv-bus', 'sys-pf', 'inv-vout', 'inv-pnom', 'tr-winding-type', 'substation-size', 'mvhv-mva',
+            'hv-v', 'hv-bus', 'sys-pf', 'inv-vout', 'inv-pnom', 'tr-winding-type', 'substation-size', 'mvhv-mva', 'mvhv-winding-type',
             'poc-v-level', 'lv-v', 'chk-use-hvswg', 'hv-poc-outgoing', 'poc-connect-type',
-            'lv-poc-outgoing', 'mv-poc-outgoing'
+            'lv-poc-outgoing', 'mv-poc-outgoing', 'inv-acdc-ratio',
+            'lv-cable-mat', 'mv-cable-mat', 'mv-install-type', 'hv-cable-mat', 'hv-install-type'
         ];
         calcInputs.forEach(id => {
             const el = document.getElementById(id);
@@ -649,8 +520,41 @@ window.ElectricalEngine = {
                         window.LayoutEngine.isManualConfig = false; // Reset to allow auto-suggestion
                     }
                     this.updatePowerDisplay();
+                    this.updateStringSizing();
                 });
             });
+        });
+
+        // Link Modules/String to Table Along modules
+        const tableX = document.getElementById('mount-mod-table-x');
+        const modsStr = document.getElementById('inv-mods-str');
+        if (tableX && modsStr) {
+            // Initial sync
+            if (!modsStr.classList.contains('user-modified')) {
+                modsStr.value = tableX.value || 25;
+            }
+            
+            tableX.addEventListener('input', () => {
+                if (!modsStr.classList.contains('user-modified')) {
+                    modsStr.value = tableX.value;
+                    this.updateStringSizing();
+                }
+            });
+            modsStr.addEventListener('input', () => {
+                modsStr.classList.add('user-modified');
+                this.updateStringSizing();
+            });
+        }
+
+        // String sizing triggers
+        const sizingTriggers = [
+            'site-temp-min', 'site-temp-max', 
+            'pv-voc', 'pv-vmpp', 'pv-voc-coeff', 'pv-pmax-coeff',
+            'inv-vmax-dc', 'inv-vmpp-min', 'inv-vmpp-max',
+            'inv-mods-str', 'inv-acdc-ratio', 'inv-strs-per-inv', 'inv-invs-per-block'
+        ];
+        sizingTriggers.forEach(id => {
+            document.getElementById(id)?.addEventListener('input', () => this.updateStringSizing());
         });
 
         // Panel Toggles
@@ -674,149 +578,217 @@ window.ElectricalEngine = {
         // SLD Window - Now on Main Toolbar
         document.getElementById('btn-view-sld-main')?.addEventListener('click', () => this.toggleSldWindow(true));
 
-        // Area Configuration Modal
-        document.getElementById('btn-open-area-config')?.addEventListener('click', () => this.openAreaConfigModal());
-        document.getElementById('btn-save-area-config')?.addEventListener('click', () => this.saveAreaConfig());
-
         this.setupSldDragging();
+        this.updateStringSizing();
+        this.setupAreaConfigUI();
     },
 
     openAreaConfigModal() {
-        const modal = document.getElementById('area-elec-config-modal');
-        const tbody = document.getElementById('area-config-tbody');
-        if (!modal || !tbody) return;
+        const modal = document.getElementById('area-cfg-modal');
+        const tbody = document.getElementById('area-cfg-table-body');
+        const pocLevel = document.getElementById('poc-v-level')?.value || 'HV';
+        const busSelect = document.getElementById('global-bus-level-select');
 
-        const SE = window.SiteEngine;
-        if (!SE) return;
+        // Populate Bus Level Options based on POC Level
+        busSelect.innerHTML = '';
+        const lvV = document.getElementById('lv-v')?.value || 400;
+        const mvV = document.getElementById('mv-v')?.value || 33;
+        const hvV = document.getElementById('hv-v')?.value || 132;
 
-        // Find all primary areas
-        const areas = SE.overlays.filter(o => o.category === 'area' || (o.getPath && !o.subType && !o.category));
-        const dsStations = SE.overlays.filter(o => o.subType === 'station');
-        const pocs = SE.overlays.filter(o => o.subType === 'poc');
+        const addOpt = (val, label) => {
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.innerText = label;
+            busSelect.appendChild(opt);
+        };
 
-        if (areas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="padding: 3rem; text-align: center; color: #94a3b8;"><i data-lucide="info" style="width: 24px; height: 24px; margin-bottom: 0.5rem; display: block; margin-inline: auto;"></i>No areas identified. Please draw project areas first.</td></tr>`;
-            if (window.lucide) lucide.createIcons();
+        if (pocLevel === 'LV') {
+            addOpt('LV', lvV);
+            busSelect.value = 'LV';
+        } else if (pocLevel === 'MV') {
+            addOpt('LV', lvV);
+            addOpt('MV', mvV);
+            busSelect.value = 'MV';
+        } else {
+            addOpt('LV', lvV);
+            addOpt('MV', mvV);
+            addOpt('HV', hvV);
+            busSelect.value = 'HV';
+        }
+
+        // Populate DS / POC Options from SiteEngine if available
+        let dsOptionsHTML = '<option value="auto">-- Auto Route --</option>';
+        let pocOptionsHTML = '<option value="global">-- Global POC --</option>';
+        
+        let availableDS = [];
+        let availablePOC = [];
+
+        if (window.SiteEngine && window.SiteEngine.overlays) {
+            window.SiteEngine.overlays.forEach(o => {
+                if (o.subType === 'station') availableDS.push(o);
+                if (o.subType === 'poc') availablePOC.push(o);
+            });
+            
+            availableDS.forEach((o, idx) => {
+                const name = o.areaName || `DS ${idx + 1}`;
+                dsOptionsHTML += `<option value="${o.__uid || name}">${name}</option>`;
+            });
+            availablePOC.forEach((o, idx) => {
+                const name = o.areaName || `POC ${idx + 1}`;
+                pocOptionsHTML += `<option value="${o.__uid || name}">${name}</option>`;
+            });
+        }
+
+        // Initialize state if empty
+        window.ElectricalEngine.areaMappings = window.ElectricalEngine.areaMappings || {};
+
+        // Loop over Layout Engine Areas
+        if (tbody) {
+            tbody.innerHTML = '';
+            const stats = window._layoutStats || {};
+            const areas = Object.keys(stats).length > 0 ? Object.keys(stats) : ['Area 1'];
+
+            areas.forEach(areaName => {
+                const mapping = window.ElectricalEngine.areaMappings[areaName] || { ds: 'auto', poc: 'global' };
+                const row = document.createElement('tr');
+                row.setAttribute('data-area', areaName);
+                
+                const dsSelect = document.createElement('select');
+                dsSelect.className = 'modern-input ds-select';
+                dsSelect.style.height = '36px';
+                dsSelect.style.padding = '0 0.5rem';
+                dsSelect.innerHTML = dsOptionsHTML;
+                dsSelect.value = mapping.ds || 'auto';
+                
+                const pocSelect = document.createElement('select');
+                pocSelect.className = 'modern-input poc-select';
+                pocSelect.style.height = '36px';
+                pocSelect.style.padding = '0 0.5rem';
+                pocSelect.innerHTML = pocOptionsHTML;
+                pocSelect.value = mapping.poc || 'global';
+                
+                row.innerHTML = `
+                    <td style="padding: 1rem; font-weight: 600; color: #1e293b; border-bottom: 1px solid #f1f5f9;">${areaName}</td>
+                    <td class="ds-td" style="padding: 0.5rem 1rem; border-bottom: 1px solid #f1f5f9;"></td>
+                    <td class="poc-td" style="padding: 0.5rem 1rem; border-bottom: 1px solid #f1f5f9;"></td>
+                `;
+                row.querySelector('.ds-td').appendChild(dsSelect);
+                row.querySelector('.poc-td').appendChild(pocSelect);
+                tbody.appendChild(row);
+            });
+        }
+        
+        if (window.ElectricalEngine.globalBusLevel) {
+            busSelect.value = window.ElectricalEngine.globalBusLevel;
+        }
+
+        if (modal) {
             modal.classList.remove('hidden');
-            return;
+            if (window.lucide) window.lucide.createIcons();
         }
-
-        // Populate Common Bus Voltage Dropdown
-        const commonBusSelect = document.getElementById('common-bus-v');
-        if (commonBusSelect) {
-            // LV is entered/read in Volts. Divide by 1000 to convert to kV for the dropdown.
-            const lv = (parseFloat(document.getElementById('lv-v')?.value) || 0) / 1000;
-            const mv = parseFloat(document.getElementById('mv-v')?.value) || 33;
-            const hv = parseFloat(document.getElementById('hv-v')?.value) || 132;
-            const pocLevel = document.getElementById('poc-v-level')?.value || 'HV';
-            const useHv = document.getElementById('chk-use-hvswg')?.checked;
-
-            commonBusSelect.innerHTML = '';
-            
-            // Re-use current value or default to highest available
-            const currentVal = this.commonBusV || (pocLevel === 'HV' && useHv ? hv : mv);
-
-            const options = [];
-            
-            // Push valid voltages descending from the maximum allowed by the POC Level
-            if (pocLevel === 'HV' && useHv && hv > 0) options.push(hv);
-            if ((pocLevel === 'HV' || pocLevel === 'MV') && mv > 0) options.push(mv);
-            if (lv > 0) options.push(lv);
-
-            [...new Set(options)].forEach(v => {
-                const opt = document.createElement('option');
-                opt.value = v;
-                opt.textContent = `${v} kV`;
-                if (v === currentVal) opt.selected = true;
-                commonBusSelect.appendChild(opt);
-            });
-        }
-
-        tbody.innerHTML = '';
-        areas.forEach((area, index) => {
-            // Force UID assignment if missing so mapping can be saved robustly
-            if (!area.__uid && SE.generateUid) area.__uid = SE.generateUid();
-            
-            const areaName = area.areaName || `Area ${index + 1}`;
-            const linkedDsId = area.linkedDsId || '';
-            const linkedPocId = area.linkedPocId || '';
-            const areaUid = area.__uid;
-
-            const row = document.createElement('tr');
-            row.style.borderBottom = '1px solid #f1f5f9';
-            
-            // Generate DS Options
-            let dsOptions = `<option value="">-- Auto Route --</option>`;
-            dsStations.forEach(ds => {
-                if (!ds.__uid && SE.generateUid) ds.__uid = SE.generateUid();
-                const id = ds.__uid || ds.overlayId || ds.areaName;
-                dsOptions += `<option value="${id}" ${linkedDsId === id ? 'selected' : ''}>${ds.areaName || 'Station'}</option>`;
-            });
-
-            // Generate POC Options
-            let pocOptions = `<option value="">-- Global POC --</option>`;
-            pocs.forEach(poc => {
-                if (!poc.__uid && SE.generateUid) poc.__uid = SE.generateUid();
-                const id = poc.__uid || poc.overlayId || poc.areaName;
-                pocOptions += `<option value="${id}" ${linkedPocId === id ? 'selected' : ''}>${poc.areaName || 'POC'}</option>`;
-            });
-
-            row.innerHTML = `
-                <td style="padding: 1rem; font-weight: 600; color: #1e293b;">${areaName}</td>
-                <td style="padding: 0.75rem;">
-                    <select class="modern-area-select area-ds-select" data-area-uid="${areaUid}">
-                        ${dsOptions}
-                    </select>
-                </td>
-                <td style="padding: 0.75rem;">
-                    <select class="modern-area-select area-poc-select" data-area-uid="${areaUid}">
-                        ${pocOptions}
-                    </select>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-
-        modal.classList.remove('hidden');
-        if (window.lucide) lucide.createIcons();
     },
 
-    saveAreaConfig() {
-        const SE = window.SiteEngine;
-        const areas = SE.overlays.filter(o => o.category === 'area' || (o.getPath && !o.subType && !o.category));
+    setupAreaConfigUI() {
+        const btnOpen = document.getElementById('btn-area-cfg-open');
+        const btnSave = document.getElementById('btn-save-area-cfg');
         
-        const dsSelects = document.querySelectorAll('.area-ds-select');
-        const pocSelects = document.querySelectorAll('.area-poc-select');
-
-        dsSelects.forEach(sel => {
-            const uid = sel.dataset.areaUid;
-            const area = areas.find(a => a.__uid === uid);
-            if (area) {
-                area.linkedDsId = sel.value;
-            }
-        });
-
-        pocSelects.forEach(sel => {
-            const uid = sel.dataset.areaUid;
-            const area = areas.find(a => a.__uid === uid);
-            if (area) {
-                area.linkedPocId = sel.value;
-            }
-        });
-
-        // Save common bus V
-        const commonBusV = document.getElementById('common-bus-v').value;
-        this.commonBusV = parseFloat(commonBusV) || 132;
-
-        document.getElementById('area-elec-config-modal').classList.add('hidden');
-        
-        // Trigger SLD Refresh if open
-        const sldWin = document.getElementById('sld-window');
-        if (sldWin && !sldWin.classList.contains('hidden')) {
-            if (window.SldEngine) window.SldEngine.renderSld();
+        if (btnOpen) {
+            btnOpen.addEventListener('click', () => this.openAreaConfigModal());
         }
 
-        alert("Area design configuration saved. This mapping will be used for Cable Routing and Single Line Diagram (SLD).");
+        if (btnSave) {
+            btnSave.addEventListener('click', () => {
+                const modal = document.getElementById('area-cfg-modal');
+                const tbody = document.getElementById('area-cfg-table-body');
+                const busSelect = document.getElementById('global-bus-level-select');
+                
+                window.ElectricalEngine.areaMappings = {};
+                window.ElectricalEngine.globalBusLevel = busSelect ? busSelect.value : null;
+                
+                if (tbody) {
+                    const rows = tbody.querySelectorAll('tr[data-area]');
+                    rows.forEach(row => {
+                        const areaName = row.getAttribute('data-area');
+                        const dsVal = row.querySelector('.ds-select').value;
+                        const pocVal = row.querySelector('.poc-select').value;
+                        window.ElectricalEngine.areaMappings[areaName] = { ds: dsVal, poc: pocVal };
+                    });
+                }
+                
+                if (modal) modal.classList.add('hidden');
+                
+                if (window.ElectricalEngine && typeof window.ElectricalEngine.updatePowerDisplay === 'function') {
+                    window.ElectricalEngine.updatePowerDisplay();
+                }
+
+                if (window.SldEngine && typeof window.SldEngine.renderSld === 'function') {
+                    window.SldEngine.renderSld();
+                }
+                
+                if (window.AppAlert) {
+                    window.AppAlert("Area design configurations saved successfully.", "success");
+                }
+            });
+        }
+    },
+
+    updateStringSizing() {
+        // PV Params
+        const voc = parseFloat(document.getElementById('pv-voc')?.value) || 0;
+        const vmpp = parseFloat(document.getElementById('pv-vmpp')?.value) || 0;
+        const vocCoeff = parseFloat(document.getElementById('pv-voc-coeff')?.value) || -0.26;
+        const pmaxCoeff = parseFloat(document.getElementById('pv-pmax-coeff')?.value) || -0.34; // Used for Vmpp as proxy
+        
+        // Site Params
+        const tMin = parseFloat(document.getElementById('site-temp-min')?.value) || -5;
+        const tMax = parseFloat(document.getElementById('site-temp-max')?.value) || 50;
+        
+        // Inverter Params
+        const invVmax = parseFloat(document.getElementById('inv-vmax-dc')?.value) || 1100;
+        const invVmppMin = parseFloat(document.getElementById('inv-vmpp-min')?.value) || 180;
+        const invVmppMax = parseFloat(document.getElementById('inv-vmpp-max')?.value) || 1000;
+        
+        // Sizing
+        const nMods = parseInt(document.getElementById('inv-mods-str')?.value) || 0;
+        
+        const statusEl = document.getElementById('string-sizing-status');
+        const detailsEl = document.getElementById('string-sizing-details');
+        const boxEl = document.getElementById('string-sizing-box');
+        
+        if (!voc || !nMods || !statusEl || !detailsEl) return;
+        
+        // IEC Calculations
+        // Voc at Min Temp (Max Voltage)
+        const vMaxString = nMods * voc * (1 + (vocCoeff * (tMin - 25)) / 100);
+        // Vmpp at Max Temp (Min Voltage) - using Pmax coeff as Vmpp coeff proxy if not specific
+        const vMinString = nMods * vmpp * (1 + (pmaxCoeff * (tMax - 25)) / 100);
+        
+        const isUpperOk = vMaxString <= invVmax;
+        const isLowerOk = vMinString >= invVmppMin && vMinString <= invVmppMax;
+        
+        const isCorrect = isUpperOk && isLowerOk;
+        this.isSizingCorrect = isCorrect;
+        
+        // Update UI
+        if (isCorrect) {
+            statusEl.innerHTML = `<i data-lucide="check-circle" style="width: 14px; height: 14px; color: #16a34a;"></i><span style="color: #16a34a;">Sizing Correct</span>`;
+            if (boxEl) {
+                boxEl.style.borderColor = '#bbf7d0';
+                boxEl.style.background = '#f0fdf4';
+            }
+        } else {
+            statusEl.innerHTML = `<i data-lucide="x-circle" style="width: 14px; height: 14px; color: #dc2626;"></i><span style="color: #dc2626;">Sizing Conflict</span>`;
+            if (boxEl) {
+                boxEl.style.borderColor = '#fecaca';
+                boxEl.style.background = '#fef2f2';
+            }
+        }
+        
+        let details = `• <b>Max Voltage (Cold):</b> ${vMaxString.toFixed(1)}V (Limit ${invVmax}V) ${isUpperOk ? '✅' : '❌'}<br>`;
+        details += `• <b>Min Voltage (Hot):</b> ${vMinString.toFixed(1)}V (Min ${invVmppMin}V) ${isLowerOk ? '✅' : '❌'}`;
+        
+        detailsEl.innerHTML = details;
+        if (window.lucide) lucide.createIcons();
     },
 
     toggleSldWindow(show) {
