@@ -81,6 +81,24 @@ const BoQEngine = {
     ],
 
     systemKwp: 0,
+    foundationBreakdown: [
+        { name: 'Piles Option 1 - Driving/Ramming into the ground', percent: 100, cost: 20 },
+        { name: 'Piles Option 2 - Pre-drilling and Driving', percent: 0, cost: 35 },
+        { name: 'Piles Option 3 - Screwing into the ground', percent: 0, cost: 50 },
+        { name: 'Piles Option 4 - Pre-drilling + Screwing', percent: 0, cost: 70 },
+        { name: 'Piles Option 5 - Pre-Drill + Concrete', percent: 0, cost: 100 },
+        { name: 'Piles Option 6 - Concrete Slabs', percent: 0, cost: 150 },
+    ],
+    mountingBreakdown: [
+        { name: 'Ground Single axis Tracking', percent: 100, supplyCost: 75, installCost: 25 },
+        { name: 'Ground Fixed', percent: 0, supplyCost: 45, installCost: 15 },
+        { name: 'Rooftop Canopy', percent: 0, supplyCost: 100, installCost: 30 },
+        { name: 'Rooftop Flushed/Metalic Roof', percent: 0, supplyCost: 20, installCost: 15 },
+        { name: 'Rooftop Triangles Single Side', percent: 0, supplyCost: 25, installCost: 15 },
+        { name: 'Rooftop Triangles Two Side', percent: 0, supplyCost: 30, installCost: 15 },
+        { name: 'Car Parking', percent: 0, supplyCost: 120, installCost: 40 },
+        { name: 'Free Drawing', percent: 0, supplyCost: 0, installCost: 0 },
+    ],
 
     init() {
         const btnBoq = document.getElementById('btn-view-boq');
@@ -178,7 +196,29 @@ const BoQEngine = {
         const mountingItem = this.data.find(d => d.id === 'mounting');
         if (mountingItem) {
             mountingItem.description = mountName;
-            mountingItem.qty = totalKwp;
+            if (!mountingItem.manualQty) {
+                mountingItem.qty = totalKwp;
+            }
+            let blendedSupplyCost = 0;
+            let blendedInstallCost = 0;
+            this.mountingBreakdown.forEach(opt => {
+                blendedSupplyCost += (opt.percent / 100) * opt.supplyCost;
+                blendedInstallCost += (opt.percent / 100) * opt.installCost;
+            });
+            mountingItem.supplyPrice = blendedSupplyCost;
+            mountingItem.installPrice = blendedInstallCost;
+        }
+
+        const foundationsItem = this.data.find(d => d.id === 'foundations');
+        if (foundationsItem) {
+            if (!foundationsItem.manualQty) {
+                foundationsItem.qty = Math.ceil(totalKwp / 10);
+            }
+            let blendedInstallCost = 0;
+            this.foundationBreakdown.forEach(opt => {
+                blendedInstallCost += (opt.percent / 100) * opt.cost;
+            });
+            foundationsItem.installPrice = blendedInstallCost;
         }
 
         // Auto calculate subtotals from subItems if applicable
@@ -276,6 +316,15 @@ const BoQEngine = {
     },
 
     showSubBoq(item) {
+        if (item.id === 'foundations') {
+            this.openFoundationsModal(item);
+            return;
+        }
+        if (item.id === 'mounting') {
+            this.openMountingModal(item);
+            return;
+        }
+        
         document.getElementById('sub-boq-title').innerText = item.item + ' - Detailed BoQ';
         const tbody = document.getElementById('sub-boq-tbody');
         tbody.innerHTML = '';
@@ -362,6 +411,213 @@ const BoQEngine = {
             // Re-render main table in background
             this.renderMainTable();
         }
+    },
+
+    openFoundationsModal(item) {
+        this.currentFoundationsItem = item;
+        const tbody = document.getElementById('foundations-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        const qtyInput = document.getElementById('foundations-qty-input');
+        if (qtyInput) qtyInput.value = item.qty;
+
+        this.foundationBreakdown.forEach((opt, idx) => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #f1f5f9';
+            tr.innerHTML = `
+                <td style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9;">${opt.name}</td>
+                <td style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9;">
+                    <input type="number" value="${opt.percent}" min="0" max="100" step="1" class="modern-input" style="width: 70px; padding: 0.2rem 0.4rem; font-size: 0.8rem; height: 2rem;" 
+                        onchange="BoQEngine.updateFoundation(${idx}, 'percent', this.value)">
+                </td>
+                <td id="foundation-qty-${idx}" style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9; text-align: right;">0</td>
+                <td style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9;">
+                    <span style="font-size: 0.8rem; color: #64748b;">$</span><input type="number" value="${opt.cost}" min="0" step="any" class="modern-input" style="width: 80px; padding: 0.2rem 0.4rem; font-size: 0.8rem; height: 2rem;"
+                        onchange="BoQEngine.updateFoundation(${idx}, 'cost', this.value)">
+                </td>
+                <td id="foundation-total-${idx}" style="padding: 0.35rem 0.6rem; text-align: right; font-weight: 600;">$0.00</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        this.updateFoundationsTotal();
+        document.getElementById('foundations-modal').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    },
+
+    updateFoundation(idx, field, value) {
+        this.foundationBreakdown[idx][field] = parseFloat(value) || 0;
+        this.updateFoundationsTotal();
+    },
+
+    updateFoundationsQty(val) {
+        if (this.currentFoundationsItem) {
+            this.currentFoundationsItem.qty = parseInt(val) || 0;
+            this.currentFoundationsItem.manualQty = true;
+            this.updateFoundationsTotal();
+        }
+    },
+
+    updateFoundationsTotal() {
+        let totalPercent = 0;
+        let totalQty = 0;
+        let totalPrice = 0;
+        const totalBases = this.currentFoundationsItem ? this.currentFoundationsItem.qty : 0;
+        
+        this.foundationBreakdown.forEach((opt, idx) => { 
+            totalPercent += opt.percent; 
+            const qty = Math.round(totalBases * (opt.percent / 100));
+            totalQty += qty;
+            const price = qty * opt.cost;
+            totalPrice += price;
+            
+            const qtyCell = document.getElementById(`foundation-qty-${idx}`);
+            if (qtyCell) qtyCell.textContent = qty.toLocaleString();
+            
+            const totalCell = document.getElementById(`foundation-total-${idx}`);
+            if (totalCell) totalCell.textContent = this.formatCurrency(price);
+        });
+        
+        const spanP = document.getElementById('foundations-total-percent');
+        if (spanP) {
+            spanP.textContent = `${totalPercent}%`;
+            spanP.style.color = totalPercent === 100 ? '#10b981' : '#ef4444';
+        }
+        
+        const spanQ = document.getElementById('foundations-total-qty');
+        if (spanQ) spanQ.textContent = totalQty.toLocaleString();
+        
+        const spanT = document.getElementById('foundations-total-price');
+        if (spanT) spanT.textContent = this.formatCurrency(totalPrice);
+    },
+
+    saveFoundationsBreakdown() {
+        let blendedInstallCost = 0;
+        let totalPercent = 0;
+        this.foundationBreakdown.forEach(opt => {
+            totalPercent += opt.percent;
+            blendedInstallCost += (opt.percent / 100) * opt.cost;
+        });
+        
+        if (totalPercent !== 100) {
+            alert("Percentages must sum up to exactly 100%.");
+            return;
+        }
+
+        if (this.currentFoundationsItem) {
+            this.currentFoundationsItem.installPrice = blendedInstallCost;
+        }
+        
+        document.getElementById('foundations-modal').classList.add('hidden');
+        this.renderMainTable();
+    },
+
+    openMountingModal(item) {
+        this.currentMountingItem = item;
+        const tbody = document.getElementById('mounting-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        const qtyInput = document.getElementById('mounting-qty-input');
+        if (qtyInput) qtyInput.value = item.qty;
+
+        this.mountingBreakdown.forEach((opt, idx) => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #f1f5f9';
+            tr.innerHTML = `
+                <td style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9;">${opt.name}</td>
+                <td style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9;">
+                    <input type="number" value="${opt.percent}" min="0" max="100" step="1" class="modern-input" style="width: 70px; padding: 0.2rem 0.4rem; font-size: 0.8rem; height: 2rem;" 
+                        onchange="BoQEngine.updateMounting(${idx}, 'percent', this.value)">
+                </td>
+                <td id="mounting-qty-${idx}" style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9; text-align: right;">0</td>
+                <td style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9;">
+                    <span style="font-size: 0.8rem; color: #64748b;">$</span><input type="number" value="${opt.supplyCost}" min="0" step="any" class="modern-input" style="width: 80px; padding: 0.2rem 0.4rem; font-size: 0.8rem; height: 2rem;"
+                        onchange="BoQEngine.updateMounting(${idx}, 'supplyCost', this.value)">
+                </td>
+                <td style="padding: 0.35rem 0.6rem; border-right: 1px solid #f1f5f9;">
+                    <span style="font-size: 0.8rem; color: #64748b;">$</span><input type="number" value="${opt.installCost}" min="0" step="any" class="modern-input" style="width: 80px; padding: 0.2rem 0.4rem; font-size: 0.8rem; height: 2rem;"
+                        onchange="BoQEngine.updateMounting(${idx}, 'installCost', this.value)">
+                </td>
+                <td id="mounting-total-${idx}" style="padding: 0.35rem 0.6rem; text-align: right; font-weight: 600;">$0.00</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        this.updateMountingTotal();
+        document.getElementById('mounting-modal').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    },
+
+    updateMounting(idx, field, value) {
+        this.mountingBreakdown[idx][field] = parseFloat(value) || 0;
+        this.updateMountingTotal();
+    },
+
+    updateMountingQty(val) {
+        if (this.currentMountingItem) {
+            this.currentMountingItem.qty = parseFloat(val) || 0;
+            this.currentMountingItem.manualQty = true;
+            this.updateMountingTotal();
+        }
+    },
+
+    updateMountingTotal() {
+        let totalPercent = 0;
+        let totalQty = 0;
+        let totalPrice = 0;
+        const totalCap = this.currentMountingItem ? this.currentMountingItem.qty : 0;
+        
+        this.mountingBreakdown.forEach((opt, idx) => { 
+            totalPercent += opt.percent; 
+            const qty = totalCap * (opt.percent / 100);
+            totalQty += qty;
+            const price = qty * (opt.supplyCost + opt.installCost);
+            totalPrice += price;
+            
+            const qtyCell = document.getElementById(`mounting-qty-${idx}`);
+            if (qtyCell) qtyCell.textContent = qty.toLocaleString(undefined, {maximumFractionDigits: 1});
+            
+            const totalCell = document.getElementById(`mounting-total-${idx}`);
+            if (totalCell) totalCell.textContent = this.formatCurrency(price);
+        });
+        
+        const spanP = document.getElementById('mounting-total-percent');
+        if (spanP) {
+            spanP.textContent = `${totalPercent}%`;
+            spanP.style.color = totalPercent === 100 ? '#10b981' : '#ef4444';
+        }
+        
+        const spanQ = document.getElementById('mounting-total-qty');
+        if (spanQ) spanQ.textContent = totalQty.toLocaleString(undefined, {maximumFractionDigits: 1});
+        
+        const spanT = document.getElementById('mounting-total-price');
+        if (spanT) spanT.textContent = this.formatCurrency(totalPrice);
+    },
+
+    saveMountingBreakdown() {
+        let blendedSupplyCost = 0;
+        let blendedInstallCost = 0;
+        let totalPercent = 0;
+        this.mountingBreakdown.forEach(opt => {
+            totalPercent += opt.percent;
+            blendedSupplyCost += (opt.percent / 100) * opt.supplyCost;
+            blendedInstallCost += (opt.percent / 100) * opt.installCost;
+        });
+        
+        if (totalPercent !== 100) {
+            alert("Percentages must sum up to exactly 100%.");
+            return;
+        }
+
+        if (this.currentMountingItem) {
+            this.currentMountingItem.supplyPrice = blendedSupplyCost;
+            this.currentMountingItem.installPrice = blendedInstallCost;
+        }
+        
+        document.getElementById('mounting-modal').classList.add('hidden');
+        this.renderMainTable();
     },
 
     formatCurrency(val) {
